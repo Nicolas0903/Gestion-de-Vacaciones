@@ -1,0 +1,25 @@
+# Configuración del Servidor Backend
+# Copiar este archivo como backend/.env en producción
+
+NODE_ENV=production
+PORT=3002
+
+# Base de Datos PostgreSQL (Render te dará estos valores)
+DB_HOST=tu-host-de-render.com
+DB_PORT=5432
+DB_USER=tu_usuario
+DB_PASSWORD=tu_password_seguro
+DB_NAME=gestor_vacaciones
+
+# JWT Secret (Generar uno nuevo y seguro)
+JWT_SECRET=tu_secreto_super_seguro_cambiar_en_produccion
+
+# Frontend URL (para CORS)
+FRONTEND_URL=https://tu-app-frontend.onrender.com
+
+# Email (Opcional - configurar después)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=tu-email@gmail.com
+EMAIL_PASSWORD=tu_password_de_aplicacion
+EMAIL_FROM=noreply@prayaga.biz

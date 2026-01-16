@@ -1,0 +1,5 @@
+# Configuración del Frontend
+# Copiar este archivo como frontend/.env en producción
+
+# API Backend URL (La URL que Render te asigne para el backend)
+REACT_APP_API_URL=https://tu-backend.onrender.com/api
