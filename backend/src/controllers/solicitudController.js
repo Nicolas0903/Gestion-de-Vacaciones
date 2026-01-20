@@ -106,12 +106,13 @@ const enviar = async (req, res) => {
       });
     }
 
-    // Cambiar estado a pendiente_jefe
-    await SolicitudVacaciones.enviar(parseInt(id));
-
-    // Crear registro de aprobación para el jefe
+    // Determinar flujo de aprobación según si tiene jefe directo
     const empleado = await Empleado.buscarPorId(req.usuario.id);
+    
     if (empleado.jefe_id) {
+      // Tiene jefe directo: pasar a pendiente_jefe
+      await SolicitudVacaciones.actualizarEstado(parseInt(id), 'pendiente_jefe');
+      
       await Aprobacion.crear({
         solicitud_id: parseInt(id),
         aprobador_id: empleado.jefe_id,
@@ -120,6 +121,21 @@ const enviar = async (req, res) => {
 
       // Notificar al jefe
       await Notificacion.notificarSolicitudEnviada(parseInt(id), req.usuario.id, empleado.jefe_id);
+    } else {
+      // NO tiene jefe directo: ir directo a contadora (Rocío)
+      await SolicitudVacaciones.actualizarEstado(parseInt(id), 'pendiente_contadora');
+      
+      const contadoras = await Empleado.obtenerPorRol('contadora');
+      if (contadoras.length > 0) {
+        await Aprobacion.crear({
+          solicitud_id: parseInt(id),
+          aprobador_id: contadoras[0].id,
+          tipo_aprobacion: 'contadora'
+        });
+
+        // Notificar a la contadora
+        await Notificacion.notificarSolicitudEnviada(parseInt(id), req.usuario.id, contadoras[0].id);
+      }
     }
 
     res.json({
