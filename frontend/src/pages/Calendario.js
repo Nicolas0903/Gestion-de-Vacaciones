@@ -69,7 +69,7 @@ const Calendario = () => {
       const eventosFormateados = res.data.data.map(solicitud => ({
         id: solicitud.id,
         title: `${solicitud.nombres} ${solicitud.apellidos}`,
-        start: new Date(solicitud.fecha_inicio_vacaciones),
+        start: new Date(solicitud.fecha_inicio_vacaciones + 'T12:00:00'),
         end: new Date(solicitud.fecha_fin_vacaciones + 'T23:59:59'),
         resource: solicitud,
         estado: solicitud.estado
