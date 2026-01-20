@@ -77,10 +77,10 @@ async function crearNicolas() {
        (codigo_empleado, nombres, apellidos, dni, email, password, cargo, fecha_ingreso, rol_id) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE password = VALUES(password)`,
-      ['JEF001', 'Enrique Agapito', 'Sevillano', '12345678', 'enrique.sevillano@prayaga.biz', 
-       jefePassword, 'Jefe de Operaciones', '2020-01-01', 3] // rol 3 = jefe_operaciones
+      ['JEF001', 'Enrique', 'Agapito Sevillano', '45678901', 'enrique.agapito@prayaga.biz', 
+       jefePassword, 'Jefe de Operaciones', '2017-08-01', 3] // rol 3 = jefe_operaciones
     );
-    console.log('✅ Jefe de Operaciones creado (enrique.sevillano@prayaga.biz / Jefe2024)');
+    console.log('✅ Jefe de Operaciones creado (enrique.agapito@prayaga.biz / Jefe2024)');
 
     // 6. Crear Contadora para flujo de aprobación
     const contadoraPassword = await bcrypt.hash('Conta2024', 10);
@@ -95,7 +95,7 @@ async function crearNicolas() {
     console.log('✅ Contadora creada (rocio.picon@prayaga.biz / Conta2024)');
 
     // 7. Actualizar jefe de Nicolas
-    const [jefes] = await pool.execute('SELECT id FROM empleados WHERE email = ?', ['enrique.sevillano@prayaga.biz']);
+    const [jefes] = await pool.execute('SELECT id FROM empleados WHERE email = ?', ['enrique.agapito@prayaga.biz']);
     if (jefes.length > 0) {
       await pool.execute('UPDATE empleados SET jefe_id = ? WHERE id = ?', [jefes[0].id, empleadoId]);
       console.log('✅ Jefe asignado a Nicolas');
@@ -114,7 +114,7 @@ async function crearNicolas() {
     console.log('   Días disponibles: 11');
     console.log('');
     console.log('👔 JEFE DE OPERACIONES:');
-    console.log('   Email: enrique.sevillano@prayaga.biz');
+    console.log('   Email: enrique.agapito@prayaga.biz');
     console.log('   Contraseña: Jefe2024');
     console.log('');
     console.log('💼 CONTADORA:');

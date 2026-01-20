@@ -60,7 +60,7 @@ async function crearMagali() {
        cargo = VALUES(cargo),
        rol_id = VALUES(rol_id),
        jefe_id = VALUES(jefe_id)`,
-      ['MAGA001', 'Magali', 'Sevillano', '12345678', 'magali.sevillano@prayaga.biz', 
+      ['MAGA001', 'Magali', 'Sevillano', '40567123', 'magali.sevillano@prayaga.biz', 
        hashedPassword, 'Gerente General', '2010-06-08', rolId, jefeId]
     );
     console.log('✓ Empleado Magali Sevillano creado/actualizado\n');
@@ -70,6 +70,12 @@ async function crearMagali() {
       'SELECT id FROM empleados WHERE email = ?',
       ['magali.sevillano@prayaga.biz']
     );
+
+    if (magaliResult.length === 0) {
+      console.error('❌ Error: No se pudo crear o encontrar a Magali en la base de datos.');
+      console.error('Verifica que Rocío (rocio.picon@prayaga.biz) exista primero.');
+      process.exit(1);
+    }
 
     const magaliId = magaliResult[0].id;
     console.log(`✓ Magali ID: ${magaliId}\n`);
