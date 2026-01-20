@@ -209,7 +209,7 @@ class PDFService {
         doc.rect(380, aprobY, 165, 24).fillAndStroke('#fee2e2', '#fca5a5');
 
         doc.fillColor('#1e40af').text('Solicitado Por', 55, aprobY + 7, { width: 155 });
-        doc.fillColor('#166534').text('Aprobado Por (Jefe)', 220, aprobY + 7, { width: 155 });
+        doc.fillColor('#166534').text('Aprobado Por', 220, aprobY + 7, { width: 155 });
         doc.fillColor('#991b1b').text('Recibido Por (RRHH)', 385, aprobY + 7, { width: 155 });
 
         // Datos de aprobación
@@ -230,12 +230,12 @@ class PDFService {
         doc.font('Helvetica-Bold').text('Firma:', 55, aprobDatosY + 56);
         doc.rect(55, aprobDatosY + 68, 100, 1).stroke('#94a3b8');
 
-        // Aprobado por (jefe)
+        // Aprobado por (jefe directo si existe, sino queda vacío)
         const aprobacionJefe = aprobaciones.find(a => a.tipo_aprobacion === 'jefe');
         doc.font('Helvetica-Bold').text('Nombre:', 220, aprobDatosY + 8);
         doc.font('Helvetica').text(aprobacionJefe ? `${aprobacionJefe.aprobador_nombres} ${aprobacionJefe.aprobador_apellidos}` : '________________', 260, aprobDatosY + 8, { width: 115 });
         doc.font('Helvetica-Bold').text('Cargo:', 220, aprobDatosY + 24);
-        doc.font('Helvetica').text(aprobacionJefe?.aprobador_cargo || 'Jefe de Operaciones', 250, aprobDatosY + 24, { width: 125 });
+        doc.font('Helvetica').text(aprobacionJefe?.aprobador_cargo || '________________', 250, aprobDatosY + 24, { width: 125 });
         doc.font('Helvetica-Bold').text('Fecha:', 220, aprobDatosY + 40);
         doc.font('Helvetica').text(aprobacionJefe?.fecha_accion ? moment(aprobacionJefe.fecha_accion).format('DD/MM/YYYY') : '____/____/____', 250, aprobDatosY + 40);
         doc.font('Helvetica-Bold').text('Firma:', 220, aprobDatosY + 56);
