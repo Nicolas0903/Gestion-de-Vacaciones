@@ -314,21 +314,25 @@ const listarMias = async (req, res) => {
 // Listar pendientes de aprobación
 const listarPendientesAprobacion = async (req, res) => {
   try {
-    let tipoAprobacion;
-    if (req.usuario.rol_nombre === 'jefe_operaciones' || req.usuario.nivel_aprobacion === 1) {
-      tipoAprobacion = 'jefe';
-    } else if (req.usuario.rol_nombre === 'contadora' || req.usuario.nivel_aprobacion === 2) {
-      tipoAprobacion = 'contadora';
-    } else if (req.usuario.rol_nombre === 'admin') {
-      // Admin puede ver todas
+    // Admin puede ver todas
+    if (req.usuario.rol_nombre === 'admin') {
       const solicitudes = await SolicitudVacaciones.listarTodas({ 
         estado: req.query.estado 
       });
       return res.json({ success: true, data: solicitudes });
+    }
+
+    // Determinar tipo de aprobación según rol
+    let tipoAprobacion;
+    if (req.usuario.rol_nombre === 'contadora' || req.usuario.nivel_aprobacion >= 2) {
+      tipoAprobacion = 'contadora';
+    } else if (req.usuario.nivel_aprobacion === 1 || req.usuario.rol_nombre === 'jefe_operaciones') {
+      tipoAprobacion = 'jefe';
     } else {
       return res.json({ success: true, data: [] });
     }
 
+    // IMPORTANTE: Solo mostrar solicitudes donde este usuario es el aprobador asignado
     const solicitudes = await SolicitudVacaciones.listarPendientesAprobacion(
       req.usuario.id, tipoAprobacion
     );

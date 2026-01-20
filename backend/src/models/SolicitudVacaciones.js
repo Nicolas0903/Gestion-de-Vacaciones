@@ -71,6 +71,7 @@ class SolicitudVacaciones {
       estadoRequerido = 'pendiente_contadora';
     }
 
+    // IMPORTANTE: Filtrar solo las solicitudes donde este usuario es el aprobador asignado
     const [rows] = await pool.execute(
       `SELECT sv.*, 
               e.codigo_empleado, e.nombres, e.apellidos, e.cargo,
@@ -78,9 +79,13 @@ class SolicitudVacaciones {
        FROM solicitudes_vacaciones sv
        JOIN empleados e ON sv.empleado_id = e.id
        JOIN periodos_vacaciones pv ON sv.periodo_id = pv.id
+       JOIN aprobaciones a ON a.solicitud_id = sv.id
        WHERE sv.estado = ?
+         AND a.aprobador_id = ?
+         AND a.tipo_aprobacion = ?
+         AND a.estado = 'pendiente'
        ORDER BY sv.fecha_solicitud ASC`,
-      [estadoRequerido]
+      [estadoRequerido, aprobadorId, tipoAprobacion]
     );
     return rows;
   }
