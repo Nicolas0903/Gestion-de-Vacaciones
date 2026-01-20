@@ -119,7 +119,7 @@ const DetalleSolicitud = () => {
   const getEstadoInfo = (estado) => {
     const info = {
       borrador: { color: 'bg-slate-100 text-slate-600', texto: 'Borrador' },
-      pendiente_jefe: { color: 'bg-amber-100 text-amber-700', texto: 'Pendiente - Jefe de Operaciones' },
+      pendiente_jefe: { color: 'bg-amber-100 text-amber-700', texto: 'Pendiente - Jefe Directo' },
       pendiente_contadora: { color: 'bg-blue-100 text-blue-700', texto: 'Pendiente - Contadora' },
       aprobada: { color: 'bg-emerald-100 text-emerald-700', texto: 'Aprobada' },
       rechazada: { color: 'bg-rose-100 text-rose-700', texto: 'Rechazada' },
