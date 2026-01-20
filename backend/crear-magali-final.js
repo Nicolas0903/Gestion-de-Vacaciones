@@ -15,33 +15,33 @@ async function crearMagali() {
   try {
     console.log('🚀 Creando información CORRECTA de Magali Sevillano...\n');
 
-    // 1. Crear roles necesarios si no existen
-    const roles = [
-      { nombre: 'gerente_general', descripcion: 'Gerente General' },
-      { nombre: 'gerente_consultoria', descripcion: 'Gerente de Consultoría' },
-      { nombre: 'consultor', descripcion: 'Consultor' },
-      { nombre: 'contador', descripcion: 'Contador' },
-      { nombre: 'analista_senior', descripcion: 'Analista Senior' },
-      { nombre: 'comercial', descripcion: 'Comercial' }
-    ];
-
-    for (const rol of roles) {
-      await pool.execute(
-        'INSERT INTO roles (nombre, descripcion) VALUES (?, ?) ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion)',
-        [rol.nombre, rol.descripcion]
-      );
-    }
-    console.log('✓ Roles creados/verificados\n');
-
-    // 2. Crear empleado Magali Sevillano
-    const hashedPassword = await bcrypt.hash('Magali2024', 10);
+    // 1. Verificar/crear roles necesarios
+    console.log('🔍 Verificando roles...');
     
-    // Obtener ID del rol gerente_general
-    const [roleResult] = await pool.execute(
+    // Obtener ID del rol gerente_general (debería existir ya)
+    let [roleResult] = await pool.execute(
       'SELECT id FROM roles WHERE nombre = ?',
       ['gerente_general']
     );
+    
+    // Si no existe, crearlo
+    if (roleResult.length === 0) {
+      await pool.execute(
+        'INSERT INTO roles (nombre, descripcion) VALUES (?, ?)',
+        ['gerente_general', 'Gerente General']
+      );
+      [roleResult] = await pool.execute(
+        'SELECT id FROM roles WHERE nombre = ?',
+        ['gerente_general']
+      );
+    }
+    
     const rolId = roleResult[0].id;
+    console.log(`✓ Rol gerente_general ID: ${rolId}\n`);
+
+    // 2. Crear empleado Magali Sevillano
+    console.log('👤 Creando empleado Magali Sevillano...');
+    const hashedPassword = await bcrypt.hash('Magali2024', 10);
 
     // Obtener ID de Rocío (contadora) como jefe
     const [rocioResult] = await pool.execute(
