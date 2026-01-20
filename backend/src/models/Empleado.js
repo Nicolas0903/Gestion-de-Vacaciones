@@ -167,6 +167,15 @@ class Empleado {
     );
     return result.affectedRows > 0;
   }
+
+  // Actualizar contraseña
+  static async actualizarPassword(id, passwordHash) {
+    const [result] = await pool.execute(
+      'UPDATE empleados SET password = ? WHERE id = ?',
+      [passwordHash, id]
+    );
+    return result.affectedRows > 0;
+  }
 }
 
 module.exports = Empleado;

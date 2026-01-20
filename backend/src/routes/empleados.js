@@ -11,6 +11,9 @@ router.get('/', empleadoController.listar);
 router.get('/:id', empleadoController.obtener);
 router.get('/:id/subordinados', empleadoController.obtenerSubordinados);
 
+// Cambiar contraseña (cualquier usuario autenticado)
+router.put('/me/cambiar-password', empleadoController.cambiarPassword);
+
 // Solo admin puede crear, actualizar, desactivar
 router.post('/', verificarRol('admin'), empleadoController.crear);
 router.put('/:id', verificarRol('admin'), empleadoController.actualizar);

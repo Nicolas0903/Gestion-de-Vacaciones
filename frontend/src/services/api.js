@@ -48,6 +48,12 @@ export const empleadoService = {
   desactivar: (id) => api.put(`/empleados/${id}/desactivar`),
   reactivar: (id) => api.put(`/empleados/${id}/reactivar`),
   obtenerSubordinados: (id) => api.get(`/empleados/${id}/subordinados`),
+  cambiarPassword: (passwordActual, passwordNueva, passwordConfirmacion) => 
+    api.put('/empleados/me/cambiar-password', { 
+      password_actual: passwordActual, 
+      password_nueva: passwordNueva,
+      password_confirmacion: passwordConfirmacion 
+    }),
 };
 
 // Solicitudes

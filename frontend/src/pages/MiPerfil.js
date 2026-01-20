@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { periodoService, authService } from '../services/api';
+import { periodoService, empleadoService } from '../services/api';
 import Button from '../components/Button';
 import { StatCard } from '../components/Card';
 import toast from 'react-hot-toast';
@@ -66,7 +66,11 @@ const MiPerfil = () => {
 
     try {
       setSavingPassword(true);
-      await authService.cambiarPassword(passwordData.passwordActual, passwordData.passwordNuevo);
+      await empleadoService.cambiarPassword(
+        passwordData.passwordActual, 
+        passwordData.passwordNuevo, 
+        passwordData.confirmarPassword
+      );
       toast.success('Contraseña actualizada correctamente');
       setShowPasswordModal(false);
       setPasswordData({ passwordActual: '', passwordNuevo: '', confirmarPassword: '' });
