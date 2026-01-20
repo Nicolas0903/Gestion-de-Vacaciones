@@ -15,19 +15,64 @@ async function crearMagali() {
   try {
     console.log('🚀 Creando información CORRECTA de Magali Sevillano...\n');
 
-    // Obtener ID de Magali
+    // 1. Crear roles necesarios si no existen
+    const roles = [
+      { nombre: 'gerente_general', descripcion: 'Gerente General' },
+      { nombre: 'gerente_consultoria', descripcion: 'Gerente de Consultoría' },
+      { nombre: 'consultor', descripcion: 'Consultor' },
+      { nombre: 'contador', descripcion: 'Contador' },
+      { nombre: 'analista_senior', descripcion: 'Analista Senior' },
+      { nombre: 'comercial', descripcion: 'Comercial' }
+    ];
+
+    for (const rol of roles) {
+      await pool.execute(
+        'INSERT INTO roles (nombre, descripcion) VALUES (?, ?) ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion)',
+        [rol.nombre, rol.descripcion]
+      );
+    }
+    console.log('✓ Roles creados/verificados\n');
+
+    // 2. Crear empleado Magali Sevillano
+    const hashedPassword = await bcrypt.hash('Magali2024', 10);
+    
+    // Obtener ID del rol gerente_general
+    const [roleResult] = await pool.execute(
+      'SELECT id FROM roles WHERE nombre = ?',
+      ['gerente_general']
+    );
+    const rolId = roleResult[0].id;
+
+    // Obtener ID de Rocío (contadora) como jefe
+    const [rocioResult] = await pool.execute(
+      'SELECT id FROM empleados WHERE email = ?',
+      ['rocio.picon@prayaga.biz']
+    );
+    const jefeId = rocioResult.length > 0 ? rocioResult[0].id : null;
+
+    await pool.execute(
+      `INSERT INTO empleados 
+       (codigo_empleado, nombres, apellidos, dni, email, password, cargo, fecha_ingreso, rol_id, jefe_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE 
+       nombres = VALUES(nombres), 
+       apellidos = VALUES(apellidos),
+       cargo = VALUES(cargo),
+       rol_id = VALUES(rol_id),
+       jefe_id = VALUES(jefe_id)`,
+      ['MAGA001', 'Magali', 'Sevillano', '12345678', 'magali.sevillano@prayaga.biz', 
+       hashedPassword, 'Gerente General', '2010-06-08', rolId, jefeId]
+    );
+    console.log('✓ Empleado Magali Sevillano creado/actualizado\n');
+
+    // 3. Obtener ID de Magali
     const [magaliResult] = await pool.execute(
       'SELECT id FROM empleados WHERE email = ?',
       ['magali.sevillano@prayaga.biz']
     );
-    
-    if (magaliResult.length === 0) {
-      console.error('❌ Magali no encontrada. Ejecuta crear-magali.js primero.');
-      process.exit(1);
-    }
 
     const magaliId = magaliResult[0].id;
-    console.log(`✓ Magali encontrada con ID: ${magaliId}\n`);
+    console.log(`✓ Magali ID: ${magaliId}\n`);
 
     // LIMPIAR DATOS ANTERIORES
     console.log('🧹 Limpiando datos anteriores...');
