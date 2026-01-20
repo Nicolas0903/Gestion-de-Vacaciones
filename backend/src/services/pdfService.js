@@ -59,12 +59,14 @@ class PDFService {
         // Título del documento
         doc.fontSize(16).font('Helvetica-Bold')
            .fillColor('#1e293b')
-           .text('SOLICITUD DE VACACIONES', { align: 'center' });
+           .text('SOLICITUD DE VACACIONES', 50, doc.y, { align: 'center', width: 495 });
+        
+        doc.moveDown(0.5);
         
         // Número de solicitud
         doc.fontSize(10).font('Helvetica')
            .fillColor('#64748b')
-           .text(`N° ${String(solicitud.id).padStart(6, '0')}`, { align: 'center' });
+           .text(`N° ${String(solicitud.id).padStart(6, '0')}`, 50, doc.y, { align: 'center', width: 495 });
 
         doc.moveDown(1);
 
