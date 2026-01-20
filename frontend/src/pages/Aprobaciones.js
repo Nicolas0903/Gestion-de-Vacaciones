@@ -69,8 +69,8 @@ const Aprobaciones = () => {
   };
 
   const getEstadoTexto = (estado) => {
-    if (estado === 'pendiente_jefe') return 'Pendiente Jefe';
-    if (estado === 'pendiente_contadora') return 'Pendiente Contadora';
+    if (estado === 'pendiente_jefe') return 'Pendiente de Aprobación';
+    if (estado === 'pendiente_contadora') return 'Pendiente de Aprobación';
     return estado;
   };
 

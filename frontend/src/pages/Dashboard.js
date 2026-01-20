@@ -64,8 +64,8 @@ const Dashboard = () => {
   const getEstadoTexto = (estado) => {
     const textos = {
       borrador: 'Borrador',
-      pendiente_jefe: 'Pendiente Jefe',
-      pendiente_contadora: 'Pendiente Contadora',
+      pendiente_jefe: 'Pendiente de Aprobación',
+      pendiente_contadora: 'Pendiente de Aprobación',
       aprobada: 'Aprobada',
       rechazada: 'Rechazada',
       cancelada: 'Cancelada'

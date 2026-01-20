@@ -69,8 +69,8 @@ const MisSolicitudes = () => {
   const getEstadoTexto = (estado) => {
     const textos = {
       borrador: 'Borrador',
-      pendiente_jefe: 'Pendiente Jefe',
-      pendiente_contadora: 'Pendiente Contadora',
+      pendiente_jefe: 'Pendiente de Aprobación',
+      pendiente_contadora: 'Pendiente de Aprobación',
       aprobada: 'Aprobada',
       rechazada: 'Rechazada',
       cancelada: 'Cancelada'
@@ -103,8 +103,7 @@ const MisSolicitudes = () => {
         >
           <option value="">Todos los estados</option>
           <option value="borrador">Borrador</option>
-          <option value="pendiente_jefe">Pendiente Jefe</option>
-          <option value="pendiente_contadora">Pendiente Contadora</option>
+          <option value="pendiente_jefe">Pendiente de Aprobación</option>
           <option value="aprobada">Aprobada</option>
           <option value="rechazada">Rechazada</option>
           <option value="cancelada">Cancelada</option>

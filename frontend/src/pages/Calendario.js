@@ -223,8 +223,8 @@ const Calendario = () => {
 
   const getEstadoTexto = (estado) => {
     const textos = {
-      pendiente_jefe: 'Pendiente Jefe',
-      pendiente_contadora: 'Pendiente Contadora',
+      pendiente_jefe: 'Pendiente de Aprobación',
+      pendiente_contadora: 'Pendiente de Aprobación',
       aprobada: 'Aprobada'
     };
     return textos[estado] || estado;
