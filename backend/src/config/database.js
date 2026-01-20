@@ -11,7 +11,9 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 0
+  keepAliveInitialDelay: 0,
+  timezone: '+00:00', // UTC - Evita problemas de conversión de fechas
+  dateStrings: true   // Devuelve fechas como strings en lugar de objetos Date
 });
 
 // Función para probar la conexión
