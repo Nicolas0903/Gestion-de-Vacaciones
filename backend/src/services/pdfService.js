@@ -79,7 +79,7 @@ class PDFService {
         // ==========================================
         doc.fontSize(12).font('Helvetica-Bold')
            .fillColor('#0d9488')
-           .text('Datos del Empleado');
+           .text('Datos del Empleado', 50);
         
         doc.moveDown(0.5);
         
@@ -118,7 +118,7 @@ class PDFService {
         // ==========================================
         doc.fontSize(12).font('Helvetica-Bold')
            .fillColor('#0d9488')
-           .text('Información Sobre Vacaciones');
+           .text('Información Sobre Vacaciones', 50);
         
         doc.moveDown(0.5);
 
@@ -177,7 +177,7 @@ class PDFService {
         // ==========================================
         doc.fontSize(12).font('Helvetica-Bold')
            .fillColor('#0d9488')
-           .text('Observaciones');
+           .text('Observaciones', 50);
         doc.moveDown(0.3);
         
         const obsY = doc.y;
@@ -196,7 +196,7 @@ class PDFService {
         // ==========================================
         doc.fontSize(12).font('Helvetica-Bold')
            .fillColor('#0d9488')
-           .text('Proceso de Aprobación');
+           .text('Proceso de Aprobación', 50);
         
         doc.moveDown(0.5);
 
