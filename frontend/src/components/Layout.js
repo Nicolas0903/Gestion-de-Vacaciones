@@ -44,6 +44,7 @@ const Layout = () => {
 
   const menuItems = [
     { to: '/dashboard', icon: HomeIcon, label: 'Dashboard' },
+    { to: '/perfil', icon: UserCircleIcon, label: 'Mi Perfil' },
     { to: '/vacaciones-ganadas', icon: CalendarDaysIcon, label: 'Vacaciones Ganadas' },
     { to: '/mis-solicitudes', icon: DocumentTextIcon, label: 'Mis Solicitudes' },
     { to: '/nueva-solicitud', icon: PlusCircleIcon, label: 'Nueva Solicitud' },
