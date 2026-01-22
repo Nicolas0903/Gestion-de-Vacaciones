@@ -49,7 +49,19 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (err) {
-      const mensaje = err.response?.data?.mensaje || 'Error al iniciar sesión';
+      console.error('Error de login:', err);
+      let mensaje = 'Error al iniciar sesión';
+      
+      if (err.response?.data?.mensaje) {
+        mensaje = err.response.data.mensaje;
+      } else if (err.response?.status === 401) {
+        mensaje = 'Email o contraseña incorrectos';
+      } else if (err.response?.status === 404) {
+        mensaje = 'Servicio no disponible. Por favor intente más tarde.';
+      } else if (!err.response) {
+        mensaje = 'Error de conexión. Verifique su internet.';
+      }
+      
       setError(mensaje);
       return { success: false, mensaje };
     }
