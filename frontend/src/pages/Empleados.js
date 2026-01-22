@@ -8,7 +8,9 @@ import {
   MagnifyingGlassIcon,
   PencilIcon,
   XMarkIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  CalendarDaysIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -19,6 +21,10 @@ const Empleados = () => {
   const [busqueda, setBusqueda] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState(null);
+  const [showVacacionesModal, setShowVacacionesModal] = useState(false);
+  const [empleadoVacaciones, setEmpleadoVacaciones] = useState(null);
+  const [periodosVacaciones, setPeriodosVacaciones] = useState([]);
+  const [loadingVacaciones, setLoadingVacaciones] = useState(false);
   const [formData, setFormData] = useState({
     codigo_empleado: '',
     nombres: '',
@@ -127,6 +133,29 @@ const Empleados = () => {
 
   const jefes = empleados.filter(e => e.rol_nombre === 'jefe_operaciones' || e.rol_nombre === 'admin');
 
+  const handleVerVacaciones = async (empleado) => {
+    setEmpleadoVacaciones(empleado);
+    setShowVacacionesModal(true);
+    setLoadingVacaciones(true);
+    
+    try {
+      const res = await periodoService.porEmpleado(empleado.id);
+      setPeriodosVacaciones(res.data.data || []);
+    } catch (error) {
+      toast.error('Error al cargar vacaciones');
+      setPeriodosVacaciones([]);
+    } finally {
+      setLoadingVacaciones(false);
+    }
+  };
+
+  const calcularTotales = () => {
+    const totalGanados = periodosVacaciones.reduce((sum, p) => sum + (p.dias_correspondientes || 0), 0);
+    const totalGozados = periodosVacaciones.reduce((sum, p) => sum + (p.dias_gozados || 0), 0);
+    const totalPendientes = totalGanados - totalGozados;
+    return { totalGanados, totalGozados, totalPendientes };
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -201,22 +230,31 @@ const Empleados = () => {
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {empleado.fecha_ingreso && format(parseISO(empleado.fecha_ingreso), "d MMM yyyy", { locale: es })}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleEditar(empleado)}
-                          className="p-2 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-teal-50 transition-colors"
-                        >
-                          <PencilIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDesactivar(empleado.id)}
-                          className="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        >
-                          <XMarkIcon className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
+<td className="px-6 py-4">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <button
+                                          onClick={() => handleVerVacaciones(empleado)}
+                                          className="p-2 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                          title="Ver vacaciones"
+                                        >
+                                          <CalendarDaysIcon className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleEditar(empleado)}
+                                          className="p-2 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-teal-50 transition-colors"
+                                          title="Editar empleado"
+                                        >
+                                          <PencilIcon className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDesactivar(empleado.id)}
+                                          className="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                          title="Desactivar empleado"
+                                        >
+                                          <XMarkIcon className="w-5 h-5" />
+                                        </button>
+                                      </div>
+                                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -386,6 +424,128 @@ const Empleados = () => {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Vacaciones del Empleado */}
+      {showVacacionesModal && empleadoVacaciones && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-4xl my-8 animate-fadeIn max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-semibold">
+                  {empleadoVacaciones.nombres?.charAt(0)}{empleadoVacaciones.apellidos?.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">
+                    Vacaciones de {empleadoVacaciones.nombres} {empleadoVacaciones.apellidos}
+                  </h3>
+                  <p className="text-sm text-slate-500">{empleadoVacaciones.cargo} • {empleadoVacaciones.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowVacacionesModal(false); setEmpleadoVacaciones(null); setPeriodosVacaciones([]); }}
+                className="p-2 rounded-lg hover:bg-slate-100"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {loadingVacaciones ? (
+              <div className="flex items-center justify-center h-40">
+                <div className="animate-spin w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full"></div>
+              </div>
+            ) : (
+              <>
+                {/* Resumen */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 p-4 rounded-xl border border-teal-100">
+                    <p className="text-sm text-teal-600 font-medium">Total Ganados</p>
+                    <p className="text-2xl font-bold text-teal-700">{calcularTotales().totalGanados}</p>
+                    <p className="text-xs text-teal-500">{periodosVacaciones.length} períodos</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-violet-50 p-4 rounded-xl border border-purple-100">
+                    <p className="text-sm text-purple-600 font-medium">Total Gozados</p>
+                    <p className="text-2xl font-bold text-purple-700">{calcularTotales().totalGozados}</p>
+                    <p className="text-xs text-purple-500">Vacaciones tomadas</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-emerald-50 to-green-50 p-4 rounded-xl border border-emerald-100">
+                    <p className="text-sm text-emerald-600 font-medium">Días Pendientes</p>
+                    <p className="text-2xl font-bold text-emerald-700">{calcularTotales().totalPendientes}</p>
+                    <p className="text-xs text-emerald-500">Disponibles para usar</p>
+                  </div>
+                </div>
+
+                {/* Tabla de períodos */}
+                {periodosVacaciones.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500">
+                    <CalendarDaysIcon className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+                    <p>No hay períodos de vacaciones registrados</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Motivo</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Fecha Inicio</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Fecha Final</th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Días</th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Gozados</th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Pendientes</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Observaciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {periodosVacaciones.map((periodo) => (
+                          <tr key={periodo.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                periodo.estado === 'completado' ? 'bg-green-100 text-green-700' :
+                                periodo.estado === 'parcial' ? 'bg-amber-100 text-amber-700' :
+                                'bg-blue-100 text-blue-700'
+                              }`}>
+                                {periodo.estado === 'completado' ? 'Completado' :
+                                 periodo.estado === 'parcial' ? 'Parcial' : 'Pendiente'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-600">
+                              {periodo.fecha_inicio_periodo && format(parseISO(periodo.fecha_inicio_periodo), "dd/MM/yyyy", { locale: es })}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-600">
+                              {periodo.fecha_fin_periodo && format(parseISO(periodo.fecha_fin_periodo), "dd/MM/yyyy", { locale: es })}
+                            </td>
+                            <td className="px-4 py-3 text-center font-semibold text-slate-700">{periodo.dias_correspondientes}</td>
+                            <td className="px-4 py-3 text-center font-semibold text-purple-600">{periodo.dias_gozados}</td>
+                            <td className="px-4 py-3 text-center font-semibold text-emerald-600">{periodo.dias_pendientes}</td>
+                            <td className="px-4 py-3 text-sm text-slate-500">{periodo.observaciones || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-slate-50 font-semibold">
+                          <td colSpan="3" className="px-4 py-3 text-right text-sm text-slate-600">TOTALES:</td>
+                          <td className="px-4 py-3 text-center text-slate-700">{calcularTotales().totalGanados}</td>
+                          <td className="px-4 py-3 text-center text-purple-600">{calcularTotales().totalGozados}</td>
+                          <td className="px-4 py-3 text-center text-emerald-600">{calcularTotales().totalPendientes}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <Button
+                    variant="secondary"
+                    onClick={() => { setShowVacacionesModal(false); setEmpleadoVacaciones(null); setPeriodosVacaciones([]); }}
+                  >
+                    Cerrar
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
