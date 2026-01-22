@@ -6,7 +6,7 @@ import {
   CheckCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const VacacionesGanadas = () => {
@@ -60,6 +60,18 @@ const VacacionesGanadas = () => {
         return 'Pendiente';
       default:
         return estado;
+    }
+  };
+
+  // Calcular días entre fecha inicio y fecha fin del período
+  const calcularDiasPeriodo = (fechaInicio, fechaFin) => {
+    if (!fechaInicio || !fechaFin) return '-';
+    try {
+      const inicio = parseISO(fechaInicio);
+      const fin = parseISO(fechaFin);
+      return differenceInDays(fin, inicio);
+    } catch {
+      return '-';
     }
   };
 
@@ -166,7 +178,7 @@ const VacacionesGanadas = () => {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-lg font-bold text-slate-700">
-                          {periodo.dias_correspondientes || 30}
+                          {calcularDiasPeriodo(periodo.fecha_inicio_periodo, periodo.fecha_fin_periodo)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center text-sm text-slate-600">

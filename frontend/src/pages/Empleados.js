@@ -12,7 +12,7 @@ import {
   CalendarDaysIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const Empleados = () => {
@@ -154,6 +154,18 @@ const Empleados = () => {
     const totalGozados = periodosVacaciones.reduce((sum, p) => sum + (p.dias_gozados || 0), 0);
     const totalPendientes = totalGanados - totalGozados;
     return { totalGanados, totalGozados, totalPendientes };
+  };
+
+  // Calcular días entre fecha inicio y fecha fin del período
+  const calcularDiasPeriodo = (fechaInicio, fechaFin) => {
+    if (!fechaInicio || !fechaFin) return '-';
+    try {
+      const inicio = parseISO(fechaInicio);
+      const fin = parseISO(fechaFin);
+      return differenceInDays(fin, inicio);
+    } catch {
+      return '-';
+    }
   };
 
   return (
@@ -491,7 +503,8 @@ const Empleados = () => {
                           <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Motivo</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Fecha Inicio</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Fecha Final</th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Días</th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Días Período</th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Vacaciones</th>
                           <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Gozados</th>
                           <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Pendientes</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Observaciones</th>
@@ -516,7 +529,8 @@ const Empleados = () => {
                             <td className="px-4 py-3 text-sm text-slate-600">
                               {periodo.fecha_fin_periodo && format(parseISO(periodo.fecha_fin_periodo), "dd/MM/yyyy", { locale: es })}
                             </td>
-                            <td className="px-4 py-3 text-center font-semibold text-slate-700">{periodo.dias_correspondientes}</td>
+                            <td className="px-4 py-3 text-center font-semibold text-slate-700">{calcularDiasPeriodo(periodo.fecha_inicio_periodo, periodo.fecha_fin_periodo)}</td>
+                            <td className="px-4 py-3 text-center font-semibold text-teal-600">{periodo.dias_correspondientes}</td>
                             <td className="px-4 py-3 text-center font-semibold text-purple-600">{periodo.dias_gozados}</td>
                             <td className="px-4 py-3 text-center font-semibold text-emerald-600">{periodo.dias_pendientes}</td>
                             <td className="px-4 py-3 text-sm text-slate-500">{periodo.observaciones || '-'}</td>
@@ -526,7 +540,8 @@ const Empleados = () => {
                       <tfoot>
                         <tr className="bg-slate-50 font-semibold">
                           <td colSpan="3" className="px-4 py-3 text-right text-sm text-slate-600">TOTALES:</td>
-                          <td className="px-4 py-3 text-center text-slate-700">{calcularTotales().totalGanados}</td>
+                          <td className="px-4 py-3 text-center text-slate-500">-</td>
+                          <td className="px-4 py-3 text-center text-teal-600">{calcularTotales().totalGanados}</td>
                           <td className="px-4 py-3 text-center text-purple-600">{calcularTotales().totalGozados}</td>
                           <td className="px-4 py-3 text-center text-emerald-600">{calcularTotales().totalPendientes}</td>
                           <td></td>
