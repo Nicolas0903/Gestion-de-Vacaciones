@@ -22,10 +22,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Solo redirigir al login si el 401 NO es del endpoint de login
+    // (para no redirigir cuando las credenciales son incorrectas)
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
       localStorage.removeItem('token');
       localStorage.removeItem('usuario');
-      window.location.href = '/login';
+      // Usar la ruta correcta con el basename
+      const basePath = process.env.PUBLIC_URL || '/gestion-vacaciones';
+      window.location.href = `${basePath}/login`;
     }
     return Promise.reject(error);
   }
