@@ -10,7 +10,8 @@ import {
   XMarkIcon,
   UserCircleIcon,
   CalendarDaysIcon,
-  EyeIcon
+  EyeIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -25,6 +26,17 @@ const Empleados = () => {
   const [empleadoVacaciones, setEmpleadoVacaciones] = useState(null);
   const [periodosVacaciones, setPeriodosVacaciones] = useState([]);
   const [loadingVacaciones, setLoadingVacaciones] = useState(false);
+  const [showPeriodoModal, setShowPeriodoModal] = useState(false);
+  const [editandoPeriodo, setEditandoPeriodo] = useState(null);
+  const [periodoForm, setPeriodoForm] = useState({
+    fecha_inicio_periodo: '',
+    fecha_fin_periodo: '',
+    dias_correspondientes: 30,
+    dias_gozados: 0,
+    tiempo_trabajado: '12 meses',
+    observaciones: '',
+    estado: 'pendiente'
+  });
   const [formData, setFormData] = useState({
     codigo_empleado: '',
     nombres: '',
@@ -166,6 +178,105 @@ const Empleados = () => {
     } catch {
       return '-';
     }
+  };
+
+  // Resetear formulario de período
+  const resetPeriodoForm = () => {
+    setPeriodoForm({
+      fecha_inicio_periodo: '',
+      fecha_fin_periodo: '',
+      dias_correspondientes: 30,
+      dias_gozados: 0,
+      tiempo_trabajado: '12 meses',
+      observaciones: '',
+      estado: 'pendiente'
+    });
+  };
+
+  // Abrir modal para agregar período
+  const handleAgregarPeriodo = () => {
+    resetPeriodoForm();
+    setEditandoPeriodo(null);
+    setShowPeriodoModal(true);
+  };
+
+  // Abrir modal para editar período
+  const handleEditarPeriodo = (periodo) => {
+    setEditandoPeriodo(periodo);
+    setPeriodoForm({
+      fecha_inicio_periodo: periodo.fecha_inicio_periodo?.split('T')[0] || '',
+      fecha_fin_periodo: periodo.fecha_fin_periodo?.split('T')[0] || '',
+      dias_correspondientes: periodo.dias_correspondientes || 30,
+      dias_gozados: periodo.dias_gozados || 0,
+      tiempo_trabajado: periodo.tiempo_trabajado || '12 meses',
+      observaciones: periodo.observaciones || '',
+      estado: periodo.estado || 'pendiente'
+    });
+    setShowPeriodoModal(true);
+  };
+
+  // Guardar período (crear o actualizar)
+  const handleGuardarPeriodo = async (e) => {
+    e.preventDefault();
+    
+    try {
+      if (editandoPeriodo) {
+        // Actualizar período existente
+        await periodoService.actualizar(editandoPeriodo.id, periodoForm);
+        toast.success('Período actualizado correctamente');
+      } else {
+        // Crear nuevo período
+        await periodoService.crear({
+          ...periodoForm,
+          empleado_id: empleadoVacaciones.id
+        });
+        toast.success('Período creado correctamente');
+      }
+      
+      setShowPeriodoModal(false);
+      setEditandoPeriodo(null);
+      resetPeriodoForm();
+      
+      // Recargar períodos
+      const res = await periodoService.porEmpleado(empleadoVacaciones.id);
+      setPeriodosVacaciones(res.data.data || []);
+    } catch (error) {
+      toast.error(error.response?.data?.mensaje || 'Error al guardar período');
+    }
+  };
+
+  // Eliminar período
+  const handleEliminarPeriodo = async (periodo) => {
+    if (periodo.dias_gozados > 0) {
+      toast.error('No se puede eliminar un período con días gozados');
+      return;
+    }
+    
+    if (!window.confirm(`¿Estás seguro de eliminar este período?\n${periodo.observaciones || 'Sin observaciones'}`)) {
+      return;
+    }
+    
+    try {
+      await periodoService.eliminar(periodo.id);
+      toast.success('Período eliminado correctamente');
+      
+      // Recargar períodos
+      const res = await periodoService.porEmpleado(empleadoVacaciones.id);
+      setPeriodosVacaciones(res.data.data || []);
+    } catch (error) {
+      toast.error(error.response?.data?.mensaje || 'Error al eliminar período');
+    }
+  };
+
+  // Manejar cambios en el formulario de período
+  const handlePeriodoChange = (e) => {
+    const { name, value } = e.target;
+    setPeriodoForm(prev => ({
+      ...prev,
+      [name]: name === 'dias_correspondientes' || name === 'dias_gozados' 
+        ? parseInt(value) || 0 
+        : value
+    }));
   };
 
   return (
@@ -489,11 +600,30 @@ const Empleados = () => {
                   </div>
                 </div>
 
-                {/* Tabla de períodos */}
+                {/* Botón agregar y Tabla de períodos */}
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-sm font-semibold text-slate-600">Historial de Períodos</h4>
+                  <Button
+                    size="sm"
+                    icon={PlusIcon}
+                    onClick={handleAgregarPeriodo}
+                  >
+                    Agregar Período
+                  </Button>
+                </div>
+                
                 {periodosVacaciones.length === 0 ? (
                   <div className="text-center py-8 text-slate-500">
                     <CalendarDaysIcon className="w-12 h-12 mx-auto mb-2 text-slate-300" />
                     <p>No hay períodos de vacaciones registrados</p>
+                    <Button
+                      size="sm"
+                      icon={PlusIcon}
+                      onClick={handleAgregarPeriodo}
+                      className="mt-4"
+                    >
+                      Agregar Primer Período
+                    </Button>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -508,6 +638,7 @@ const Empleados = () => {
                           <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Gozados</th>
                           <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Pendientes</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Observaciones</th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Acciones</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -533,7 +664,30 @@ const Empleados = () => {
                             <td className="px-4 py-3 text-center font-semibold text-teal-600">{periodo.dias_correspondientes}</td>
                             <td className="px-4 py-3 text-center font-semibold text-purple-600">{periodo.dias_gozados}</td>
                             <td className="px-4 py-3 text-center font-semibold text-emerald-600">{periodo.dias_pendientes}</td>
-                            <td className="px-4 py-3 text-sm text-slate-500">{periodo.observaciones || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-slate-500 max-w-[150px] truncate" title={periodo.observaciones}>{periodo.observaciones || '-'}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => handleEditarPeriodo(periodo)}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-teal-50 transition-colors"
+                                  title="Editar período"
+                                >
+                                  <PencilIcon className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleEliminarPeriodo(periodo)}
+                                  className={`p-1.5 rounded-lg transition-colors ${
+                                    periodo.dias_gozados > 0 
+                                      ? 'text-slate-300 cursor-not-allowed' 
+                                      : 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
+                                  }`}
+                                  title={periodo.dias_gozados > 0 ? 'No se puede eliminar (tiene días gozados)' : 'Eliminar período'}
+                                  disabled={periodo.dias_gozados > 0}
+                                >
+                                  <TrashIcon className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -544,7 +698,7 @@ const Empleados = () => {
                           <td className="px-4 py-3 text-center text-teal-600">{calcularTotales().totalGanados}</td>
                           <td className="px-4 py-3 text-center text-purple-600">{calcularTotales().totalGozados}</td>
                           <td className="px-4 py-3 text-center text-emerald-600">{calcularTotales().totalPendientes}</td>
-                          <td></td>
+                          <td colSpan="2"></td>
                         </tr>
                       </tfoot>
                     </table>
@@ -561,6 +715,133 @@ const Empleados = () => {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Crear/Editar Período */}
+      {showPeriodoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fadeIn">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-slate-800">
+                {editandoPeriodo ? 'Editar Período' : 'Nuevo Período'}
+              </h3>
+              <button
+                onClick={() => { setShowPeriodoModal(false); setEditandoPeriodo(null); resetPeriodoForm(); }}
+                className="p-2 rounded-lg hover:bg-slate-100"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarPeriodo} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Fecha Inicio</label>
+                  <input
+                    type="date"
+                    name="fecha_inicio_periodo"
+                    value={periodoForm.fecha_inicio_periodo}
+                    onChange={handlePeriodoChange}
+                    required
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Fecha Fin</label>
+                  <input
+                    type="date"
+                    name="fecha_fin_periodo"
+                    value={periodoForm.fecha_fin_periodo}
+                    onChange={handlePeriodoChange}
+                    required
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Días de Vacaciones</label>
+                  <input
+                    type="number"
+                    name="dias_correspondientes"
+                    value={periodoForm.dias_correspondientes}
+                    onChange={handlePeriodoChange}
+                    min="0"
+                    max="60"
+                    required
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">15 (PYME) o 30 (General)</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Días Gozados</label>
+                  <input
+                    type="number"
+                    name="dias_gozados"
+                    value={periodoForm.dias_gozados}
+                    onChange={handlePeriodoChange}
+                    min="0"
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Tiempo Trabajado</label>
+                  <input
+                    type="text"
+                    name="tiempo_trabajado"
+                    value={periodoForm.tiempo_trabajado}
+                    onChange={handlePeriodoChange}
+                    placeholder="12 meses"
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Estado</label>
+                  <select
+                    name="estado"
+                    value={periodoForm.estado}
+                    onChange={handlePeriodoChange}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
+                  >
+                    <option value="pendiente">Pendiente</option>
+                    <option value="parcial">Parcial</option>
+                    <option value="gozadas">Gozadas</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Observaciones</label>
+                <textarea
+                  name="observaciones"
+                  value={periodoForm.observaciones}
+                  onChange={handlePeriodoChange}
+                  rows="2"
+                  placeholder="Ej: Régimen PYME, Período 2024-2025..."
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => { setShowPeriodoModal(false); setEditandoPeriodo(null); resetPeriodoForm(); }}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" className="flex-1">
+                  {editandoPeriodo ? 'Actualizar' : 'Crear'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
