@@ -90,6 +90,35 @@ class SolicitudVacaciones {
     return rows;
   }
 
+  // Listar TODAS las solicitudes pendientes (para admin/contadora)
+  static async listarTodasPendientes() {
+    const [rows] = await pool.execute(
+      `SELECT sv.*, 
+              e.codigo_empleado, e.nombres, e.apellidos, e.cargo,
+              pv.fecha_inicio_periodo, pv.fecha_fin_periodo
+       FROM solicitudes_vacaciones sv
+       JOIN empleados e ON sv.empleado_id = e.id
+       JOIN periodos_vacaciones pv ON sv.periodo_id = pv.id
+       WHERE sv.estado IN ('pendiente_jefe', 'pendiente_contadora')
+       ORDER BY sv.fecha_solicitud ASC`
+    );
+    return rows;
+  }
+
+  // Listar salidas (solicitudes aprobadas) por período
+  static async listarSalidasPorPeriodo(periodoId) {
+    const [rows] = await pool.execute(
+      `SELECT sv.id, sv.fecha_inicio_vacaciones, sv.fecha_fin_vacaciones, 
+              sv.dias_solicitados, sv.observaciones, sv.estado, sv.created_at
+       FROM solicitudes_vacaciones sv
+       WHERE sv.periodo_id = ?
+         AND sv.estado = 'aprobada'
+       ORDER BY sv.fecha_inicio_vacaciones ASC`,
+      [periodoId]
+    );
+    return rows;
+  }
+
   // Listar todas las solicitudes (para admin)
   static async listarTodas(filtros = {}) {
     let query = `

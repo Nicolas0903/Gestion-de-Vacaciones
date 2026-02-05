@@ -166,13 +166,28 @@ const aprobar = async (req, res) => {
       });
     }
 
+    // Admin o Contadora pueden aprobar directamente cualquier solicitud pendiente
+    const esContadoraOAdmin = req.usuario.rol_nombre === 'admin' || req.usuario.rol_nombre === 'contadora';
+
     // Determinar tipo de aprobación según estado actual
     let tipoAprobacion;
     let siguienteEstado;
 
     if (solicitud.estado === 'pendiente_jefe') {
-      tipoAprobacion = 'jefe';
-      siguienteEstado = 'pendiente_contadora';
+      // Si es contadora/admin, puede aprobar directamente y pasar a aprobada
+      if (esContadoraOAdmin) {
+        tipoAprobacion = 'contadora';
+        siguienteEstado = 'aprobada';
+        
+        // Aprobar primero como jefe si existe la aprobación pendiente
+        const aprobacionJefe = await Aprobacion.obtenerPendientePorTipo(parseInt(id), 'jefe');
+        if (aprobacionJefe) {
+          await Aprobacion.aprobar(aprobacionJefe.id, 'Aprobado por contadora');
+        }
+      } else {
+        tipoAprobacion = 'jefe';
+        siguienteEstado = 'pendiente_contadora';
+      }
     } else if (solicitud.estado === 'pendiente_contadora') {
       tipoAprobacion = 'contadora';
       siguienteEstado = 'aprobada';
@@ -187,17 +202,19 @@ const aprobar = async (req, res) => {
     const aprobacion = await Aprobacion.obtenerPendientePorTipo(parseInt(id), tipoAprobacion);
     if (!aprobacion) {
       // Si no existe, verificar que tenga el rol adecuado
-      if (tipoAprobacion === 'jefe' && req.usuario.nivel_aprobacion < 1) {
-        return res.status(403).json({
-          success: false,
-          mensaje: 'No tienes permisos para aprobar'
-        });
-      }
-      if (tipoAprobacion === 'contadora' && req.usuario.nivel_aprobacion < 2) {
-        return res.status(403).json({
-          success: false,
-          mensaje: 'No tienes permisos para aprobar'
-        });
+      if (!esContadoraOAdmin) {
+        if (tipoAprobacion === 'jefe' && req.usuario.nivel_aprobacion < 1) {
+          return res.status(403).json({
+            success: false,
+            mensaje: 'No tienes permisos para aprobar'
+          });
+        }
+        if (tipoAprobacion === 'contadora' && req.usuario.nivel_aprobacion < 2) {
+          return res.status(403).json({
+            success: false,
+            mensaje: 'No tienes permisos para aprobar'
+          });
+        }
       }
 
       // Crear el registro de aprobación
@@ -215,7 +232,7 @@ const aprobar = async (req, res) => {
     await SolicitudVacaciones.actualizarEstado(parseInt(id), siguienteEstado);
 
     // Notificaciones
-    if (tipoAprobacion === 'jefe') {
+    if (tipoAprobacion === 'jefe' && !esContadoraOAdmin) {
       // Buscar contadora para siguiente aprobación
       const contadoras = await Empleado.obtenerPorRol('contadora');
       if (contadoras.length > 0) {
@@ -226,7 +243,10 @@ const aprobar = async (req, res) => {
         });
         await Notificacion.notificarAprobacionJefe(parseInt(id), solicitud.empleado_id, contadoras[0].id);
       }
-    } else if (tipoAprobacion === 'contadora') {
+    }
+    
+    // Si llegamos a aprobada (sea por contadora directamente o después del jefe)
+    if (siguienteEstado === 'aprobada') {
       // Aprobación final - actualizar días gozados
       await PeriodoVacaciones.actualizarDiasGozados(solicitud.periodo_id, solicitud.dias_solicitados);
       await Notificacion.notificarAprobacionFinal(parseInt(id), solicitud.empleado_id);
@@ -330,17 +350,15 @@ const listarMias = async (req, res) => {
 // Listar pendientes de aprobación
 const listarPendientesAprobacion = async (req, res) => {
   try {
-    // Admin puede ver todas
-    if (req.usuario.rol_nombre === 'admin') {
-      const solicitudes = await SolicitudVacaciones.listarTodas({ 
-        estado: req.query.estado 
-      });
+    // Admin o Contadora pueden ver TODAS las solicitudes pendientes (tanto pendiente_jefe como pendiente_contadora)
+    if (req.usuario.rol_nombre === 'admin' || req.usuario.rol_nombre === 'contadora') {
+      const solicitudes = await SolicitudVacaciones.listarTodasPendientes();
       return res.json({ success: true, data: solicitudes });
     }
 
     // Determinar tipo de aprobación según rol
     let tipoAprobacion;
-    if (req.usuario.rol_nombre === 'contadora' || req.usuario.nivel_aprobacion >= 2) {
+    if (req.usuario.nivel_aprobacion >= 2) {
       tipoAprobacion = 'contadora';
     } else if (req.usuario.nivel_aprobacion === 1 || req.usuario.rol_nombre === 'jefe_operaciones') {
       tipoAprobacion = 'jefe';
@@ -540,6 +558,26 @@ const eliminar = async (req, res) => {
   }
 };
 
+// Obtener salidas gozadas por período
+const obtenerSalidasPorPeriodo = async (req, res) => {
+  try {
+    const { periodoId } = req.params;
+    
+    const salidas = await SolicitudVacaciones.listarSalidasPorPeriodo(parseInt(periodoId));
+
+    res.json({
+      success: true,
+      data: salidas
+    });
+  } catch (error) {
+    console.error('Error al obtener salidas por período:', error);
+    res.status(500).json({
+      success: false,
+      mensaje: 'Error interno del servidor'
+    });
+  }
+};
+
 module.exports = {
   crear,
   enviar,
@@ -551,6 +589,7 @@ module.exports = {
   obtener,
   obtenerCalendario,
   cancelar,
-  eliminar
+  eliminar,
+  obtenerSalidasPorPeriodo
 };
 

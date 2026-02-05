@@ -76,6 +76,7 @@ export const solicitudService = {
     api.get('/solicitudes/calendario', { 
       params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin, empleado_id: empleadoId } 
     }),
+  salidasPorPeriodo: (periodoId) => api.get(`/solicitudes/periodo/${periodoId}/salidas`),
 };
 
 // Períodos

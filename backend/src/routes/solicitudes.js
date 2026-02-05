@@ -23,6 +23,9 @@ router.put('/:id/rechazar', verificarNivelAprobacion(1), solicitudController.rec
 // Rutas admin
 router.get('/todas', verificarRol('admin', 'contadora'), solicitudController.listarTodas);
 
+// Obtener salidas por período
+router.get('/periodo/:periodoId/salidas', solicitudController.obtenerSalidasPorPeriodo);
+
 // Obtener solicitud específica (debe ir al final para no conflictar con otras rutas)
 router.get('/:id', solicitudController.obtener);
 

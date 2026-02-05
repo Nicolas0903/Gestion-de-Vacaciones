@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { periodoService } from '../services/api';
+import { periodoService, solicitudService } from '../services/api';
 import toast from 'react-hot-toast';
 import {
   CalendarDaysIcon,
   CheckCircleIcon,
-  ClockIcon
+  ClockIcon,
+  EyeIcon,
+  XMarkIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import Button from '../components/Button';
 
 const VacacionesGanadas = () => {
   const [periodos, setPeriodos] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showSalidasModal, setShowSalidasModal] = useState(false);
+  const [salidasPeriodo, setSalidasPeriodo] = useState([]);
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState(null);
+  const [loadingSalidas, setLoadingSalidas] = useState(false);
 
   useEffect(() => {
     cargarDatos();
@@ -72,6 +80,24 @@ const VacacionesGanadas = () => {
       return differenceInDays(fin, inicio);
     } catch {
       return '-';
+    }
+  };
+
+  // Ver detalle de salidas de un período
+  const handleVerSalidas = async (periodo) => {
+    setPeriodoSeleccionado(periodo);
+    setShowSalidasModal(true);
+    setLoadingSalidas(true);
+    
+    try {
+      const res = await solicitudService.salidasPorPeriodo(periodo.id);
+      setSalidasPeriodo(res.data.data || []);
+    } catch (error) {
+      console.error('Error al cargar salidas:', error);
+      toast.error('Error al cargar las salidas del período');
+      setSalidasPeriodo([]);
+    } finally {
+      setLoadingSalidas(false);
     }
   };
 
@@ -148,6 +174,7 @@ const VacacionesGanadas = () => {
                   <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase">Tiempo Trabajado</th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase">Vacaciones</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Observaciones</th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase">Detalle</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -194,6 +221,15 @@ const VacacionesGanadas = () => {
                           {periodo.observaciones || `Periodo ${index + 1}`}
                         </p>
                       </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => handleVerSalidas(periodo)}
+                          className="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          title="Ver salidas gozadas"
+                        >
+                          <EyeIcon className="w-5 h-5" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -204,7 +240,7 @@ const VacacionesGanadas = () => {
                   <td className="px-6 py-4 text-center text-lg text-slate-800">
                     {periodos.reduce((sum, p) => sum + (p.dias_correspondientes || 30), 0)}
                   </td>
-                  <td className="px-6 py-4"></td>
+                  <td className="px-6 py-4" colSpan="2"></td>
                 </tr>
               </tfoot>
             </table>
@@ -224,8 +260,108 @@ const VacacionesGanadas = () => {
         <p className="text-sm text-blue-700">
           <strong>Nota:</strong> Esta tabla muestra todos los períodos de vacaciones que has ganado a lo largo de tu tiempo en la empresa. 
           Los días mostrados son los que te corresponden por ley (generalmente 30 días por año trabajado).
+          Haz clic en el ícono de ojo para ver el detalle de las salidas gozadas.
         </p>
       </div>
+
+      {/* Modal Salidas del Período */}
+      {showSalidasModal && periodoSeleccionado && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-3xl my-8 animate-fadeIn max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">
+                  Detalle de Salidas Gozadas
+                </h3>
+                <p className="text-sm text-slate-500">
+                  Período: {periodoSeleccionado.fecha_inicio_periodo && format(parseISO(periodoSeleccionado.fecha_inicio_periodo), "dd/MM/yyyy", { locale: es })} - 
+                  {periodoSeleccionado.fecha_fin_periodo && format(parseISO(periodoSeleccionado.fecha_fin_periodo), "dd/MM/yyyy", { locale: es })}
+                  {' '}({periodoSeleccionado.dias_correspondientes} días de vacaciones)
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowSalidasModal(false); setPeriodoSeleccionado(null); setSalidasPeriodo([]); }}
+                className="p-2 rounded-lg hover:bg-slate-100"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {loadingSalidas ? (
+              <div className="flex items-center justify-center h-40">
+                <div className="animate-spin w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full"></div>
+              </div>
+            ) : salidasPeriodo.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                <DocumentTextIcon className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+                <p>No hay salidas registradas para este período</p>
+                <p className="text-sm text-slate-400 mt-1">Las salidas aparecerán cuando tengas solicitudes de vacaciones aprobadas</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Fecha Salida</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Fecha Retorno</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Días</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Observaciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {salidasPeriodo.map((salida) => (
+                        <tr key={salida.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 text-sm text-slate-600">
+                            {salida.fecha_inicio_vacaciones && format(parseISO(salida.fecha_inicio_vacaciones), "dd/MM/yyyy", { locale: es })}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-600">
+                            {salida.fecha_fin_vacaciones && format(parseISO(salida.fecha_fin_vacaciones), "dd/MM/yyyy", { locale: es })}
+                          </td>
+                          <td className="px-4 py-3 text-center font-semibold text-teal-600">
+                            {salida.dias_solicitados}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-600">
+                            {salida.observaciones || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-100 font-semibold">
+                        <td colSpan="2" className="px-4 py-3 text-right text-sm text-slate-600">TOTAL DÍAS GOZADOS:</td>
+                        <td className="px-4 py-3 text-center text-teal-600">
+                          {salidasPeriodo.reduce((sum, s) => sum + (s.dias_solicitados || 0), 0)}
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl">
+                  <p className="text-sm text-green-700">
+                    <strong>Resumen del período:</strong> {salidasPeriodo.length} salidas registradas, 
+                    total {salidasPeriodo.reduce((sum, s) => sum + (s.dias_solicitados || 0), 0)} días gozados de {periodoSeleccionado.dias_correspondientes} disponibles.
+                    <span className="font-semibold ml-2">
+                      Días pendientes: {periodoSeleccionado.dias_correspondientes - salidasPeriodo.reduce((sum, s) => sum + (s.dias_solicitados || 0), 0)}
+                    </span>
+                  </p>
+                </div>
+              </>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <Button
+                variant="secondary"
+                onClick={() => { setShowSalidasModal(false); setPeriodoSeleccionado(null); setSalidasPeriodo([]); }}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

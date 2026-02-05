@@ -129,7 +129,7 @@ async function crearVeronica() {
         `INSERT INTO historial_vacaciones 
          (empleado_id, solicitud_id, fecha_salida, fecha_retorno, dias_tomados, observaciones)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [veronicaId, solicitudResult.insertId, s.salida, s.retorno, s.dias, s.obs]
+        [veronicaId, solicitudResult.insertId, s.salida, s.retorno, s.dias, s.obs] 
       );
       
       totalDiasGozados += s.dias;
