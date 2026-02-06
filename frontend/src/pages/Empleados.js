@@ -19,7 +19,7 @@ import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const Empleados = () => {
   const [empleados, setEmpleados] = useState([]);
@@ -407,7 +407,7 @@ const Empleados = () => {
         periodo.observaciones || '-'
       ]);
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: 52,
         head: [['Motivo', 'F. Inicio', 'F. Final', 'Días', 'Vacac.', 'Gozados', 'Pend.', 'Observaciones']],
         body: tableData,
