@@ -12,10 +12,14 @@ import {
   CalendarDaysIcon,
   EyeIcon,
   TrashIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const Empleados = () => {
   const [empleados, setEmpleados] = useState([]);
@@ -299,6 +303,153 @@ const Empleados = () => {
       setSalidasPeriodo([]);
     } finally {
       setLoadingSalidas(false);
+    }
+  };
+
+  // Exportar a Excel
+  const handleExportarExcel = async () => {
+    if (!empleadoVacaciones || periodosVacaciones.length === 0) {
+      toast.error('No hay datos para exportar');
+      return;
+    }
+
+    try {
+      const wb = XLSX.utils.book_new();
+      
+      // Datos del encabezado
+      const headerData = [
+        [`VACACIONES ${empleadoVacaciones.nombres.toUpperCase()} ${empleadoVacaciones.apellidos.toUpperCase()}`],
+        [`Cargo: ${empleadoVacaciones.cargo || 'N/A'}`],
+        [`Fecha Ingreso: ${empleadoVacaciones.fecha_ingreso ? format(parseISO(empleadoVacaciones.fecha_ingreso), "dd/MM/yyyy") : 'N/A'}`],
+        [],
+        ['PERÍODOS DE VACACIONES'],
+        ['Motivo', 'Fecha Inicio', 'Fecha Final', 'Días Período', 'Vacaciones', 'Gozados', 'Pendientes', 'Observaciones']
+      ];
+
+      // Datos de períodos
+      periodosVacaciones.forEach(periodo => {
+        headerData.push([
+          periodo.estado === 'gozadas' ? 'Gozadas' : periodo.estado === 'parcial' ? 'Parcial' : 'Pendiente',
+          periodo.fecha_inicio_periodo ? format(parseISO(periodo.fecha_inicio_periodo), "dd/MM/yyyy") : '',
+          periodo.fecha_fin_periodo ? format(parseISO(periodo.fecha_fin_periodo), "dd/MM/yyyy") : '',
+          calcularDiasPeriodo(periodo.fecha_inicio_periodo, periodo.fecha_fin_periodo),
+          periodo.dias_correspondientes,
+          periodo.dias_gozados,
+          periodo.dias_pendientes,
+          periodo.observaciones || ''
+        ]);
+      });
+
+      // Totales
+      const totales = calcularTotales();
+      headerData.push([]);
+      headerData.push(['', '', '', 'TOTALES:', totales.totalGanados, totales.totalGozados, totales.totalPendientes, '']);
+      headerData.push([]);
+      headerData.push(['Vacaciones Ganadas:', totales.totalGanados, 'días']);
+      headerData.push(['Vacaciones Gozadas:', totales.totalGozados, 'días']);
+      headerData.push(['Vacaciones Pendientes:', totales.totalPendientes, 'días']);
+
+      const ws = XLSX.utils.aoa_to_sheet(headerData);
+      
+      // Ajustar anchos de columna
+      ws['!cols'] = [
+        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, 
+        { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 40 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Vacaciones');
+      
+      // Descargar
+      const fileName = `Vacaciones_${empleadoVacaciones.apellidos}_${empleadoVacaciones.nombres}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      toast.success('Excel exportado correctamente');
+    } catch (error) {
+      console.error('Error al exportar Excel:', error);
+      toast.error('Error al exportar Excel');
+    }
+  };
+
+  // Exportar a PDF
+  const handleExportarPDF = async () => {
+    if (!empleadoVacaciones || periodosVacaciones.length === 0) {
+      toast.error('No hay datos para exportar');
+      return;
+    }
+
+    try {
+      const doc = new jsPDF();
+      const totales = calcularTotales();
+      
+      // Título
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`VACACIONES ${empleadoVacaciones.nombres.toUpperCase()} ${empleadoVacaciones.apellidos.toUpperCase()}`, 14, 20);
+      
+      // Info del empleado
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Cargo: ${empleadoVacaciones.cargo || 'N/A'}`, 14, 30);
+      doc.text(`Fecha Ingreso: ${empleadoVacaciones.fecha_ingreso ? format(parseISO(empleadoVacaciones.fecha_ingreso), "dd/MM/yyyy") : 'N/A'}`, 14, 36);
+      
+      // Tabla de períodos
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Períodos de Vacaciones', 14, 48);
+      
+      const tableData = periodosVacaciones.map(periodo => [
+        periodo.estado === 'gozadas' ? 'Gozadas' : periodo.estado === 'parcial' ? 'Parcial' : 'Pendiente',
+        periodo.fecha_inicio_periodo ? format(parseISO(periodo.fecha_inicio_periodo), "dd/MM/yyyy") : '',
+        periodo.fecha_fin_periodo ? format(parseISO(periodo.fecha_fin_periodo), "dd/MM/yyyy") : '',
+        calcularDiasPeriodo(periodo.fecha_inicio_periodo, periodo.fecha_fin_periodo),
+        periodo.dias_correspondientes,
+        periodo.dias_gozados,
+        periodo.dias_pendientes,
+        periodo.observaciones || '-'
+      ]);
+
+      doc.autoTable({
+        startY: 52,
+        head: [['Motivo', 'F. Inicio', 'F. Final', 'Días', 'Vacac.', 'Gozados', 'Pend.', 'Observaciones']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [20, 184, 166], fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        columnStyles: {
+          0: { cellWidth: 18 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 22 },
+          3: { cellWidth: 12, halign: 'center' },
+          4: { cellWidth: 14, halign: 'center' },
+          5: { cellWidth: 14, halign: 'center' },
+          6: { cellWidth: 12, halign: 'center' },
+          7: { cellWidth: 'auto' }
+        },
+        foot: [['', '', 'TOTALES:', '', totales.totalGanados, totales.totalGozados, totales.totalPendientes, '']],
+        footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', fontSize: 8 }
+      });
+
+      // Resumen final
+      const finalY = doc.lastAutoTable.finalY + 15;
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RESUMEN', 14, finalY);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Vacaciones Ganadas: ${totales.totalGanados} días`, 14, finalY + 8);
+      doc.text(`Vacaciones Gozadas: ${totales.totalGozados} días`, 14, finalY + 14);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 128, 0);
+      doc.text(`Vacaciones Pendientes: ${totales.totalPendientes} días`, 14, finalY + 22);
+      
+      // Descargar
+      const fileName = `Vacaciones_${empleadoVacaciones.apellidos}_${empleadoVacaciones.nombres}.pdf`;
+      doc.save(fileName);
+      toast.success('PDF exportado correctamente');
+    } catch (error) {
+      console.error('Error al exportar PDF:', error);
+      toast.error('Error al exportar PDF');
     }
   };
 
@@ -623,16 +774,36 @@ const Empleados = () => {
                   </div>
                 </div>
 
-                {/* Botón agregar y Tabla de períodos */}
+                {/* Botones de acción */}
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-sm font-semibold text-slate-600">Historial de Períodos</h4>
-                  <Button
-                    size="sm"
-                    icon={PlusIcon}
-                    onClick={handleAgregarPeriodo}
-                  >
-                    Agregar Período
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      icon={ArrowDownTrayIcon}
+                      onClick={handleExportarExcel}
+                      title="Exportar a Excel"
+                    >
+                      Excel
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      icon={ArrowDownTrayIcon}
+                      onClick={handleExportarPDF}
+                      title="Exportar a PDF"
+                    >
+                      PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      icon={PlusIcon}
+                      onClick={handleAgregarPeriodo}
+                    >
+                      Agregar Período
+                    </Button>
+                  </div>
                 </div>
                 
                 {periodosVacaciones.length === 0 ? (
