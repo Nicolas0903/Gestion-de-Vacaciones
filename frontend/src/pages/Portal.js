@@ -49,8 +49,8 @@ const Portal = () => {
       bgLight: 'bg-amber-50',
       textColor: 'text-amber-600',
       link: '/permisos',
-      activo: false,
-      proximamente: true
+      activo: true,
+      adminLink: '/permisos/gestion'
     }
   ];
 

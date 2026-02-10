@@ -128,5 +128,31 @@ export const boletaService = {
   eliminar: (id) => api.delete(`/boletas/${id}`),
 };
 
+// Permisos y Descansos
+export const permisoService = {
+  // Empleados
+  misPermisos: (filtros = {}) => api.get('/permisos/mis-permisos', { params: filtros }),
+  miResumen: (anio = null) => api.get('/permisos/mi-resumen', { params: { anio } }),
+  crear: (formData) => api.post('/permisos', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  obtener: (id) => api.get(`/permisos/${id}`),
+  eliminar: (id) => api.delete(`/permisos/${id}`),
+  descargarDocumento: (id) => api.get(`/permisos/${id}/documento`, { responseType: 'blob' }),
+  
+  // Admin
+  listar: (filtros = {}) => api.get('/permisos', { params: filtros }),
+  listarPendientes: () => api.get('/permisos/admin/pendientes'),
+  calendario: (fechaInicio, fechaFin, empleadoId = null) => 
+    api.get('/permisos/admin/calendario', { 
+      params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin, empleado_id: empleadoId } 
+    }),
+  crearDesdeAdmin: (formData) => api.post('/permisos/admin/crear', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  aprobar: (id, comentarios = '') => api.put(`/permisos/${id}/aprobar`, { comentarios }),
+  rechazar: (id, comentarios) => api.put(`/permisos/${id}/rechazar`, { comentarios }),
+};
+
 export default api;
 

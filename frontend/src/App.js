@@ -19,6 +19,8 @@ import MiPerfil from './pages/MiPerfil';
 import ReporteAsistencia from './pages/ReporteAsistencia';
 import MisBoletas from './pages/MisBoletas';
 import GestionBoletas from './pages/GestionBoletas';
+import MisPermisos from './pages/MisPermisos';
+import GestionPermisos from './pages/GestionPermisos';
 
 // Components
 import Layout from './components/Layout';
@@ -81,6 +83,19 @@ function AppRoutes() {
       <Route path="/boletas/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
           <GestionBoletas />
+        </ProtectedRoute>
+      } />
+
+      {/* Módulo de Permisos y Descansos */}
+      <Route path="/permisos" element={
+        <ProtectedRoute>
+          <MisPermisos />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/permisos/gestion" element={
+        <ProtectedRoute roles={['admin', 'contadora']}>
+          <GestionPermisos />
         </ProtectedRoute>
       } />
 
