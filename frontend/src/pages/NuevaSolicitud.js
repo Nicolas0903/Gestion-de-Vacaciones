@@ -120,7 +120,7 @@ const NuevaSolicitud = () => {
         toast.success('Solicitud guardada como borrador');
       }
 
-      navigate('/mis-solicitudes');
+      navigate('/vacaciones/mis-solicitudes');
     } catch (error) {
       toast.error(error.response?.data?.mensaje || 'Error al crear solicitud');
     } finally {

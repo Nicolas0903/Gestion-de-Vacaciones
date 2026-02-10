@@ -86,7 +86,7 @@ const MisSolicitudes = () => {
           <h1 className="text-2xl font-bold text-slate-800">Mis Solicitudes</h1>
           <p className="text-slate-500 mt-1">Gestiona tus solicitudes de vacaciones</p>
         </div>
-        <Link to="/nueva-solicitud">
+        <Link to="/vacaciones/nueva-solicitud">
           <Button icon={PlusIcon}>
             Nueva Solicitud
           </Button>
@@ -122,7 +122,7 @@ const MisSolicitudes = () => {
           <p className="text-slate-500 mb-4">
             {filtroEstado ? 'No hay solicitudes con ese estado' : 'Aún no has creado ninguna solicitud'}
           </p>
-          <Link to="/nueva-solicitud">
+          <Link to="/vacaciones/nueva-solicitud">
             <Button icon={PlusIcon} size="sm">
               Crear Solicitud
             </Button>
@@ -177,7 +177,7 @@ const MisSolicitudes = () => {
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <Link
-                          to={`/solicitudes/${solicitud.id}`}
+                          to={`/vacaciones/solicitudes/${solicitud.id}`}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition-colors"
                         >
                           <EyeIcon className="w-4 h-4" />

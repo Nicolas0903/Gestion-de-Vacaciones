@@ -26,7 +26,7 @@ const Login = () => {
 
     if (result.success) {
       toast.success('¡Bienvenido!');
-      navigate('/dashboard');
+      navigate('/portal');
     } else {
       toast.error(result.mensaje);
     }

@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Pages
 import Login from './pages/Login';
+import Portal from './pages/Portal';
 import Dashboard from './pages/Dashboard';
 import MisSolicitudes from './pages/MisSolicitudes';
 import NuevaSolicitud from './pages/NuevaSolicitud';
@@ -15,6 +16,7 @@ import Empleados from './pages/Empleados';
 import EstadoVacaciones from './pages/EstadoVacaciones';
 import VacacionesGanadas from './pages/VacacionesGanadas';
 import MiPerfil from './pages/MiPerfil';
+import ReporteAsistencia from './pages/ReporteAsistencia';
 
 // Components
 import Layout from './components/Layout';
@@ -50,15 +52,30 @@ function AppRoutes() {
     <Routes>
       <Route 
         path="/login" 
-        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
+        element={isAuthenticated ? <Navigate to="/portal" replace /> : <Login />} 
       />
       
-      <Route path="/" element={
+      {/* Portal Principal */}
+      <Route path="/portal" element={
+        <ProtectedRoute>
+          <Portal />
+        </ProtectedRoute>
+      } />
+
+      {/* Reporte de Asistencia (fuera del layout de vacaciones) */}
+      <Route path="/reporte-asistencia" element={
+        <ProtectedRoute>
+          <ReporteAsistencia />
+        </ProtectedRoute>
+      } />
+
+      {/* Módulo de Vacaciones */}
+      <Route path="/vacaciones" element={
         <ProtectedRoute>
           <Layout />
         </ProtectedRoute>
       }>
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<Navigate to="/vacaciones/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="vacaciones-ganadas" element={<VacacionesGanadas />} />
         <Route path="mis-solicitudes" element={<MisSolicitudes />} />
@@ -83,7 +100,9 @@ function AppRoutes() {
         <Route path="perfil" element={<MiPerfil />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Redirecciones por defecto */}
+      <Route path="/" element={<Navigate to="/portal" replace />} />
+      <Route path="*" element={<Navigate to="/portal" replace />} />
     </Routes>
   );
 }

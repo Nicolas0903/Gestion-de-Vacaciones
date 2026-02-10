@@ -93,7 +93,7 @@ const Dashboard = () => {
             Aquí tienes el resumen de tus vacaciones
           </p>
         </div>
-        <Link to="/nueva-solicitud">
+        <Link to="/vacaciones/nueva-solicitud">
           <Button icon={PlusIcon}>
             Nueva Solicitud
           </Button>
@@ -131,7 +131,7 @@ const Dashboard = () => {
               <DocumentTextIcon className="w-5 h-5 text-teal-500" />
               Mis Solicitudes Recientes
             </h2>
-            <Link to="/mis-solicitudes" className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1">
+            <Link to="/vacaciones/mis-solicitudes" className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1">
               Ver todas <ArrowRightIcon className="w-4 h-4" />
             </Link>
           </div>
@@ -140,7 +140,7 @@ const Dashboard = () => {
             <div className="text-center py-8">
               <DocumentTextIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <p className="text-slate-500">No tienes solicitudes aún</p>
-              <Link to="/nueva-solicitud" className="text-teal-600 text-sm font-medium hover:underline">
+              <Link to="/vacaciones/nueva-solicitud" className="text-teal-600 text-sm font-medium hover:underline">
                 Crear primera solicitud
               </Link>
             </div>
@@ -149,7 +149,7 @@ const Dashboard = () => {
               {solicitudesRecientes.map((solicitud) => (
                 <Link
                   key={solicitud.id}
-                  to={`/solicitudes/${solicitud.id}`}
+                  to={`/vacaciones/solicitudes/${solicitud.id}`}
                   className="block p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
                 >
                   <div className="flex items-center justify-between">
@@ -184,7 +184,7 @@ const Dashboard = () => {
                   </span>
                 )}
               </h2>
-              <Link to="/aprobaciones" className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1">
+              <Link to="/vacaciones/aprobaciones" className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1">
                 Ver todas <ArrowRightIcon className="w-4 h-4" />
               </Link>
             </div>
@@ -199,7 +199,7 @@ const Dashboard = () => {
                 {pendientesAprobacion.slice(0, 5).map((solicitud) => (
                   <Link
                     key={solicitud.id}
-                    to={`/solicitudes/${solicitud.id}`}
+                    to={`/vacaciones/solicitudes/${solicitud.id}`}
                     className="block p-4 rounded-xl bg-amber-50 hover:bg-amber-100 transition-colors border border-amber-200"
                   >
                     <div className="flex items-center justify-between">

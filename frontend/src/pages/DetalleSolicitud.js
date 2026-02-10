@@ -36,7 +36,7 @@ const DetalleSolicitud = () => {
       setSolicitud(res.data.data);
     } catch (error) {
       toast.error('Error al cargar solicitud');
-      navigate('/mis-solicitudes');
+      navigate('/vacaciones/mis-solicitudes');
     } finally {
       setLoading(false);
     }

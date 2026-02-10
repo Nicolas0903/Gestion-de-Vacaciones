@@ -87,6 +87,22 @@ export const AuthProvider = ({ children }) => {
   const esJefe = () => tieneRol('jefe_operaciones', 'admin');
   const esContadora = () => tieneRol('contadora', 'admin');
 
+  // Usuarios autorizados para ver el reporte de asistencia (por email)
+  const USUARIOS_REPORTE_ASISTENCIA = [
+    'rocio.picon@paboratory.com',
+    'enrique@prayaga.pe',
+    'nicolas@prayaga.pe',
+    'nicolas.arce@paboratory.com'
+  ];
+
+  const puedeVerReporteAsistencia = () => {
+    if (!usuario) return false;
+    // Admin siempre puede ver
+    if (tieneRol('admin')) return true;
+    // Verificar si el email está en la lista autorizada
+    return USUARIOS_REPORTE_ASISTENCIA.includes(usuario.email?.toLowerCase());
+  };
+
   const value = {
     usuario,
     loading,
@@ -98,6 +114,7 @@ export const AuthProvider = ({ children }) => {
     esAdmin,
     esJefe,
     esContadora,
+    puedeVerReporteAsistencia,
     isAuthenticated: !!usuario
   };
 

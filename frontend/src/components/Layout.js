@@ -14,7 +14,8 @@ import {
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  Squares2X2Icon
 } from '@heroicons/react/24/outline';
 
 const Layout = () => {
@@ -43,21 +44,21 @@ const Layout = () => {
   };
 
   const menuItems = [
-    { to: '/dashboard', icon: HomeIcon, label: 'Dashboard' },
-    { to: '/perfil', icon: UserCircleIcon, label: 'Mi Perfil' },
-    { to: '/vacaciones-ganadas', icon: CalendarDaysIcon, label: 'Vacaciones Ganadas' },
-    { to: '/mis-solicitudes', icon: DocumentTextIcon, label: 'Mis Solicitudes' },
-    { to: '/nueva-solicitud', icon: PlusCircleIcon, label: 'Nueva Solicitud' },
-    { to: '/calendario', icon: CalendarDaysIcon, label: 'Calendario' },
+    { to: '/vacaciones/dashboard', icon: HomeIcon, label: 'Dashboard' },
+    { to: '/vacaciones/perfil', icon: UserCircleIcon, label: 'Mi Perfil' },
+    { to: '/vacaciones/vacaciones-ganadas', icon: CalendarDaysIcon, label: 'Vacaciones Ganadas' },
+    { to: '/vacaciones/mis-solicitudes', icon: DocumentTextIcon, label: 'Mis Solicitudes' },
+    { to: '/vacaciones/nueva-solicitud', icon: PlusCircleIcon, label: 'Nueva Solicitud' },
+    { to: '/vacaciones/calendario', icon: CalendarDaysIcon, label: 'Calendario' },
   ];
 
   if (puedeAprobar()) {
-    menuItems.splice(3, 0, { to: '/aprobaciones', icon: CheckBadgeIcon, label: 'Aprobaciones' });
+    menuItems.splice(3, 0, { to: '/vacaciones/aprobaciones', icon: CheckBadgeIcon, label: 'Aprobaciones' });
   }
 
   if (esAdmin() || esContadora()) {
-    menuItems.push({ to: '/empleados', icon: UsersIcon, label: 'Empleados' });
-    menuItems.push({ to: '/estado-vacaciones', icon: ChartBarIcon, label: 'Estado de Vacaciones' });
+    menuItems.push({ to: '/vacaciones/empleados', icon: UsersIcon, label: 'Empleados' });
+    menuItems.push({ to: '/vacaciones/estado-vacaciones', icon: ChartBarIcon, label: 'Estado de Vacaciones' });
   }
 
   const NavItem = ({ to, icon: Icon, label }) => (
@@ -115,6 +116,14 @@ const Layout = () => {
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
+            {/* Botón volver al portal */}
+            <NavLink
+              to="/portal"
+              className="mt-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors text-sm"
+            >
+              <Squares2X2Icon className="w-4 h-4" />
+              <span>Volver al Portal</span>
+            </NavLink>
           </div>
 
           {/* Navegación */}

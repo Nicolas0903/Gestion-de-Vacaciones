@@ -146,7 +146,7 @@ const Aprobaciones = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Link to={`/solicitudes/${solicitud.id}`}>
+                  <Link to={`/vacaciones/solicitudes/${solicitud.id}`}>
                     <Button variant="ghost" size="sm" icon={EyeIcon}>
                       Ver
                     </Button>
