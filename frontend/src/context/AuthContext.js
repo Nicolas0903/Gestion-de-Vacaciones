@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }) => {
   const USUARIOS_REPORTE_ASISTENCIA = [
     'rocio.picon@prayaga.biz',
     'enrique.prayaga@prayaga.biz',
-    'nicolas.arce@prayaga.biz'
+    'nicolas.valdivia@prayaga.biz'
   ];
 
   const puedeVerReporteAsistencia = () => {
