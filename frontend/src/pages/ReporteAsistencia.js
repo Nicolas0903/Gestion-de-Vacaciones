@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeftIcon,
   ChartBarSquareIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 
 const ReporteAsistencia = () => {
@@ -34,6 +35,10 @@ const ReporteAsistencia = () => {
       </div>
     );
   }
+
+  const handleAbrirReporte = () => {
+    window.open(powerBIUrl, '_blank');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-rose-50/30">
@@ -67,40 +72,56 @@ const ReporteAsistencia = () => {
         </div>
       </div>
 
-      {/* Power BI Embed */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
-          {/* Info bar */}
-          <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-rose-50/50 border-b border-slate-100">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-600">
+      {/* Contenido */}
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+          {/* Ilustración */}
+          <div className="bg-gradient-to-br from-rose-500 to-pink-600 p-12 text-center">
+            <div className="w-24 h-24 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm">
+              <ChartBarSquareIcon className="w-12 h-12 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Reporte de Asistencia</h2>
+            <p className="text-rose-100">Dashboard de Power BI</p>
+          </div>
+
+          {/* Información */}
+          <div className="p-8">
+            <div className="text-center mb-8">
+              <p className="text-slate-600 mb-2">
                 <span className="font-medium">Usuario:</span> {usuario?.nombres} {usuario?.apellidos}
               </p>
-              <p className="text-xs text-slate-400">
-                Los datos se actualizan automáticamente desde Power BI
+              <p className="text-sm text-slate-400">
+                ({usuario?.email})
               </p>
             </div>
-          </div>
-          
-          {/* iframe container */}
-          <div className="relative" style={{ paddingBottom: '56.25%', height: 0 }}>
-            <iframe
-              title="Reporte de Asistencia - Power BI"
-              src={powerBIUrl}
-              frameBorder="0"
-              allowFullScreen
-              className="absolute top-0 left-0 w-full h-full"
-              style={{ minHeight: '600px' }}
-            />
-          </div>
-        </div>
 
-        {/* Nota al pie */}
-        <div className="mt-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
-          <p className="text-sm text-amber-800">
-            <span className="font-semibold">Nota:</span> Este reporte requiere autenticación con tu cuenta Microsoft corporativa. 
-            Si no puedes ver los datos, asegúrate de haber iniciado sesión en tu cuenta de Microsoft.
-          </p>
+            {/* Botón principal */}
+            <button
+              onClick={handleAbrirReporte}
+              className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-rose-500 to-pink-600 text-white rounded-2xl font-semibold text-lg hover:shadow-xl hover:shadow-rose-500/30 transition-all duration-300 hover:-translate-y-1"
+            >
+              <span>Abrir Reporte en Power BI</span>
+              <ArrowTopRightOnSquareIcon className="w-6 h-6" />
+            </button>
+
+            {/* Nota */}
+            <div className="mt-8 p-4 rounded-xl bg-amber-50 border border-amber-200">
+              <p className="text-sm text-amber-800">
+                <span className="font-semibold">Nota:</span> El reporte se abrirá en una nueva pestaña. 
+                Deberás iniciar sesión con tu cuenta Microsoft corporativa (@prayaga.biz) para ver los datos.
+              </p>
+            </div>
+
+            {/* Pasos */}
+            <div className="mt-6 space-y-3">
+              <h3 className="font-semibold text-slate-700">Pasos para acceder:</h3>
+              <ol className="list-decimal list-inside space-y-2 text-sm text-slate-600">
+                <li>Haz clic en el botón "Abrir Reporte en Power BI"</li>
+                <li>Inicia sesión con tu cuenta Microsoft corporativa</li>
+                <li>El reporte se cargará automáticamente</li>
+              </ol>
+            </div>
+          </div>
         </div>
       </div>
     </div>
