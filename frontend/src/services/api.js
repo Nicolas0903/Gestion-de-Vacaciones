@@ -107,5 +107,26 @@ export const pdfService = {
   descargarSolicitud: (id) => api.get(`/pdf/solicitud/${id}`, { responseType: 'blob' }),
 };
 
+// Boletas de Pago
+export const boletaService = {
+  // Empleados
+  misBoletas: (anio = null) => api.get('/boletas/mis-boletas', { params: { anio } }),
+  misAnios: () => api.get('/boletas/mis-anios'),
+  firmar: (id) => api.put(`/boletas/${id}/firmar`),
+  descargar: (id) => api.get(`/boletas/${id}/descargar`, { responseType: 'blob' }),
+  
+  // Admin
+  listar: (filtros = {}) => api.get('/boletas', { params: filtros }),
+  obtenerAnios: () => api.get('/boletas/anios'),
+  obtenerResumen: (anio, mes) => api.get('/boletas/resumen', { params: { anio, mes } }),
+  subir: (formData) => api.post('/boletas/subir', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  subirMasivo: (formData) => api.post('/boletas/subir-masivo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  eliminar: (id) => api.delete(`/boletas/${id}`),
+};
+
 export default api;
 

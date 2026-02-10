@@ -6,11 +6,12 @@ import {
   DocumentTextIcon,
   ClipboardDocumentCheckIcon,
   ChartBarSquareIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
-  const { usuario, puedeVerReporteAsistencia } = useAuth();
+  const { usuario, puedeVerReporteAsistencia, esAdmin, esContadora } = useAuth();
 
   const modulos = [
     {
@@ -35,8 +36,8 @@ const Portal = () => {
       bgLight: 'bg-violet-50',
       textColor: 'text-violet-600',
       link: '/boletas',
-      activo: false,
-      proximamente: true
+      activo: true,
+      adminLink: '/boletas/gestion' // Link especial para admin
     },
     {
       id: 'permisos',
@@ -130,9 +131,8 @@ const Portal = () => {
             }
             
             return (
-              <Link
+              <div
                 key={modulo.id}
-                to={modulo.link}
                 className={`relative group p-8 rounded-3xl bg-white border border-slate-100 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden`}
               >
                 {/* Efecto de fondo al hover */}
@@ -157,11 +157,27 @@ const Portal = () => {
                   {modulo.descripcion}
                 </p>
                 
-                <div className={`flex items-center gap-2 ${modulo.textColor} font-medium text-sm`}>
-                  <span>Acceder</span>
-                  <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                <div className="flex items-center gap-3">
+                  <Link
+                    to={modulo.link}
+                    className={`flex items-center gap-2 ${modulo.textColor} font-medium text-sm hover:underline`}
+                  >
+                    <span>Acceder</span>
+                    <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                  </Link>
+                  
+                  {/* Botón de gestión para admin/contadora */}
+                  {modulo.adminLink && (esAdmin() || esContadora()) && (
+                    <Link
+                      to={modulo.adminLink}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors"
+                    >
+                      <Cog6ToothIcon className="w-3.5 h-3.5" />
+                      Gestionar
+                    </Link>
+                  )}
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

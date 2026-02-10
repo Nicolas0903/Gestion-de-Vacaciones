@@ -17,6 +17,8 @@ import EstadoVacaciones from './pages/EstadoVacaciones';
 import VacacionesGanadas from './pages/VacacionesGanadas';
 import MiPerfil from './pages/MiPerfil';
 import ReporteAsistencia from './pages/ReporteAsistencia';
+import MisBoletas from './pages/MisBoletas';
+import GestionBoletas from './pages/GestionBoletas';
 
 // Components
 import Layout from './components/Layout';
@@ -66,6 +68,19 @@ function AppRoutes() {
       <Route path="/reporte-asistencia" element={
         <ProtectedRoute>
           <ReporteAsistencia />
+        </ProtectedRoute>
+      } />
+
+      {/* Módulo de Boletas de Pago */}
+      <Route path="/boletas" element={
+        <ProtectedRoute>
+          <MisBoletas />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/boletas/gestion" element={
+        <ProtectedRoute roles={['admin', 'contadora']}>
+          <GestionBoletas />
         </ProtectedRoute>
       } />
 
