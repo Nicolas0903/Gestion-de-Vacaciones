@@ -89,10 +89,9 @@ export const AuthProvider = ({ children }) => {
 
   // Usuarios autorizados para ver el reporte de asistencia (por email)
   const USUARIOS_REPORTE_ASISTENCIA = [
-    'rocio.picon@paboratory.com',
-    'enrique@prayaga.pe',
-    'nicolas@prayaga.pe',
-    'nicolas.arce@paboratory.com'
+    'rocio.picon@prayaga.biz',
+    'enrique.prayaga@prayaga.biz',
+    'nicolas.arce@prayaga.biz'
   ];
 
   const puedeVerReporteAsistencia = () => {
