@@ -9,6 +9,7 @@ const notificacionesRoutes = require('./notificaciones');
 const pdfRoutes = require('./pdf');
 const boletasRoutes = require('./boletas');
 const permisosRoutes = require('./permisos');
+const configRoutes = require('./config');
 
 router.use('/auth', authRoutes);
 router.use('/empleados', empleadosRoutes);
@@ -18,6 +19,7 @@ router.use('/notificaciones', notificacionesRoutes);
 router.use('/pdf', pdfRoutes);
 router.use('/boletas', boletasRoutes);
 router.use('/permisos', permisosRoutes);
+router.use('/config', configRoutes);
 
 // Ruta de health check
 router.get('/health', (req, res) => {

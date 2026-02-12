@@ -7,6 +7,7 @@ const {
 } = require('../models');
 const moment = require('moment');
 const { calcularDiasVacaciones } = require('../utils/calcularDiasVacaciones');
+const emailService = require('../services/emailService');
 
 // Crear solicitud
 const crear = async (req, res) => {
@@ -119,8 +120,15 @@ const enviar = async (req, res) => {
         tipo_aprobacion: 'jefe'
       });
 
-      // Notificar al jefe
+      // Notificar al jefe (sistema interno)
       await Notificacion.notificarSolicitudEnviada(parseInt(id), req.usuario.id, empleado.jefe_id);
+      
+      // Enviar email al jefe
+      const jefe = await Empleado.buscarPorId(empleado.jefe_id);
+      if (jefe) {
+        emailService.notificarNuevaSolicitud(solicitud, empleado, jefe)
+          .catch(err => console.error('Error enviando email:', err));
+      }
     } else {
       // NO tiene jefe directo: ir directo a contadora (Rocío)
       await SolicitudVacaciones.actualizarEstado(parseInt(id), 'pendiente_contadora');
@@ -133,8 +141,12 @@ const enviar = async (req, res) => {
           tipo_aprobacion: 'contadora'
         });
 
-        // Notificar a la contadora
+        // Notificar a la contadora (sistema interno)
         await Notificacion.notificarSolicitudEnviada(parseInt(id), req.usuario.id, contadoras[0].id);
+        
+        // Enviar email a la contadora
+        emailService.notificarNuevaSolicitud(solicitud, empleado, contadoras[0])
+          .catch(err => console.error('Error enviando email:', err));
       }
     }
 
@@ -231,6 +243,10 @@ const aprobar = async (req, res) => {
     // Actualizar estado de solicitud
     await SolicitudVacaciones.actualizarEstado(parseInt(id), siguienteEstado);
 
+    // Obtener datos del empleado y aprobador para emails
+    const empleadoSolicitud = await Empleado.buscarPorId(solicitud.empleado_id);
+    const aprobador = await Empleado.buscarPorId(aprobadorId);
+
     // Notificaciones
     if (tipoAprobacion === 'jefe' && !esContadoraOAdmin) {
       // Buscar contadora para siguiente aprobación
@@ -242,6 +258,10 @@ const aprobar = async (req, res) => {
           tipo_aprobacion: 'contadora'
         });
         await Notificacion.notificarAprobacionJefe(parseInt(id), solicitud.empleado_id, contadoras[0].id);
+        
+        // Enviar emails: al empleado y a la contadora
+        emailService.notificarAprobacionJefe(solicitud, empleadoSolicitud, aprobador, contadoras[0])
+          .catch(err => console.error('Error enviando email:', err));
       }
     }
     
@@ -250,6 +270,10 @@ const aprobar = async (req, res) => {
       // Aprobación final - actualizar días gozados
       await PeriodoVacaciones.actualizarDiasGozados(solicitud.periodo_id, solicitud.dias_solicitados);
       await Notificacion.notificarAprobacionFinal(parseInt(id), solicitud.empleado_id);
+      
+      // Enviar email de aprobación final al empleado
+      emailService.notificarAprobacionFinal(solicitud, empleadoSolicitud, aprobador)
+        .catch(err => console.error('Error enviando email:', err));
     }
 
     res.json({
@@ -308,8 +332,14 @@ const rechazar = async (req, res) => {
     // Actualizar estado de solicitud
     await SolicitudVacaciones.actualizarEstado(parseInt(id), 'rechazada');
 
-    // Notificar al empleado
+    // Notificar al empleado (sistema interno)
     await Notificacion.notificarRechazo(parseInt(id), solicitud.empleado_id, comentarios);
+
+    // Enviar email de rechazo al empleado
+    const empleadoSolicitud = await Empleado.buscarPorId(solicitud.empleado_id);
+    const rechazadoPor = await Empleado.buscarPorId(req.usuario.id);
+    emailService.notificarRechazo(solicitud, empleadoSolicitud, rechazadoPor, comentarios)
+      .catch(err => console.error('Error enviando email:', err));
 
     res.json({
       success: true,

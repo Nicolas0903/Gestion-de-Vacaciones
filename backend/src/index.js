@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { testConnection } = require('./config/database');
 const routes = require('./routes');
+const emailService = require('./services/emailService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -59,6 +60,9 @@ const startServer = async () => {
   if (!dbConnected) {
     console.warn('⚠️  No se pudo conectar a MySQL. Algunas funciones pueden no estar disponibles.');
   }
+
+  // Verificar configuración de email
+  await emailService.verificarConexion();
 
   app.listen(PORT, () => {
     console.log(`
