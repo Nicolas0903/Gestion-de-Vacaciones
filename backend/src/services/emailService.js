@@ -1,4 +1,8 @@
 const nodemailer = require('nodemailer');
+const TokenAprobacion = require('../models/TokenAprobacion');
+
+// URL base para los enlaces de aprobación
+const API_URL = process.env.API_URL || 'https://gestion.prayaga.biz/api';
 
 // Configuración del transporter para Outlook/Office 365
 const createTransporter = () => {
@@ -137,6 +141,7 @@ const formatearFecha = (fecha) => {
 
 /**
  * Enviar correo cuando un empleado envía una solicitud de vacaciones
+ * CON BOTONES DE APROBAR/RECHAZAR
  * @param {Object} solicitud - Datos de la solicitud
  * @param {Object} empleado - Datos del empleado que solicita
  * @param {Object} aprobador - Datos del aprobador (jefe o contadora)
@@ -147,58 +152,86 @@ const notificarNuevaSolicitud = async (solicitud, empleado, aprobador) => {
     return false;
   }
 
-  const contenido = `
-    <p>Hola <strong>${aprobador.nombre} ${aprobador.apellido}</strong>,</p>
-    
-    <p>Se ha recibido una nueva solicitud de vacaciones que requiere tu aprobación:</p>
-    
-    <div class="info-box">
-      <div class="info-row">
-        <span class="info-label">Solicitante:</span>
-        <span class="info-value">${empleado.nombre} ${empleado.apellido}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Cargo:</span>
-        <span class="info-value">${empleado.cargo || 'N/A'}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Fecha Inicio:</span>
-        <span class="info-value">${formatearFecha(solicitud.fecha_inicio_vacaciones)}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Fecha Fin:</span>
-        <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Días Solicitados:</span>
-        <span class="info-value"><strong>${solicitud.dias_solicitados} días</strong></span>
-      </div>
-      ${solicitud.observaciones ? `
-      <div class="info-row">
-        <span class="info-label">Observaciones:</span>
-        <span class="info-value">${solicitud.observaciones}</span>
-      </div>
-      ` : ''}
-    </div>
-    
-    <p>Por favor ingresa al sistema para revisar y aprobar o rechazar esta solicitud.</p>
-    
-    <center>
-      <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/aprobaciones" class="button">
-        Ver Solicitudes Pendientes
-      </a>
-    </center>
-  `;
-
   try {
+    // Generar tokens para aprobar/rechazar
+    const tokenAprobar = await TokenAprobacion.crear(solicitud.id, aprobador.id, 'aprobar');
+    const tokenRechazar = await TokenAprobacion.crear(solicitud.id, aprobador.id, 'rechazar');
+
+    const urlAprobar = `${API_URL}/aprobacion-email/aprobar/${tokenAprobar}`;
+    const urlRechazar = `${API_URL}/aprobacion-email/rechazar/${tokenRechazar}`;
+
+    // Soporte para ambos formatos: nombres/apellidos o nombre/apellido
+    const aprobadorNombre = aprobador.nombres || aprobador.nombre;
+    const aprobadorApellido = aprobador.apellidos || aprobador.apellido;
+    const empleadoNombre = empleado.nombres || empleado.nombre;
+    const empleadoApellido = empleado.apellidos || empleado.apellido;
+
+    const contenido = `
+      <p>Hola <strong>${aprobadorNombre} ${aprobadorApellido}</strong>,</p>
+      
+      <p>Se ha recibido una nueva solicitud de vacaciones que requiere tu aprobación:</p>
+      
+      <div class="info-box">
+        <div class="info-row">
+          <span class="info-label">Solicitante:</span>
+          <span class="info-value">${empleadoNombre} ${empleadoApellido}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Cargo:</span>
+          <span class="info-value">${empleado.cargo || 'N/A'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Fecha Inicio:</span>
+          <span class="info-value">${formatearFecha(solicitud.fecha_inicio_vacaciones)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Fecha Fin:</span>
+          <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Días Solicitados:</span>
+          <span class="info-value"><strong>${solicitud.dias_solicitados} días</strong></span>
+        </div>
+        ${solicitud.observaciones ? `
+        <div class="info-row">
+          <span class="info-label">Observaciones:</span>
+          <span class="info-value">${solicitud.observaciones}</span>
+        </div>
+        ` : ''}
+      </div>
+      
+      <p style="text-align: center; margin: 25px 0 10px 0;"><strong>¿Qué deseas hacer con esta solicitud?</strong></p>
+      
+      <center>
+        <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          <tr>
+            <td style="padding: 0 10px;">
+              <a href="${urlAprobar}" style="display: inline-block; background: #10b981; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                ✓ APROBAR
+              </a>
+            </td>
+            <td style="padding: 0 10px;">
+              <a href="${urlRechazar}" style="display: inline-block; background: #ef4444; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                ✗ RECHAZAR
+              </a>
+            </td>
+          </tr>
+        </table>
+      </center>
+      
+      <p style="text-align: center; margin-top: 20px; font-size: 13px; color: #64748b;">
+        O también puedes <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/aprobaciones">ingresar al sistema</a> para más detalles.
+      </p>
+    `;
+
     const transporter = createTransporter();
     await transporter.sendMail({
       from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
       to: aprobador.email,
-      subject: `📋 Nueva Solicitud de Vacaciones - ${empleado.nombre} ${empleado.apellido}`,
+      subject: `📋 Nueva Solicitud de Vacaciones - ${empleadoNombre} ${empleadoApellido}`,
       html: plantillaBase(contenido, 'Nueva Solicitud de Vacaciones')
     });
-    console.log(`📧 Email enviado a ${aprobador.email} - Nueva solicitud de ${empleado.nombre}`);
+    console.log(`📧 Email enviado a ${aprobador.email} - Nueva solicitud de ${empleadoNombre}`);
     return true;
   } catch (error) {
     console.error('❌ Error al enviar email:', error.message);
@@ -208,7 +241,7 @@ const notificarNuevaSolicitud = async (solicitud, empleado, aprobador) => {
 
 /**
  * Notificar al empleado que su solicitud fue aprobada por el jefe
- * y notificar a la contadora que tiene una nueva solicitud pendiente
+ * y notificar a la contadora que tiene una nueva solicitud pendiente (CON BOTONES)
  */
 const notificarAprobacionJefe = async (solicitud, empleado, jefe, contadora) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -216,82 +249,114 @@ const notificarAprobacionJefe = async (solicitud, empleado, jefe, contadora) => 
     return false;
   }
 
-  const transporter = createTransporter();
-
-  // 1. Notificar al empleado
-  const contenidoEmpleado = `
-    <p>Hola <strong>${empleado.nombre} ${empleado.apellido}</strong>,</p>
-    
-    <p>Tu solicitud de vacaciones ha sido <span class="status-pendiente">aprobada por tu jefe directo</span> 
-    y está pendiente de aprobación final.</p>
-    
-    <div class="info-box">
-      <div class="info-row">
-        <span class="info-label">Fecha Inicio:</span>
-        <span class="info-value">${formatearFecha(solicitud.fecha_inicio_vacaciones)}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Fecha Fin:</span>
-        <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Días:</span>
-        <span class="info-value">${solicitud.dias_solicitados} días</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Aprobado por:</span>
-        <span class="info-value">${jefe.nombre} ${jefe.apellido}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Estado:</span>
-        <span class="info-value status-pendiente">Pendiente aprobación final</span>
-      </div>
-    </div>
-    
-    <p>Te notificaremos cuando se complete el proceso de aprobación.</p>
-  `;
-
-  // 2. Notificar a la contadora
-  const contenidoContadora = `
-    <p>Hola <strong>${contadora.nombre} ${contadora.apellido}</strong>,</p>
-    
-    <p>Una solicitud de vacaciones ha sido aprobada por el jefe directo y requiere tu aprobación final:</p>
-    
-    <div class="info-box">
-      <div class="info-row">
-        <span class="info-label">Solicitante:</span>
-        <span class="info-value">${empleado.nombre} ${empleado.apellido}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Cargo:</span>
-        <span class="info-value">${empleado.cargo || 'N/A'}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Fecha Inicio:</span>
-        <span class="info-value">${formatearFecha(solicitud.fecha_inicio_vacaciones)}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Fecha Fin:</span>
-        <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Días:</span>
-        <span class="info-value"><strong>${solicitud.dias_solicitados} días</strong></span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Aprobado por:</span>
-        <span class="info-value">${jefe.nombre} ${jefe.apellido} (Jefe Directo)</span>
-      </div>
-    </div>
-    
-    <center>
-      <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/aprobaciones" class="button">
-        Revisar y Aprobar
-      </a>
-    </center>
-  `;
-
   try {
+    const transporter = createTransporter();
+
+    // Generar tokens para la contadora
+    const tokenAprobar = await TokenAprobacion.crear(solicitud.id, contadora.id, 'aprobar');
+    const tokenRechazar = await TokenAprobacion.crear(solicitud.id, contadora.id, 'rechazar');
+
+    const urlAprobar = `${API_URL}/aprobacion-email/aprobar/${tokenAprobar}`;
+    const urlRechazar = `${API_URL}/aprobacion-email/rechazar/${tokenRechazar}`;
+
+    // Soporte para ambos formatos
+    const empleadoNombre = empleado.nombres || empleado.nombre;
+    const empleadoApellido = empleado.apellidos || empleado.apellido;
+    const jefeNombre = jefe.nombres || jefe.nombre;
+    const jefeApellido = jefe.apellidos || jefe.apellido;
+    const contadoraNombre = contadora.nombres || contadora.nombre;
+    const contadoraApellido = contadora.apellidos || contadora.apellido;
+
+    // 1. Notificar al empleado
+    const contenidoEmpleado = `
+      <p>Hola <strong>${empleadoNombre} ${empleadoApellido}</strong>,</p>
+      
+      <p>Tu solicitud de vacaciones ha sido <span class="status-pendiente">aprobada por tu jefe directo</span> 
+      y está pendiente de aprobación final.</p>
+      
+      <div class="info-box">
+        <div class="info-row">
+          <span class="info-label">Fecha Inicio:</span>
+          <span class="info-value">${formatearFecha(solicitud.fecha_inicio_vacaciones)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Fecha Fin:</span>
+          <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Días:</span>
+          <span class="info-value">${solicitud.dias_solicitados} días</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Aprobado por:</span>
+          <span class="info-value">${jefeNombre} ${jefeApellido}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Estado:</span>
+          <span class="info-value status-pendiente">Pendiente aprobación final</span>
+        </div>
+      </div>
+      
+      <p>Te notificaremos cuando se complete el proceso de aprobación.</p>
+    `;
+
+    // 2. Notificar a la contadora con botones
+    const contenidoContadora = `
+      <p>Hola <strong>${contadoraNombre} ${contadoraApellido}</strong>,</p>
+      
+      <p>Una solicitud de vacaciones ha sido aprobada por el jefe directo y requiere tu <strong>aprobación final</strong>:</p>
+      
+      <div class="info-box">
+        <div class="info-row">
+          <span class="info-label">Solicitante:</span>
+          <span class="info-value">${empleadoNombre} ${empleadoApellido}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Cargo:</span>
+          <span class="info-value">${empleado.cargo || 'N/A'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Fecha Inicio:</span>
+          <span class="info-value">${formatearFecha(solicitud.fecha_inicio_vacaciones)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Fecha Fin:</span>
+          <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Días:</span>
+          <span class="info-value"><strong>${solicitud.dias_solicitados} días</strong></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Aprobado por:</span>
+          <span class="info-value">${jefeNombre} ${jefeApellido} (Jefe Directo)</span>
+        </div>
+      </div>
+      
+      <p style="text-align: center; margin: 25px 0 10px 0;"><strong>¿Qué deseas hacer con esta solicitud?</strong></p>
+      
+      <center>
+        <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          <tr>
+            <td style="padding: 0 10px;">
+              <a href="${urlAprobar}" style="display: inline-block; background: #10b981; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                ✓ APROBAR
+              </a>
+            </td>
+            <td style="padding: 0 10px;">
+              <a href="${urlRechazar}" style="display: inline-block; background: #ef4444; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                ✗ RECHAZAR
+              </a>
+            </td>
+          </tr>
+        </table>
+      </center>
+      
+      <p style="text-align: center; margin-top: 20px; font-size: 13px; color: #64748b;">
+        O también puedes <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/aprobaciones">ingresar al sistema</a> para más detalles.
+      </p>
+    `;
+
     // Enviar ambos correos
     await Promise.all([
       transporter.sendMail({
@@ -303,14 +368,103 @@ const notificarAprobacionJefe = async (solicitud, empleado, jefe, contadora) => 
       transporter.sendMail({
         from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
         to: contadora.email,
-        subject: `📋 Solicitud Pendiente de Aprobación Final - ${empleado.nombre} ${empleado.apellido}`,
+        subject: `📋 Solicitud Pendiente de Aprobación Final - ${empleadoNombre} ${empleadoApellido}`,
         html: plantillaBase(contenidoContadora, 'Solicitud Pendiente de Aprobación')
       })
     ]);
-    console.log(`📧 Emails enviados - Aprobación jefe de ${empleado.nombre}`);
+    console.log(`📧 Emails enviados - Aprobación jefe de ${empleadoNombre}`);
     return true;
   } catch (error) {
     console.error('❌ Error al enviar emails:', error.message);
+    return false;
+  }
+};
+
+/**
+ * Notificar a la contadora cuando el jefe aprueba (usado desde aprobación por email)
+ * CON BOTONES DE APROBAR/RECHAZAR
+ */
+const notificarAprobacionJefeConBotones = async (solicitud, empleado, jefe, contadora) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Notificación omitida');
+    return false;
+  }
+
+  try {
+    // Generar tokens para la contadora
+    const tokenAprobar = await TokenAprobacion.crear(solicitud.id, contadora.id, 'aprobar');
+    const tokenRechazar = await TokenAprobacion.crear(solicitud.id, contadora.id, 'rechazar');
+
+    const urlAprobar = `${API_URL}/aprobacion-email/aprobar/${tokenAprobar}`;
+    const urlRechazar = `${API_URL}/aprobacion-email/rechazar/${tokenRechazar}`;
+
+    const contenido = `
+      <p>Hola <strong>${contadora.nombres || contadora.nombre} ${contadora.apellidos || contadora.apellido}</strong>,</p>
+      
+      <p>Una solicitud de vacaciones ha sido aprobada por el jefe directo y requiere tu <strong>aprobación final</strong>:</p>
+      
+      <div class="info-box">
+        <div class="info-row">
+          <span class="info-label">Solicitante:</span>
+          <span class="info-value">${empleado.nombres || empleado.nombre} ${empleado.apellidos || empleado.apellido}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Cargo:</span>
+          <span class="info-value">${empleado.cargo || 'N/A'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Fecha Inicio:</span>
+          <span class="info-value">${formatearFecha(solicitud.fecha_inicio_vacaciones)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Fecha Fin:</span>
+          <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Días:</span>
+          <span class="info-value"><strong>${solicitud.dias_solicitados} días</strong></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Aprobado por:</span>
+          <span class="info-value">${jefe.nombres || jefe.nombre} ${jefe.apellidos || jefe.apellido} (Jefe Directo)</span>
+        </div>
+      </div>
+      
+      <p style="text-align: center; margin: 25px 0 10px 0;"><strong>¿Qué deseas hacer con esta solicitud?</strong></p>
+      
+      <center>
+        <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          <tr>
+            <td style="padding: 0 10px;">
+              <a href="${urlAprobar}" style="display: inline-block; background: #10b981; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                ✓ APROBAR
+              </a>
+            </td>
+            <td style="padding: 0 10px;">
+              <a href="${urlRechazar}" style="display: inline-block; background: #ef4444; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                ✗ RECHAZAR
+              </a>
+            </td>
+          </tr>
+        </table>
+      </center>
+      
+      <p style="text-align: center; margin-top: 20px; font-size: 13px; color: #64748b;">
+        O también puedes <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/aprobaciones">ingresar al sistema</a> para más detalles.
+      </p>
+    `;
+
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      to: contadora.email,
+      subject: `📋 Solicitud Pendiente de Aprobación Final - ${empleado.nombres || empleado.nombre} ${empleado.apellidos || empleado.apellido}`,
+      html: plantillaBase(contenido, 'Solicitud Pendiente de Aprobación')
+    });
+    console.log(`📧 Email enviado a ${contadora.email} - Pendiente aprobación final`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error al enviar email:', error.message);
     return false;
   }
 };
@@ -324,8 +478,14 @@ const notificarAprobacionFinal = async (solicitud, empleado, aprobador) => {
     return false;
   }
 
+  // Soporte para ambos formatos
+  const empleadoNombre = empleado.nombres || empleado.nombre;
+  const empleadoApellido = empleado.apellidos || empleado.apellido;
+  const aprobadorNombre = aprobador.nombres || aprobador.nombre;
+  const aprobadorApellido = aprobador.apellidos || aprobador.apellido;
+
   const contenido = `
-    <p>Hola <strong>${empleado.nombre} ${empleado.apellido}</strong>,</p>
+    <p>Hola <strong>${empleadoNombre} ${empleadoApellido}</strong>,</p>
     
     <p>¡Excelentes noticias! Tu solicitud de vacaciones ha sido <span class="status-aprobada">APROBADA</span>.</p>
     
@@ -352,7 +512,7 @@ const notificarAprobacionFinal = async (solicitud, empleado, aprobador) => {
       </div>
       <div class="info-row">
         <span class="info-label">Aprobado por:</span>
-        <span class="info-value">${aprobador.nombre} ${aprobador.apellido}</span>
+        <span class="info-value">${aprobadorNombre} ${aprobadorApellido}</span>
       </div>
       <div class="info-row">
         <span class="info-label">Estado:</span>
@@ -396,8 +556,14 @@ const notificarRechazo = async (solicitud, empleado, rechazadoPor, motivo) => {
     return false;
   }
 
+  // Soporte para ambos formatos
+  const empleadoNombre = empleado.nombres || empleado.nombre;
+  const empleadoApellido = empleado.apellidos || empleado.apellido;
+  const rechazadoPorNombre = rechazadoPor.nombres || rechazadoPor.nombre;
+  const rechazadoPorApellido = rechazadoPor.apellidos || rechazadoPor.apellido;
+
   const contenido = `
-    <p>Hola <strong>${empleado.nombre} ${empleado.apellido}</strong>,</p>
+    <p>Hola <strong>${empleadoNombre} ${empleadoApellido}</strong>,</p>
     
     <p>Lamentamos informarte que tu solicitud de vacaciones ha sido <span class="status-rechazada">RECHAZADA</span>.</p>
     
@@ -416,7 +582,7 @@ const notificarRechazo = async (solicitud, empleado, rechazadoPor, motivo) => {
       </div>
       <div class="info-row">
         <span class="info-label">Rechazado por:</span>
-        <span class="info-value">${rechazadoPor.nombre} ${rechazadoPor.apellido}</span>
+        <span class="info-value">${rechazadoPorNombre} ${rechazadoPorApellido}</span>
       </div>
       <div class="info-row">
         <span class="info-label">Estado:</span>
@@ -492,6 +658,7 @@ module.exports = {
   verificarConexion,
   notificarNuevaSolicitud,
   notificarAprobacionJefe,
+  notificarAprobacionJefeConBotones,
   notificarAprobacionFinal,
   notificarRechazo,
   enviarEmailPrueba
