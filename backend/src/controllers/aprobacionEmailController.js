@@ -274,7 +274,7 @@ function generarHtmlRespuesta(titulo, mensaje, tipo) {
     <div class="icon">${config.icon}</div>
     <h1>${titulo}</h1>
     <p>${mensaje}</p>
-    <a href="https://gestion.prayaga.biz/vacaciones/aprobaciones" class="btn">Ir al Sistema</a>
+    <a href="http://96.126.124.60/gestion-vacaciones/vacaciones/aprobaciones" class="btn">Ir al Sistema</a>
   </div>
 </body>
 </html>
@@ -283,6 +283,7 @@ function generarHtmlRespuesta(titulo, mensaje, tipo) {
 
 // Generar formulario de rechazo
 function generarFormularioRechazo(token, tokenData) {
+  const API_URL = process.env.API_URL || 'http://96.126.124.60:3002/api';
   return `
 <!DOCTYPE html>
 <html>
@@ -387,12 +388,12 @@ function generarFormularioRechazo(token, tokenData) {
       <p>El empleado será notificado del rechazo.</p>
     </div>
     
-    <form method="GET" action="/api/aprobacion-email/rechazar/${token}">
+    <form method="GET" action="${API_URL}/aprobacion-email/rechazar/${token}">
       <label for="motivo">Motivo del rechazo (requerido):</label>
       <textarea name="motivo" id="motivo" required placeholder="Explica brevemente el motivo del rechazo..."></textarea>
       
       <div class="buttons">
-        <a href="https://gestion.prayaga.biz/vacaciones/aprobaciones" class="btn btn-cancel">Cancelar</a>
+        <a href="http://96.126.124.60/gestion-vacaciones/vacaciones/aprobaciones" class="btn btn-cancel">Cancelar</a>
         <button type="submit" class="btn btn-reject">Confirmar Rechazo</button>
       </div>
     </form>
