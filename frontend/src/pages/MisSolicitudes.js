@@ -10,8 +10,9 @@ import {
   EyeIcon,
   TrashIcon
 } from '@heroicons/react/24/outline';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseFechaSegura } from '../utils/dateUtils';
 
 const MisSolicitudes = () => {
   const [solicitudes, setSolicitudes] = useState([]);
@@ -156,12 +157,12 @@ const MisSolicitudes = () => {
                   <tr key={solicitud.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <p className="text-sm text-slate-600">
-                        {format(parseISO(solicitud.fecha_inicio_periodo), "yyyy", { locale: es })} - {format(parseISO(solicitud.fecha_fin_periodo), "yyyy", { locale: es })}
+                        {format(parseFechaSegura(solicitud.fecha_inicio_periodo), "yyyy", { locale: es })} - {format(parseFechaSegura(solicitud.fecha_fin_periodo), "yyyy", { locale: es })}
                       </p>
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm font-medium text-slate-700">
-                        {format(parseISO(solicitud.fecha_inicio_vacaciones), "d 'de' MMM", { locale: es })} - {format(parseISO(solicitud.fecha_fin_vacaciones), "d 'de' MMM, yyyy", { locale: es })}
+                        {format(parseFechaSegura(solicitud.fecha_inicio_vacaciones), "d 'de' MMM", { locale: es })} - {format(parseFechaSegura(solicitud.fecha_fin_vacaciones), "d 'de' MMM, yyyy", { locale: es })}
                       </p>
                     </td>
                     <td className="px-6 py-4 text-center">

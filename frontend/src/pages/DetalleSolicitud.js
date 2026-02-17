@@ -13,8 +13,9 @@ import {
   ClockIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseFechaSegura } from '../utils/dateUtils';
 
 const DetalleSolicitud = () => {
   const { id } = useParams();
@@ -207,13 +208,13 @@ const DetalleSolicitud = () => {
             <div>
               <p className="text-sm text-slate-500">Período</p>
               <p className="font-medium text-slate-800">
-                {format(parseISO(solicitud.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseISO(solicitud.fecha_fin_periodo), "d MMM yyyy", { locale: es })}
+                {format(parseFechaSegura(solicitud.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseFechaSegura(solicitud.fecha_fin_periodo), "d MMM yyyy", { locale: es })}
               </p>
             </div>
             <div>
               <p className="text-sm text-slate-500">Días de Vacaciones</p>
               <p className="font-medium text-slate-800">
-                {format(parseISO(solicitud.fecha_inicio_vacaciones), "d 'de' MMMM", { locale: es })} al {format(parseISO(solicitud.fecha_fin_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
+                {format(parseFechaSegura(solicitud.fecha_inicio_vacaciones), "d 'de' MMMM", { locale: es })} al {format(parseFechaSegura(solicitud.fecha_fin_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
               </p>
             </div>
             <div>
@@ -225,13 +226,13 @@ const DetalleSolicitud = () => {
             <div>
               <p className="text-sm text-slate-500">Fecha Efectiva de Salida</p>
               <p className="font-medium text-slate-800">
-                {format(parseISO(solicitud.fecha_efectiva_salida || solicitud.fecha_inicio_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
+                {format(parseFechaSegura(solicitud.fecha_efectiva_salida || solicitud.fecha_inicio_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
               </p>
             </div>
             <div>
               <p className="text-sm text-slate-500">Fecha Efectiva de Regreso</p>
               <p className="font-medium text-slate-800">
-                {format(parseISO(solicitud.fecha_efectiva_regreso || solicitud.fecha_fin_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
+                {format(parseFechaSegura(solicitud.fecha_efectiva_regreso || solicitud.fecha_fin_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
               </p>
             </div>
             {solicitud.observaciones && (
@@ -272,7 +273,7 @@ const DetalleSolicitud = () => {
                   )}
                   {aprobacion.fecha_accion && (
                     <p className="text-xs text-slate-400 mt-2">
-                      {format(parseISO(aprobacion.fecha_accion), "d MMM yyyy, HH:mm", { locale: es })}
+                      {format(parseFechaSegura(aprobacion.fecha_accion), "d MMM yyyy, HH:mm", { locale: es })}
                     </p>
                   )}
                 </div>

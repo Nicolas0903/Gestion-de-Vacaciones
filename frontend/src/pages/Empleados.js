@@ -15,8 +15,9 @@ import {
   DocumentTextIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseFechaSegura } from '../utils/dateUtils';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -181,8 +182,8 @@ const Empleados = () => {
   const calcularDiasPeriodo = (fechaInicio, fechaFin) => {
     if (!fechaInicio || !fechaFin) return '-';
     try {
-      const inicio = parseISO(fechaInicio);
-      const fin = parseISO(fechaFin);
+      const inicio = parseFechaSegura(fechaInicio);
+      const fin = parseFechaSegura(fechaFin);
       return differenceInDays(fin, inicio);
     } catch {
       return '-';
@@ -320,7 +321,7 @@ const Empleados = () => {
       const headerData = [
         [`VACACIONES ${empleadoVacaciones.nombres.toUpperCase()} ${empleadoVacaciones.apellidos.toUpperCase()}`],
         [`Cargo: ${empleadoVacaciones.cargo || 'N/A'}`],
-        [`Fecha Ingreso: ${empleadoVacaciones.fecha_ingreso ? format(parseISO(empleadoVacaciones.fecha_ingreso), "dd/MM/yyyy") : 'N/A'}`],
+        [`Fecha Ingreso: ${empleadoVacaciones.fecha_ingreso ? format(parseFechaSegura(empleadoVacaciones.fecha_ingreso), "dd/MM/yyyy") : 'N/A'}`],
         [],
         ['PERÍODOS DE VACACIONES'],
         ['Motivo', 'Fecha Inicio', 'Fecha Final', 'Días Período', 'Vacaciones', 'Gozados', 'Pendientes', 'Observaciones']
@@ -330,8 +331,8 @@ const Empleados = () => {
       periodosVacaciones.forEach(periodo => {
         headerData.push([
           periodo.estado === 'gozadas' ? 'Gozadas' : periodo.estado === 'parcial' ? 'Parcial' : 'Pendiente',
-          periodo.fecha_inicio_periodo ? format(parseISO(periodo.fecha_inicio_periodo), "dd/MM/yyyy") : '',
-          periodo.fecha_fin_periodo ? format(parseISO(periodo.fecha_fin_periodo), "dd/MM/yyyy") : '',
+          periodo.fecha_inicio_periodo ? format(parseFechaSegura(periodo.fecha_inicio_periodo), "dd/MM/yyyy") : '',
+          periodo.fecha_fin_periodo ? format(parseFechaSegura(periodo.fecha_fin_periodo), "dd/MM/yyyy") : '',
           calcularDiasPeriodo(periodo.fecha_inicio_periodo, periodo.fecha_fin_periodo),
           periodo.dias_correspondientes,
           periodo.dias_gozados,
@@ -389,7 +390,7 @@ const Empleados = () => {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(`Cargo: ${empleadoVacaciones.cargo || 'N/A'}`, 14, 30);
-      doc.text(`Fecha Ingreso: ${empleadoVacaciones.fecha_ingreso ? format(parseISO(empleadoVacaciones.fecha_ingreso), "dd/MM/yyyy") : 'N/A'}`, 14, 36);
+      doc.text(`Fecha Ingreso: ${empleadoVacaciones.fecha_ingreso ? format(parseFechaSegura(empleadoVacaciones.fecha_ingreso), "dd/MM/yyyy") : 'N/A'}`, 14, 36);
       
       // Tabla de períodos
       doc.setFontSize(12);
@@ -398,8 +399,8 @@ const Empleados = () => {
       
       const tableData = periodosVacaciones.map(periodo => [
         periodo.estado === 'gozadas' ? 'Gozadas' : periodo.estado === 'parcial' ? 'Parcial' : 'Pendiente',
-        periodo.fecha_inicio_periodo ? format(parseISO(periodo.fecha_inicio_periodo), "dd/MM/yyyy") : '',
-        periodo.fecha_fin_periodo ? format(parseISO(periodo.fecha_fin_periodo), "dd/MM/yyyy") : '',
+        periodo.fecha_inicio_periodo ? format(parseFechaSegura(periodo.fecha_inicio_periodo), "dd/MM/yyyy") : '',
+        periodo.fecha_fin_periodo ? format(parseFechaSegura(periodo.fecha_fin_periodo), "dd/MM/yyyy") : '',
         calcularDiasPeriodo(periodo.fecha_inicio_periodo, periodo.fecha_fin_periodo),
         periodo.dias_correspondientes,
         periodo.dias_gozados,
@@ -525,7 +526,7 @@ const Empleados = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {empleado.fecha_ingreso && format(parseISO(empleado.fecha_ingreso), "d MMM yyyy", { locale: es })}
+                      {empleado.fecha_ingreso && format(parseFechaSegura(empleado.fecha_ingreso), "d MMM yyyy", { locale: es })}
                     </td>
 <td className="px-6 py-4">
                                       <div className="flex items-center justify-center gap-2">
@@ -849,10 +850,10 @@ const Empleados = () => {
                               </span>
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-600">
-                              {periodo.fecha_inicio_periodo && format(parseISO(periodo.fecha_inicio_periodo), "dd/MM/yyyy", { locale: es })}
+                              {periodo.fecha_inicio_periodo && format(parseFechaSegura(periodo.fecha_inicio_periodo), "dd/MM/yyyy", { locale: es })}
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-600">
-                              {periodo.fecha_fin_periodo && format(parseISO(periodo.fecha_fin_periodo), "dd/MM/yyyy", { locale: es })}
+                              {periodo.fecha_fin_periodo && format(parseFechaSegura(periodo.fecha_fin_periodo), "dd/MM/yyyy", { locale: es })}
                             </td>
                             <td className="px-4 py-3 text-center font-semibold text-slate-700">{calcularDiasPeriodo(periodo.fecha_inicio_periodo, periodo.fecha_fin_periodo)}</td>
                             <td className="px-4 py-3 text-center font-semibold text-teal-600">{periodo.dias_correspondientes}</td>
@@ -1057,8 +1058,8 @@ const Empleados = () => {
                   Salidas Gozadas del Período
                 </h3>
                 <p className="text-sm text-slate-500">
-                  {periodoSeleccionado.fecha_inicio_periodo && format(parseISO(periodoSeleccionado.fecha_inicio_periodo), "dd/MM/yyyy", { locale: es })} - 
-                  {periodoSeleccionado.fecha_fin_periodo && format(parseISO(periodoSeleccionado.fecha_fin_periodo), "dd/MM/yyyy", { locale: es })}
+                  {periodoSeleccionado.fecha_inicio_periodo && format(parseFechaSegura(periodoSeleccionado.fecha_inicio_periodo), "dd/MM/yyyy", { locale: es })} - 
+                  {periodoSeleccionado.fecha_fin_periodo && format(parseFechaSegura(periodoSeleccionado.fecha_fin_periodo), "dd/MM/yyyy", { locale: es })}
                   {' '}({periodoSeleccionado.dias_correspondientes} días de vacaciones)
                 </p>
               </div>
@@ -1096,10 +1097,10 @@ const Empleados = () => {
                       {salidasPeriodo.map((salida) => (
                         <tr key={salida.id} className="hover:bg-slate-50">
                           <td className="px-4 py-3 text-sm text-slate-600">
-                            {salida.fecha_inicio_vacaciones && format(parseISO(salida.fecha_inicio_vacaciones), "dd/MM/yyyy", { locale: es })}
+                            {salida.fecha_inicio_vacaciones && format(parseFechaSegura(salida.fecha_inicio_vacaciones), "dd/MM/yyyy", { locale: es })}
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-600">
-                            {salida.fecha_fin_vacaciones && format(parseISO(salida.fecha_fin_vacaciones), "dd/MM/yyyy", { locale: es })}
+                            {salida.fecha_fin_vacaciones && format(parseFechaSegura(salida.fecha_fin_vacaciones), "dd/MM/yyyy", { locale: es })}
                           </td>
                           <td className="px-4 py-3 text-center font-semibold text-teal-600">
                             {salida.dias_solicitados}

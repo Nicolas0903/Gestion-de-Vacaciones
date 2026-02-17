@@ -9,8 +9,9 @@ import {
   ClockIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseFechaSegura } from '../utils/dateUtils';
 
 const EstadoVacaciones = () => {
   const [empleados, setEmpleados] = useState([]);
@@ -249,7 +250,7 @@ const EstadoVacaciones = () => {
                       </td>
                       <td className="px-6 py-4 text-center text-sm text-slate-600">
                         {empleado.fecha_ingreso 
-                          ? format(parseISO(empleado.fecha_ingreso), "dd/MM/yyyy", { locale: es })
+                          ? format(parseFechaSegura(empleado.fecha_ingreso), "dd/MM/yyyy", { locale: es })
                           : '-'
                         }
                       </td>

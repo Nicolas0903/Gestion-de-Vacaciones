@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, addMonths, subMonths, parseISO, addDays } from 'date-fns';
+import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, addMonths, subMonths, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseFechaSegura } from '../utils/dateUtils';
 import { solicitudService, periodoService } from '../services/api';
 import toast from 'react-hot-toast';
 import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XMarkIcon, PaperAirplaneIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
@@ -165,7 +166,7 @@ const Calendario = () => {
       setSubmitting(true);
       
       // Calcular fechas efectivas
-      const fechaFin = parseISO(formData.fecha_fin_vacaciones);
+      const fechaFin = parseFechaSegura(formData.fecha_fin_vacaciones);
       const fechaEfectivaRegreso = format(addDays(fechaFin, 1), 'yyyy-MM-dd');
       
       const res = await solicitudService.crear({
@@ -442,7 +443,7 @@ const Calendario = () => {
                     >
                       {periodos.map(periodo => (
                         <option key={periodo.id} value={periodo.id}>
-                          {format(parseISO(periodo.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseISO(periodo.fecha_fin_periodo), "d MMM yyyy", { locale: es })} ({periodo.dias_pendientes} días)
+                          {format(parseFechaSegura(periodo.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseFechaSegura(periodo.fecha_fin_periodo), "d MMM yyyy", { locale: es })} ({periodo.dias_pendientes} días)
                         </option>
                       ))}
                     </select>

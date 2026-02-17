@@ -1,4 +1,5 @@
-import { eachDayOfInterval, isWeekend, isFriday, addDays, parseISO } from 'date-fns';
+import { eachDayOfInterval, isWeekend, isFriday, addDays } from 'date-fns';
+import { parseFechaSegura } from './dateUtils';
 
 /**
  * Calcula los días de vacaciones según la política de la empresa:
@@ -19,8 +20,8 @@ import { eachDayOfInterval, isWeekend, isFriday, addDays, parseISO } from 'date-
  * @returns {Object} { diasTotales, diasLaborales, diasFinDeSemana, detalle }
  */
 export function calcularDiasVacaciones(fechaInicio, fechaFin) {
-  const inicio = typeof fechaInicio === 'string' ? parseISO(fechaInicio) : fechaInicio;
-  let fin = typeof fechaFin === 'string' ? parseISO(fechaFin) : fechaFin;
+  const inicio = typeof fechaInicio === 'string' ? parseFechaSegura(fechaInicio) : fechaInicio;
+  let fin = typeof fechaFin === 'string' ? parseFechaSegura(fechaFin) : fechaFin;
 
   if (inicio > fin) {
     return { diasTotales: 0, diasLaborales: 0, diasFinDeSemana: 0, detalle: [] };

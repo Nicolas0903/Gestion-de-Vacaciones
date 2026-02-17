@@ -11,8 +11,9 @@ import {
   ClockIcon,
   KeyIcon
 } from '@heroicons/react/24/outline';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseFechaSegura } from '../utils/dateUtils';
 
 const MiPerfil = () => {
   const { usuario } = useAuth();
@@ -168,7 +169,7 @@ const MiPerfil = () => {
           <div>
             <p className="text-sm text-slate-500">Fecha de Ingreso</p>
             <p className="font-medium text-slate-800">
-              {usuario?.fecha_ingreso && format(parseISO(usuario.fecha_ingreso), "d 'de' MMMM, yyyy", { locale: es })}
+              {usuario?.fecha_ingreso && format(parseFechaSegura(usuario.fecha_ingreso), "d 'de' MMMM, yyyy", { locale: es })}
             </p>
           </div>
           <div>
@@ -206,7 +207,7 @@ const MiPerfil = () => {
                   <tr key={periodo.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <p className="font-medium text-slate-700">
-                        {format(parseISO(periodo.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseISO(periodo.fecha_fin_periodo), "d MMM yyyy", { locale: es })}
+                        {format(parseFechaSegura(periodo.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseFechaSegura(periodo.fecha_fin_periodo), "d MMM yyyy", { locale: es })}
                       </p>
                       {periodo.observaciones && (
                         <p className="text-xs text-slate-500">{periodo.observaciones}</p>

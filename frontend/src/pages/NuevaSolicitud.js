@@ -4,8 +4,9 @@ import { periodoService, solicitudService } from '../services/api';
 import Button from '../components/Button';
 import toast from 'react-hot-toast';
 import { CalendarDaysIcon, PaperAirplaneIcon, DocumentIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseFechaSegura } from '../utils/dateUtils';
 import { calcularDiasVacaciones } from '../utils/calcularDiasVacaciones';
 
 const NuevaSolicitud = () => {
@@ -37,8 +38,8 @@ const NuevaSolicitud = () => {
 
   useEffect(() => {
     if (formData.fecha_inicio_vacaciones && formData.fecha_fin_vacaciones) {
-      const inicio = parseISO(formData.fecha_inicio_vacaciones);
-      const fin = parseISO(formData.fecha_fin_vacaciones);
+      const inicio = parseFechaSegura(formData.fecha_inicio_vacaciones);
+      const fin = parseFechaSegura(formData.fecha_fin_vacaciones);
       
       // Usar la nueva función de cálculo con política de empresa
       const resultado = calcularDiasVacaciones(formData.fecha_inicio_vacaciones, formData.fecha_fin_vacaciones);
@@ -180,7 +181,7 @@ const NuevaSolicitud = () => {
             >
               {periodos.map(periodo => (
                 <option key={periodo.id} value={periodo.id}>
-                  {format(parseISO(periodo.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseISO(periodo.fecha_fin_periodo), "d MMM yyyy", { locale: es })} ({periodo.dias_pendientes} días disponibles)
+                  {format(parseFechaSegura(periodo.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseFechaSegura(periodo.fecha_fin_periodo), "d MMM yyyy", { locale: es })} ({periodo.dias_pendientes} días disponibles)
                 </option>
               ))}
             </select>
