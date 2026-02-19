@@ -2,7 +2,8 @@ const nodemailer = require('nodemailer');
 const TokenAprobacion = require('../models/TokenAprobacion');
 
 // URL base para los enlaces de aprobación
-const API_URL = process.env.API_URL || 'https://gestion.prayaga.biz/api';
+const API_URL = process.env.API_URL || 'http://96.126.124.60:3002/api';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://96.126.124.60/gestion-vacaciones';
 
 // Configuración del transporter para Outlook/Office 365
 const createTransporter = () => {
@@ -220,7 +221,7 @@ const notificarNuevaSolicitud = async (solicitud, empleado, aprobador) => {
       </center>
       
       <p style="text-align: center; margin-top: 20px; font-size: 13px; color: #64748b;">
-        O también puedes <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/aprobaciones">ingresar al sistema</a> para más detalles.
+        O también puedes <a href="${FRONTEND_URL}/vacaciones/aprobaciones">ingresar al sistema</a> para más detalles.
       </p>
     `;
 
@@ -353,7 +354,7 @@ const notificarAprobacionJefe = async (solicitud, empleado, jefe, contadora) => 
       </center>
       
       <p style="text-align: center; margin-top: 20px; font-size: 13px; color: #64748b;">
-        O también puedes <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/aprobaciones">ingresar al sistema</a> para más detalles.
+        O también puedes <a href="${FRONTEND_URL}/vacaciones/aprobaciones">ingresar al sistema</a> para más detalles.
       </p>
     `;
 
@@ -450,7 +451,7 @@ const notificarAprobacionJefeConBotones = async (solicitud, empleado, jefe, cont
       </center>
       
       <p style="text-align: center; margin-top: 20px; font-size: 13px; color: #64748b;">
-        O también puedes <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/aprobaciones">ingresar al sistema</a> para más detalles.
+        O también puedes <a href="${FRONTEND_URL}/vacaciones/aprobaciones">ingresar al sistema</a> para más detalles.
       </p>
     `;
 
@@ -523,7 +524,7 @@ const notificarAprobacionFinal = async (solicitud, empleado, aprobador) => {
     <p>Puedes descargar tu constancia de vacaciones desde el sistema.</p>
     
     <center>
-      <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/mis-solicitudes" class="button">
+      <a href="${FRONTEND_URL}/vacaciones/mis-solicitudes" class="button">
         Ver Mis Solicitudes
       </a>
     </center>
@@ -598,7 +599,7 @@ const notificarRechazo = async (solicitud, empleado, rechazadoPor, motivo) => {
     <p>Si tienes dudas, por favor comunícate con tu jefe directo o con Recursos Humanos.</p>
     
     <center>
-      <a href="${process.env.FRONTEND_URL || 'https://gestion.prayaga.biz'}/vacaciones/nueva-solicitud" class="button">
+      <a href="${FRONTEND_URL}/vacaciones/nueva-solicitud" class="button">
         Crear Nueva Solicitud
       </a>
     </center>
