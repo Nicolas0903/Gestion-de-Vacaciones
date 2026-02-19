@@ -4,7 +4,7 @@ import { periodoService, solicitudService } from '../services/api';
 import Button from '../components/Button';
 import toast from 'react-hot-toast';
 import { CalendarDaysIcon, PaperAirplaneIcon, DocumentIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
-import { format, addDays } from 'date-fns';
+import { format, addDays, isWeekend } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { parseFechaSegura } from '../utils/dateUtils';
 import { calcularDiasVacaciones } from '../utils/calcularDiasVacaciones';
@@ -80,6 +80,16 @@ const NuevaSolicitud = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Validar que fechas de vacaciones no sean fin de semana
+    if ((name === 'fecha_inicio_vacaciones' || name === 'fecha_fin_vacaciones') && value) {
+      const fecha = parseFechaSegura(value);
+      if (isWeekend(fecha)) {
+        toast.error('No puedes seleccionar fines de semana. Los sábados y domingos se agregan automáticamente si tomas un viernes.');
+        return;
+      }
+    }
+    
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 

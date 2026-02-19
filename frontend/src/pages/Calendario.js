@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, addMonths, subMonths, addDays } from 'date-fns';
+import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, addMonths, subMonths, addDays, isWeekend } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { parseFechaSegura } from '../utils/dateUtils';
 import { solicitudService, periodoService } from '../services/api';
@@ -121,11 +121,28 @@ const Calendario = () => {
   // Manejar selección de rango en el calendario
   const handleSelectSlot = ({ start, end }) => {
     // Ajustar la fecha de fin (react-big-calendar agrega un día extra)
-    const fechaFin = addDays(end, -1);
+    let fechaInicio = start;
+    let fechaFin = addDays(end, -1);
+    
+    // Si la fecha de inicio es fin de semana, ajustar al lunes siguiente
+    while (isWeekend(fechaInicio)) {
+      fechaInicio = addDays(fechaInicio, 1);
+    }
+    
+    // Si la fecha de fin es fin de semana, ajustar al viernes anterior
+    while (isWeekend(fechaFin)) {
+      fechaFin = addDays(fechaFin, -1);
+    }
+    
+    // Validar que las fechas sean válidas
+    if (fechaFin < fechaInicio) {
+      toast.error('Selecciona al menos un día laboral (lunes a viernes)');
+      return;
+    }
     
     setFormData({
       periodo_id: periodos.length > 0 ? periodos[0].id.toString() : '',
-      fecha_inicio_vacaciones: format(start, 'yyyy-MM-dd'),
+      fecha_inicio_vacaciones: format(fechaInicio, 'yyyy-MM-dd'),
       fecha_fin_vacaciones: format(fechaFin, 'yyyy-MM-dd'),
       observaciones: ''
     });
@@ -135,6 +152,16 @@ const Calendario = () => {
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
+    
+    // Validar que fechas de vacaciones no sean fin de semana
+    if ((name === 'fecha_inicio_vacaciones' || name === 'fecha_fin_vacaciones') && value) {
+      const fecha = parseFechaSegura(value);
+      if (isWeekend(fecha)) {
+        toast.error('No puedes seleccionar fines de semana. Los sábados y domingos se agregan automáticamente si tomas un viernes.');
+        return;
+      }
+    }
+    
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
