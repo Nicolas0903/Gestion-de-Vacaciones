@@ -1,4 +1,5 @@
 const { Empleado, PeriodoVacaciones } = require('../models');
+const { pool } = require('../config/database');
 
 // Crear empleado
 const crear = async (req, res) => {
@@ -289,6 +290,23 @@ const cambiarPassword = async (req, res) => {
   }
 };
 
+// Listar roles
+const listarRoles = async (req, res) => {
+  try {
+    const [roles] = await pool.execute('SELECT * FROM roles ORDER BY id');
+    res.json({
+      success: true,
+      data: roles
+    });
+  } catch (error) {
+    console.error('Error al listar roles:', error);
+    res.status(500).json({
+      success: false,
+      mensaje: 'Error interno del servidor'
+    });
+  }
+};
+
 module.exports = {
   crear,
   listar,
@@ -297,7 +315,8 @@ module.exports = {
   desactivar,
   reactivar,
   obtenerSubordinados,
-  cambiarPassword
+  cambiarPassword,
+  listarRoles
 };
 
 

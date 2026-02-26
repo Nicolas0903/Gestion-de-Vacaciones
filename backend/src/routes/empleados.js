@@ -6,6 +6,9 @@ const { autenticar, verificarRol } = require('../middleware/auth');
 // Todas las rutas requieren autenticación
 router.use(autenticar);
 
+// Listar roles
+router.get('/roles', empleadoController.listarRoles);
+
 // Rutas de empleados
 router.get('/', empleadoController.listar);
 router.get('/:id', empleadoController.obtener);

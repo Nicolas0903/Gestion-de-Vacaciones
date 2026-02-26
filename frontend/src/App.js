@@ -5,6 +5,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Pages
 import Login from './pages/Login';
+import RecuperarPassword from './pages/RecuperarPassword';
+import RestablecerPassword from './pages/RestablecerPassword';
+import SolicitarRegistro from './pages/SolicitarRegistro';
 import Portal from './pages/Portal';
 import Dashboard from './pages/Dashboard';
 import MisSolicitudes from './pages/MisSolicitudes';
@@ -21,6 +24,7 @@ import MisBoletas from './pages/MisBoletas';
 import GestionBoletas from './pages/GestionBoletas';
 import MisPermisos from './pages/MisPermisos';
 import GestionPermisos from './pages/GestionPermisos';
+import SolicitudesRegistro from './pages/admin/SolicitudesRegistro';
 
 // Components
 import Layout from './components/Layout';
@@ -57,6 +61,20 @@ function AppRoutes() {
       <Route 
         path="/login" 
         element={isAuthenticated ? <Navigate to="/portal" replace /> : <Login />} 
+      />
+      
+      {/* Rutas públicas de autenticación */}
+      <Route 
+        path="/recuperar-password" 
+        element={isAuthenticated ? <Navigate to="/portal" replace /> : <RecuperarPassword />} 
+      />
+      <Route 
+        path="/restablecer-password/:token" 
+        element={isAuthenticated ? <Navigate to="/portal" replace /> : <RestablecerPassword />} 
+      />
+      <Route 
+        path="/crear-cuenta" 
+        element={isAuthenticated ? <Navigate to="/portal" replace /> : <SolicitarRegistro />} 
       />
       
       {/* Portal Principal */}
@@ -96,6 +114,13 @@ function AppRoutes() {
       <Route path="/permisos/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
           <GestionPermisos />
+        </ProtectedRoute>
+      } />
+
+      {/* Gestión de Solicitudes de Registro */}
+      <Route path="/admin/solicitudes-registro" element={
+        <ProtectedRoute roles={['admin', 'contadora']}>
+          <SolicitudesRegistro />
         </ProtectedRoute>
       } />
 

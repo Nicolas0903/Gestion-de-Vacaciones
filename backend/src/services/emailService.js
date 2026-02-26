@@ -622,6 +622,225 @@ const notificarRechazo = async (solicitud, empleado, rechazadoPor, motivo) => {
 };
 
 /**
+ * Enviar email de recuperación de contraseña
+ */
+const enviarRecuperacionPassword = async (empleado, token) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Recuperación de contraseña omitida');
+    return false;
+  }
+
+  const urlRecuperacion = `${FRONTEND_URL}/restablecer-password/${token}`;
+
+  const contenido = `
+    <p>Hola <strong>${empleado.nombres} ${empleado.apellidos}</strong>,</p>
+    
+    <p>Recibimos una solicitud para restablecer tu contraseña en el Sistema de Gestión de Vacaciones.</p>
+    
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">Email:</span>
+        <span class="info-value">${empleado.email}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Válido hasta:</span>
+        <span class="info-value">24 horas desde ahora</span>
+      </div>
+    </div>
+    
+    <p style="text-align: center; margin: 25px 0;">
+      <a href="${urlRecuperacion}" style="display: inline-block; background: #3b82f6; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+        🔑 Restablecer Contraseña
+      </a>
+    </p>
+    
+    <p style="color: #64748b; font-size: 13px;">
+      Si no solicitaste este cambio, puedes ignorar este correo. Tu contraseña no será modificada.
+    </p>
+    
+    <p style="color: #64748b; font-size: 12px; margin-top: 20px;">
+      Si el botón no funciona, copia y pega este enlace en tu navegador:<br>
+      <a href="${urlRecuperacion}" style="color: #3b82f6; word-break: break-all;">${urlRecuperacion}</a>
+    </p>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      to: empleado.email,
+      subject: '🔐 Restablecer tu contraseña - Gestión de Vacaciones',
+      html: plantillaBase(contenido, 'Recuperar Contraseña')
+    });
+    console.log(`📧 Email de recuperación enviado a ${empleado.email}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error al enviar email de recuperación:', error.message);
+    return false;
+  }
+};
+
+/**
+ * Notificar a la contadora sobre nueva solicitud de registro
+ */
+const notificarNuevaSolicitudRegistro = async (solicitud, contadora) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Notificación de registro omitida');
+    return false;
+  }
+
+  const urlGestion = `${FRONTEND_URL}/admin/solicitudes-registro`;
+
+  const contenido = `
+    <p>Hola <strong>${contadora.nombres} ${contadora.apellidos}</strong>,</p>
+    
+    <p>Se ha recibido una nueva <strong>solicitud de registro</strong> que requiere tu revisión:</p>
+    
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">Nombre:</span>
+        <span class="info-value">${solicitud.nombres} ${solicitud.apellidos}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Email:</span>
+        <span class="info-value">${solicitud.email}</span>
+      </div>
+      ${solicitud.dni ? `
+      <div class="info-row">
+        <span class="info-label">DNI:</span>
+        <span class="info-value">${solicitud.dni}</span>
+      </div>
+      ` : ''}
+      ${solicitud.cargo_solicitado ? `
+      <div class="info-row">
+        <span class="info-label">Cargo Solicitado:</span>
+        <span class="info-value">${solicitud.cargo_solicitado}</span>
+      </div>
+      ` : ''}
+      ${solicitud.motivo ? `
+      <div class="info-row">
+        <span class="info-label">Motivo:</span>
+        <span class="info-value">${solicitud.motivo}</span>
+      </div>
+      ` : ''}
+    </div>
+    
+    <p style="text-align: center; margin: 25px 0;">
+      <a href="${urlGestion}" style="display: inline-block; background: #3b82f6; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+        📋 Revisar Solicitud
+      </a>
+    </p>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      to: contadora.email,
+      subject: `📝 Nueva Solicitud de Registro - ${solicitud.nombres} ${solicitud.apellidos}`,
+      html: plantillaBase(contenido, 'Nueva Solicitud de Registro')
+    });
+    console.log(`📧 Notificación de registro enviada a ${contadora.email}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error al enviar notificación de registro:', error.message);
+    return false;
+  }
+};
+
+/**
+ * Notificar al solicitante que su registro fue aprobado
+ */
+const notificarRegistroAprobado = async (solicitud, passwordTemporal) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Notificación de aprobación registro omitida');
+    return false;
+  }
+
+  const contenido = `
+    <p>Hola <strong>${solicitud.nombres} ${solicitud.apellidos}</strong>,</p>
+    
+    <p>¡Buenas noticias! Tu solicitud de registro ha sido <span class="status-aprobada">APROBADA</span>.</p>
+    
+    <p>Ya puedes acceder al Sistema de Gestión de Vacaciones con las siguientes credenciales:</p>
+    
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">Email:</span>
+        <span class="info-value">${solicitud.email}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Contraseña temporal:</span>
+        <span class="info-value"><strong>${passwordTemporal}</strong></span>
+      </div>
+    </div>
+    
+    <p style="background: #fef3c7; border: 1px solid #fcd34d; padding: 12px; border-radius: 6px; color: #92400e;">
+      ⚠️ <strong>Importante:</strong> Por seguridad, te recomendamos cambiar tu contraseña después de iniciar sesión por primera vez.
+    </p>
+    
+    <p style="text-align: center; margin: 25px 0;">
+      <a href="${FRONTEND_URL}/login" style="display: inline-block; background: #10b981; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+        🚀 Iniciar Sesión
+      </a>
+    </p>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      to: solicitud.email,
+      subject: '✅ ¡Tu cuenta ha sido creada! - Gestión de Vacaciones',
+      html: plantillaBase(contenido, 'Registro Aprobado')
+    });
+    console.log(`📧 Notificación de registro aprobado enviada a ${solicitud.email}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error al enviar notificación de registro aprobado:', error.message);
+    return false;
+  }
+};
+
+/**
+ * Notificar al solicitante que su registro fue rechazado
+ */
+const notificarRegistroRechazado = async (solicitud, motivo) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Notificación de rechazo registro omitida');
+    return false;
+  }
+
+  const contenido = `
+    <p>Hola <strong>${solicitud.nombres} ${solicitud.apellidos}</strong>,</p>
+    
+    <p>Lamentamos informarte que tu solicitud de registro ha sido <span class="status-rechazada">RECHAZADA</span>.</p>
+    
+    <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin: 15px 0;">
+      <p style="margin: 0; color: #991b1b;"><strong>Motivo:</strong></p>
+      <p style="margin: 10px 0 0 0; color: #7f1d1d;">${motivo || 'No se especificó motivo'}</p>
+    </div>
+    
+    <p>Si tienes dudas, por favor comunícate con el área de Recursos Humanos.</p>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      to: solicitud.email,
+      subject: '❌ Solicitud de Registro Rechazada - Gestión de Vacaciones',
+      html: plantillaBase(contenido, 'Registro Rechazado')
+    });
+    console.log(`📧 Notificación de registro rechazado enviada a ${solicitud.email}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error al enviar notificación de registro rechazado:', error.message);
+    return false;
+  }
+};
+
+/**
  * Enviar email de prueba para verificar configuración
  */
 const enviarEmailPrueba = async (destinatario) => {
@@ -662,5 +881,9 @@ module.exports = {
   notificarAprobacionJefeConBotones,
   notificarAprobacionFinal,
   notificarRechazo,
-  enviarEmailPrueba
+  enviarEmailPrueba,
+  enviarRecuperacionPassword,
+  notificarNuevaSolicitudRegistro,
+  notificarRegistroAprobado,
+  notificarRegistroRechazado
 };

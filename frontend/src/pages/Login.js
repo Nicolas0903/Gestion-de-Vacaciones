@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, UserPlusIcon, KeyIcon } from '@heroicons/react/24/outline';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -118,13 +118,21 @@ const Login = () => {
           </form>
 
           {/* Footer */}
-          <div className="mt-8 pt-6 border-t border-slate-200/50 text-center">
-            <p className="text-sm text-slate-500">
-              ¿Olvidaste tu contraseña?{' '}
-              <button className="text-teal-600 hover:text-teal-700 font-medium">
-                Contáctanos
-              </button>
-            </p>
+          <div className="mt-8 pt-6 border-t border-slate-200/50 space-y-4">
+            <Link
+              to="/recuperar-password"
+              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium"
+            >
+              <KeyIcon className="w-4 h-4" />
+              ¿Olvidaste tu contraseña?
+            </Link>
+            <Link
+              to="/crear-cuenta"
+              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-teal-200 text-teal-600 hover:bg-teal-50 hover:border-teal-300 transition-all text-sm font-medium"
+            >
+              <UserPlusIcon className="w-4 h-4" />
+              Crear nueva cuenta
+            </Link>
           </div>
         </div>
 

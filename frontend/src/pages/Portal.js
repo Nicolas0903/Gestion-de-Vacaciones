@@ -7,7 +7,8 @@ import {
   ClipboardDocumentCheckIcon,
   ChartBarSquareIcon,
   ArrowRightIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  UserPlusIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
@@ -66,6 +67,23 @@ const Portal = () => {
       bgLight: 'bg-rose-50',
       textColor: 'text-rose-600',
       link: '/reporte-asistencia',
+      activo: true,
+      restringido: true
+    });
+  }
+
+  // Módulo de gestión de solicitudes de registro (solo admin/contadora)
+  if (esAdmin() || esContadora()) {
+    modulos.push({
+      id: 'solicitudes-registro',
+      titulo: 'Solicitudes de Registro',
+      descripcion: 'Revisa y aprueba las solicitudes de nuevos usuarios',
+      icono: UserPlusIcon,
+      color: 'from-emerald-500 to-green-500',
+      shadowColor: 'shadow-emerald-500/30',
+      bgLight: 'bg-emerald-50',
+      textColor: 'text-emerald-600',
+      link: '/admin/solicitudes-registro',
       activo: true,
       restringido: true
     });
