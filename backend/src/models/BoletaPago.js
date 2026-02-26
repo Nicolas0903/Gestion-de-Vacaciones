@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const { pool } = require('../config/database');
 
 class BoletaPago {
   // Crear nueva boleta
