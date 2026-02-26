@@ -22,8 +22,8 @@ UPDATE empleados SET dni = '74565664' WHERE nombres LIKE '%Stephanie%' AND apell
 -- Oscar Llanca
 UPDATE empleados SET dni = '40948922' WHERE nombres LIKE '%Oscar%' AND apellidos LIKE '%Llanca%';
 
--- Brando Hurtado (si existe en el sistema)
-UPDATE empleados SET dni = '73385504' WHERE nombres LIKE '%Brando%' AND apellidos LIKE '%Hurtado%';
+-- Luis Hurtado
+UPDATE empleados SET dni = '73385504' WHERE nombres LIKE '%Luis%' AND apellidos LIKE '%Hurtado%';
 
 -- Soham Carbajal
 UPDATE empleados SET dni = '72565349' WHERE nombres LIKE '%Soham%' AND apellidos LIKE '%Carbajal%';
