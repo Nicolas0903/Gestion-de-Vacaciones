@@ -109,8 +109,8 @@ async function corregirVeronica() {
 
         // Crear registro de aprobación
         await pool.execute(`
-          INSERT INTO aprobaciones (solicitud_id, aprobador_id, tipo_aprobacion, estado, comentarios)
-          VALUES (?, ?, 'contadora', 'aprobada', 'Registro histórico')
+          INSERT INTO aprobaciones (solicitud_id, aprobador_id, tipo_aprobacion, estado, comentarios, fecha_accion)
+          VALUES (?, ?, 'contadora', 'aprobado', 'Registro histórico', NOW())
         `, [result.insertId, aprobadorId]);
       }
     }
