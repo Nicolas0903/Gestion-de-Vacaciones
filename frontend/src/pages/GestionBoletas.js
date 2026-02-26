@@ -596,8 +596,13 @@ const GestionBoletas = () => {
                   <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
                     <p className="text-sm text-amber-800">
                       <span className="font-semibold">Formato de nombre de archivo:</span><br />
-                      Los archivos deben nombrarse con el código del empleado.<br />
-                      Ejemplo: <code className="bg-amber-100 px-1 rounded">EMP001.pdf</code>, <code className="bg-amber-100 px-1 rounded">GC001.pdf</code>
+                      El sistema detecta automáticamente el DNI del nombre del archivo.<br />
+                      <br />
+                      <span className="font-medium">Formato planilla:</span><br />
+                      <code className="bg-amber-100 px-1 rounded">RUC_YYYYMM_MM_DNI_codigo.pdf</code><br />
+                      Ejemplo: <code className="bg-amber-100 px-1 rounded">20524271002_202601_01_09374480_r08.pdf</code><br />
+                      <br />
+                      <span className="text-xs text-amber-600">* Si usa este formato, el mes y año se detectan automáticamente del nombre.</span>
                     </p>
                   </div>
                 </>

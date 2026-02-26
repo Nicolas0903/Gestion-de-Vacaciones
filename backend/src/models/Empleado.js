@@ -59,6 +59,17 @@ class Empleado {
     return rows[0];
   }
 
+  static async buscarPorDni(dni) {
+    const [rows] = await pool.execute(
+      `SELECT e.*, r.nombre as rol_nombre, r.nivel_aprobacion
+       FROM empleados e
+       LEFT JOIN roles r ON e.rol_id = r.id
+       WHERE e.dni = ?`,
+      [dni]
+    );
+    return rows[0];
+  }
+
   // Listar todos los empleados
   static async listarTodos(filtros = {}) {
     let query = `

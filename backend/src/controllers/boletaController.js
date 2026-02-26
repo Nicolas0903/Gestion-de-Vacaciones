@@ -218,9 +218,11 @@ const subirBoleta = async (req, res) => {
 };
 
 // Subir boletas masivamente (múltiples empleados)
+// Formato de archivo esperado: RUC_YYYYMM_MM_DNI_codigo.pdf
+// Ejemplo: 20524271002_202601_01_09374480_r08.pdf
 const subirBoletasMasivo = async (req, res) => {
   try {
-    const { mes, anio } = req.body;
+    let { mes, anio } = req.body;
     const files = req.files;
     
     if (!files || files.length === 0) {
@@ -230,39 +232,73 @@ const subirBoletasMasivo = async (req, res) => {
       });
     }
 
-    if (!mes || !anio) {
-      // Eliminar archivos subidos
-      for (const file of files) {
-        await fs.unlink(file.path).catch(() => {});
-      }
-      return res.status(400).json({
-        success: false,
-        mensaje: 'Mes y año son requeridos'
-      });
-    }
-
     const resultados = [];
     const errores = [];
 
     for (const file of files) {
-      // El nombre del archivo debe contener el código o email del empleado
-      // Formato esperado: CODIGO_MES_AÑO.pdf o email_MES_AÑO.pdf
       const nombreSinExt = path.parse(file.originalname).name;
       const partes = nombreSinExt.split('_');
-      const identificador = partes[0];
-
-      // Buscar empleado por código o email
-      let empleado = await Empleado.buscarPorCodigo(identificador);
       
-      // Si no encuentra por código, intentar por email
-      if (!empleado) {
-        empleado = await Empleado.buscarPorEmail(identificador);
+      let empleado = null;
+      let mesArchivo = mes ? parseInt(mes) : null;
+      let anioArchivo = anio ? parseInt(anio) : null;
+      
+      // Detectar formato: RUC_YYYYMM_MM_DNI_codigo.pdf
+      // Ejemplo: 20524271002_202601_01_09374480_r08.pdf
+      if (partes.length >= 4 && partes[0].length === 11 && partes[1].length === 6) {
+        // Formato de boletas de planilla
+        const periodo = partes[1]; // YYYYMM
+        const dni = partes[3];
+        
+        // Extraer año y mes del período si no se proporcionaron
+        if (!anioArchivo) {
+          anioArchivo = parseInt(periodo.substring(0, 4));
+        }
+        if (!mesArchivo) {
+          mesArchivo = parseInt(periodo.substring(4, 6));
+        }
+        
+        // Buscar empleado por DNI
+        empleado = await Empleado.buscarPorDni(dni);
+        
+        if (!empleado) {
+          errores.push({
+            archivo: file.originalname,
+            error: `Empleado no encontrado con DNI: ${dni}`
+          });
+          await fs.unlink(file.path).catch(() => {});
+          continue;
+        }
+      } else {
+        // Formato anterior: CODIGO_MES_AÑO.pdf o simplemente CODIGO.pdf
+        const identificador = partes[0];
+        
+        // Buscar empleado por código, email o DNI
+        empleado = await Empleado.buscarPorCodigo(identificador);
+        
+        if (!empleado) {
+          empleado = await Empleado.buscarPorEmail(identificador);
+        }
+        
+        if (!empleado) {
+          empleado = await Empleado.buscarPorDni(identificador);
+        }
+        
+        if (!empleado) {
+          errores.push({
+            archivo: file.originalname,
+            error: `Empleado no encontrado: ${identificador}`
+          });
+          await fs.unlink(file.path).catch(() => {});
+          continue;
+        }
       }
-      
-      if (!empleado) {
+
+      // Validar que tenemos mes y año
+      if (!mesArchivo || !anioArchivo) {
         errores.push({
           archivo: file.originalname,
-          error: `Empleado no encontrado: ${identificador}`
+          error: 'No se pudo determinar el mes y año. Proporcione estos valores o use el formato de nombre correcto.'
         });
         await fs.unlink(file.path).catch(() => {});
         continue;
@@ -271,8 +307,8 @@ const subirBoletasMasivo = async (req, res) => {
       try {
         await BoletaPago.crear({
           empleado_id: empleado.id,
-          mes: parseInt(mes),
-          anio: parseInt(anio),
+          mes: mesArchivo,
+          anio: anioArchivo,
           archivo_nombre: file.originalname,
           archivo_path: file.filename,
           subido_por: req.usuario.id,
@@ -282,6 +318,8 @@ const subirBoletasMasivo = async (req, res) => {
         resultados.push({
           archivo: file.originalname,
           empleado: `${empleado.nombres} ${empleado.apellidos}`,
+          dni: empleado.dni,
+          periodo: `${mesArchivo}/${anioArchivo}`,
           status: 'ok'
         });
       } catch (err) {
