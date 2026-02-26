@@ -248,7 +248,8 @@ const subirBoletasMasivo = async (req, res) => {
       if (partes.length >= 4 && partes[0].length === 11 && partes[1].length === 6) {
         // Formato de boletas de planilla
         const periodo = partes[1]; // YYYYMM
-        const dni = partes[3];
+        const dniRaw = partes[3];
+        const codigoArchivo = partes[4] || null;
         
         // Extraer año y mes del período si no se proporcionaron
         if (!anioArchivo) {
@@ -258,13 +259,27 @@ const subirBoletasMasivo = async (req, res) => {
           mesArchivo = parseInt(periodo.substring(4, 6));
         }
         
-        // Buscar empleado por DNI
-        empleado = await Empleado.buscarPorDni(dni);
+        // Buscar empleado: DNI puede venir con/sin ceros a la izquierda
+        empleado = await Empleado.buscarPorDni(dniRaw);
+        if (!empleado && /^\d+$/.test(dniRaw)) {
+          const dniSinCeros = String(parseInt(dniRaw, 10));
+          empleado = await Empleado.buscarPorDni(dniSinCeros);
+        }
+        if (!empleado && /^\d+$/.test(dniRaw) && dniRaw.length < 8) {
+          const dniConCeros = dniRaw.padStart(8, '0');
+          empleado = await Empleado.buscarPorDni(dniConCeros);
+        }
+        if (!empleado && codigoArchivo) {
+          empleado = await Empleado.buscarPorCodigo(codigoArchivo);
+        }
+        if (!empleado && !/^\d{7,8}$/.test(dniRaw)) {
+          empleado = await Empleado.buscarPorCodigo(dniRaw);
+        }
         
         if (!empleado) {
           errores.push({
             archivo: file.originalname,
-            error: `Empleado no encontrado con DNI: ${dni}`
+            error: `Empleado no encontrado con DNI: ${dniRaw}${codigoArchivo ? ` ni código: ${codigoArchivo}` : ''}`
           });
           await fs.unlink(file.path).catch(() => {});
           continue;
