@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatearFechaServidor } from '../utils/dateUtils';
 
 const GestionBoletas = () => {
   const [boletas, setBoletas] = useState([]);
@@ -398,7 +399,7 @@ const GestionBoletas = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {format(new Date(boleta.fecha_subida), 'dd/MM/yyyy HH:mm')}
+                      {formatearFechaServidor(boleta.fecha_subida)}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">

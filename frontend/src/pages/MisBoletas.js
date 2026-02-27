@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatearFechaServidor } from '../utils/dateUtils';
 
 const MisBoletas = () => {
   const { usuario } = useAuth();
@@ -226,10 +227,10 @@ const MisBoletas = () => {
 
               {/* Info adicional */}
               <div className="text-sm text-slate-500 mb-4">
-                <p>Subida: {format(new Date(boleta.fecha_subida), 'dd/MM/yyyy HH:mm')}</p>
+                <p>Subida: {formatearFechaServidor(boleta.fecha_subida)}</p>
                 {boleta.firmada && boleta.fecha_firma && (
                   <p className="text-emerald-600">
-                    Firmada: {format(new Date(boleta.fecha_firma), 'dd/MM/yyyy HH:mm')}
+                    Firmada: {formatearFechaServidor(boleta.fecha_firma)}
                   </p>
                 )}
               </div>
