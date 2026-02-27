@@ -80,14 +80,14 @@ const Login = () => {
           </div>
 
           <h2 className="text-2xl font-bold text-white mb-3">
-            Gestiona las vacaciones de tu equipo
+            Portal de Recursos Humanos
           </h2>
           <p className="text-teal-100 text-sm leading-relaxed mb-8">
-            Simplifica el proceso de solicitud, aprobación y seguimiento de vacaciones con nuestra plataforma integral, diseñada para equipos modernos.
+            Gestiona vacaciones, boletas de pago, permisos y más desde una sola plataforma. Todo lo que necesitas para la administración de tu equipo.
           </p>
 
           <div className="flex flex-wrap justify-center gap-2">
-            {['Solicitudes rápidas', 'Calendario integrado', 'Reportes en tiempo real', 'Gestión de equipos'].map((tag) => (
+            {['Vacaciones', 'Boletas de pago', 'Permisos', 'Reportes'].map((tag) => (
               <span
                 key={tag}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/15 text-white backdrop-blur-sm border border-white/20"
