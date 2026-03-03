@@ -99,8 +99,8 @@ const Layout = () => {
           <div className="p-6 border-b border-slate-200/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-lg">P</span>
+                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-lg p-1.5">
+                  <img src="/gestion-vacaciones/isotipo-prayaga.png" alt="Prayaga" className="w-full h-full object-contain" />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">

@@ -44,7 +44,7 @@ const Login = () => {
         </div>
 
         <div className="relative z-10 text-center max-w-sm">
-          <div className="inline-block p-4 rounded-2xl bg-white/95 backdrop-blur-sm mb-8 shadow-xl">
+          <div className="inline-block p-4 rounded-2xl bg-white mb-8 shadow-xl">
             <img 
               src="/gestion-vacaciones/logotipo-prayaga.png" 
               alt="Prayaga" 
