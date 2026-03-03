@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { boletaService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
@@ -9,7 +10,8 @@ import {
   CheckCircleIcon,
   ClockIcon,
   FunnelIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  Squares2X2Icon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -106,6 +108,12 @@ const MisBoletas = () => {
 
   return (
     <div className="space-y-6">
+      {/* Volver al Portal */}
+      <Link to="/portal" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-teal-600 transition-colors">
+        <Squares2X2Icon className="w-4 h-4" />
+        Volver al Portal
+      </Link>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
