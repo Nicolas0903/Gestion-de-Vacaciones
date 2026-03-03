@@ -44,7 +44,13 @@ const Login = () => {
         </div>
 
         <div className="relative z-10 text-center max-w-sm">
-          <h1 className="text-4xl font-bold text-white mb-8">PRAYAGA</h1>
+          <div className="inline-block p-4 rounded-2xl bg-white/95 backdrop-blur-sm mb-8 shadow-xl">
+            <img 
+              src="/gestion-vacaciones/logotipo-prayaga.png" 
+              alt="Prayaga" 
+              className="h-14 mx-auto object-contain drop-shadow-lg"
+            />
+          </div>
 
           {/* Illustration */}
           <div className="mb-8">
@@ -105,12 +111,11 @@ const Login = () => {
         <div className="w-full max-w-md animate-fadeIn">
           {/* Mobile branding */}
           <div className="lg:hidden text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl gradient-primary shadow-lg shadow-teal-500/30 mb-3">
-              <span className="text-2xl font-bold text-white">P</span>
-            </div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
-              PRAYAGA
-            </h1>
+            <img 
+              src="/gestion-vacaciones/logotipo-prayaga.png" 
+              alt="Prayaga" 
+              className="h-12 mx-auto mb-3 object-contain"
+            />
           </div>
 
           <h2 className="text-2xl font-bold text-slate-800 mb-8 text-center lg:text-left">
