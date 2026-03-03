@@ -28,6 +28,7 @@ import SolicitudesRegistro from './pages/admin/SolicitudesRegistro';
 
 // Components
 import Layout from './components/Layout';
+import PageWrapper from './components/PageWrapper';
 import LoadingSpinner from './components/LoadingSpinner';
 
 // Ruta protegida
@@ -94,33 +95,33 @@ function AppRoutes() {
       {/* Módulo de Boletas de Pago */}
       <Route path="/boletas" element={
         <ProtectedRoute>
-          <MisBoletas />
+          <PageWrapper><MisBoletas /></PageWrapper>
         </ProtectedRoute>
       } />
       
       <Route path="/boletas/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
-          <GestionBoletas />
+          <PageWrapper><GestionBoletas /></PageWrapper>
         </ProtectedRoute>
       } />
 
       {/* Módulo de Permisos y Descansos */}
       <Route path="/permisos" element={
         <ProtectedRoute>
-          <MisPermisos />
+          <PageWrapper><MisPermisos /></PageWrapper>
         </ProtectedRoute>
       } />
       
       <Route path="/permisos/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
-          <GestionPermisos />
+          <PageWrapper><GestionPermisos /></PageWrapper>
         </ProtectedRoute>
       } />
 
       {/* Gestión de Solicitudes de Registro */}
       <Route path="/admin/solicitudes-registro" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
-          <SolicitudesRegistro />
+          <PageWrapper><SolicitudesRegistro /></PageWrapper>
         </ProtectedRoute>
       } />
 
