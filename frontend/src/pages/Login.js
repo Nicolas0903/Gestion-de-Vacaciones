@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import LogoTransparente from '../components/LogoTransparente';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -45,7 +46,7 @@ const Login = () => {
 
         <div className="relative z-10 text-center max-w-sm">
           <div className="inline-block p-4 rounded-2xl bg-white mb-8 shadow-xl">
-            <img 
+            <LogoTransparente 
               src="/gestion-vacaciones/logotipo-prayaga.png" 
               alt="Prayaga" 
               className="h-14 mx-auto object-contain drop-shadow-lg"
@@ -111,7 +112,7 @@ const Login = () => {
         <div className="w-full max-w-md animate-fadeIn">
           {/* Mobile branding */}
           <div className="lg:hidden text-center mb-8">
-            <img 
+            <LogoTransparente 
               src="/gestion-vacaciones/logotipo-prayaga.png" 
               alt="Prayaga" 
               className="h-12 mx-auto mb-3 object-contain"

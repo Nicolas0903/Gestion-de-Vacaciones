@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import LogoTransparente from '../components/LogoTransparente';
 import {
   CalendarDaysIcon,
   DocumentTextIcon,
@@ -99,7 +100,7 @@ const Portal = () => {
         <div className="relative max-w-7xl mx-auto px-6 py-12">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-xl shadow-teal-500/30 p-2">
-              <img src="/gestion-vacaciones/isotipo-prayaga.png" alt="Prayaga" className="w-full h-full object-contain" />
+              <LogoTransparente src="/gestion-vacaciones/isotipo-prayaga.png" alt="Prayaga" className="w-full h-full object-contain" />
             </div>
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
