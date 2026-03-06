@@ -18,7 +18,7 @@ class PeriodoVacaciones {
     return result.insertId;
   }
 
-  // Buscar por ID
+  // Buscar por ID (con estado calculado)
   static async buscarPorId(id) {
     const [rows] = await pool.execute(
       `SELECT pv.*, e.nombres, e.apellidos, e.codigo_empleado
@@ -27,18 +27,78 @@ class PeriodoVacaciones {
        WHERE pv.id = ?`,
       [id]
     );
-    return rows[0];
+    const p = rows[0];
+    if (!p) return null;
+    return {
+      ...p,
+      estado: this._calcularEstado(Number(p.dias_gozados || 0), Number(p.dias_correspondientes || 0))
+    };
   }
 
-  // Listar períodos de un empleado
+  // Calcular estado correcto según días gozados/correspondientes
+  static _calcularEstado(diasGozados, diasCorrespondientes) {
+    if (diasGozados >= diasCorrespondientes) return 'gozadas';
+    if (diasGozados > 0) return 'parcial';
+    return 'pendiente';
+  }
+
+  // Renovar período automáticamente si fecha_fin_periodo ya pasó
+  static async renovarSiVencido(empleadoId) {
+    const [periodos] = await pool.execute(
+      `SELECT * FROM periodos_vacaciones WHERE empleado_id = ?
+       ORDER BY fecha_fin_periodo DESC LIMIT 1`,
+      [empleadoId]
+    );
+    if (periodos.length === 0) return null;
+
+    const ultimo = periodos[0];
+    const hoy = new Date();
+    const [yF, mF, dF] = String(ultimo.fecha_fin_periodo).split(/[-T]/).map(Number);
+    const fechaFin = new Date(yF, (mF || 1) - 1, dF || 1);
+
+    if (fechaFin >= hoy) return null; // Aún no vence
+
+    const diaSiguiente = new Date(fechaFin);
+    diaSiguiente.setDate(diaSiguiente.getDate() + 1);
+    const fechaInicioNuevo = `${diaSiguiente.getFullYear()}-${String(diaSiguiente.getMonth() + 1).padStart(2, '0')}-${String(diaSiguiente.getDate()).padStart(2, '0')}`;
+
+    const finNuevo = new Date(diaSiguiente.getFullYear() + 1, diaSiguiente.getMonth(), diaSiguiente.getDate() - 1);
+    const fechaFinNuevo = `${finNuevo.getFullYear()}-${String(finNuevo.getMonth() + 1).padStart(2, '0')}-${String(finNuevo.getDate()).padStart(2, '0')}`;
+
+    const [existe] = await pool.execute(
+      `SELECT id FROM periodos_vacaciones
+       WHERE empleado_id = ? AND fecha_inicio_periodo = ?`,
+      [empleadoId, fechaInicioNuevo]
+    );
+    if (existe.length > 0) return null;
+
+    const diasCorrespondientes = ultimo.dias_correspondientes || 30;
+    const id = await this.crear({
+      empleado_id: empleadoId,
+      fecha_inicio_periodo: fechaInicioNuevo,
+      fecha_fin_periodo: fechaFinNuevo,
+      dias_correspondientes,
+      tiempo_trabajado: '12 meses',
+      observaciones: `Período ${diaSiguiente.getFullYear()}-${diaSiguiente.getFullYear() + 1} (renovación automática)`
+    });
+    return id;
+  }
+
+  // Listar períodos de un empleado (con renovación automática y estado calculado)
   static async listarPorEmpleado(empleadoId) {
+    await this.renovarSiVencido(empleadoId);
+
     const [rows] = await pool.execute(
       `SELECT * FROM periodos_vacaciones
        WHERE empleado_id = ?
        ORDER BY fecha_inicio_periodo DESC`,
       [empleadoId]
     );
-    return rows;
+
+    return rows.map(p => ({
+      ...p,
+      estado: this._calcularEstado(Number(p.dias_gozados || 0), Number(p.dias_correspondientes || 0))
+    }));
   }
 
   // Obtener períodos con días pendientes
@@ -49,7 +109,10 @@ class PeriodoVacaciones {
        ORDER BY fecha_inicio_periodo ASC`,
       [empleadoId]
     );
-    return rows;
+    return rows.map(p => ({
+      ...p,
+      estado: this._calcularEstado(Number(p.dias_gozados || 0), Number(p.dias_correspondientes || 0))
+    }));
   }
 
   // Obtener resumen de vacaciones de un empleado

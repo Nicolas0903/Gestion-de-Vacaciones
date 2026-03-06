@@ -841,11 +841,11 @@ const Empleados = () => {
                           <tr key={periodo.id} className="hover:bg-slate-50">
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                periodo.estado === 'completado' ? 'bg-green-100 text-green-700' :
+                                periodo.estado === 'gozadas' ? 'bg-green-100 text-green-700' :
                                 periodo.estado === 'parcial' ? 'bg-amber-100 text-amber-700' :
                                 'bg-blue-100 text-blue-700'
                               }`}>
-                                {periodo.estado === 'completado' ? 'Completado' :
+                                {periodo.estado === 'gozadas' ? 'Gozadas' :
                                  periodo.estado === 'parcial' ? 'Parcial' : 'Pendiente'}
                               </span>
                             </td>
