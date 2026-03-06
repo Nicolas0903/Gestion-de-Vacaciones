@@ -52,28 +52,27 @@ class PeriodoVacaciones {
     return null;
   }
 
-  // Renovar período automáticamente si fecha_fin_periodo ya pasó
+  // Renovar períodos automáticamente cuando fecha_fin_periodo ya llegó o pasó (loop por años atrasados)
   static async renovarSiVencido(empleadoId) {
     try {
+      for (let iter = 0; iter < 20; iter++) {
       const [periodos] = await pool.execute(
         `SELECT * FROM periodos_vacaciones WHERE empleado_id = ?
          ORDER BY fecha_fin_periodo DESC LIMIT 1`,
         [empleadoId]
       );
-      if (periodos.length === 0) return null;
+      if (periodos.length === 0) break;
 
       const ultimo = periodos[0];
       const fechaFin = this._parsearFechaLocal(ultimo.fecha_fin_periodo);
-      if (!fechaFin || isNaN(fechaFin.getTime())) return null;
+      if (!fechaFin || isNaN(fechaFin.getTime())) break;
 
       const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      const finNormalizado = new Date(fechaFin);
-      finNormalizado.setHours(0, 0, 0, 0);
-      if (finNormalizado >= hoy) return null; // Aún no vence
+      const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+      const finStr = `${fechaFin.getFullYear()}-${String(fechaFin.getMonth() + 1).padStart(2, '0')}-${String(fechaFin.getDate()).padStart(2, '0')}`;
+      if (finStr > hoyStr) break; // El período aún no termina (fecha fin en el futuro)
 
-      const diaSiguiente = new Date(finNormalizado);
-      diaSiguiente.setDate(diaSiguiente.getDate() + 1);
+      const diaSiguiente = new Date(fechaFin.getFullYear(), fechaFin.getMonth(), fechaFin.getDate() + 1);
       const fechaInicioNuevo = `${diaSiguiente.getFullYear()}-${String(diaSiguiente.getMonth() + 1).padStart(2, '0')}-${String(diaSiguiente.getDate()).padStart(2, '0')}`;
 
       const finNuevo = new Date(diaSiguiente.getFullYear() + 1, diaSiguiente.getMonth(), diaSiguiente.getDate() - 1);
@@ -84,10 +83,10 @@ class PeriodoVacaciones {
          WHERE empleado_id = ? AND fecha_inicio_periodo = ?`,
         [empleadoId, fechaInicioNuevo]
       );
-      if (existe.length > 0) return null;
+      if (existe.length > 0) break;
 
       const diasCorrespondientes = ultimo.dias_correspondientes || 30;
-      const id = await this.crear({
+      await this.crear({
         empleado_id: empleadoId,
         fecha_inicio_periodo: fechaInicioNuevo,
         fecha_fin_periodo: fechaFinNuevo,
@@ -95,10 +94,9 @@ class PeriodoVacaciones {
         tiempo_trabajado: '12 meses',
         observaciones: `Período ${diaSiguiente.getFullYear()}-${diaSiguiente.getFullYear() + 1} (renovación automática)`
       });
-      return id;
+      }
     } catch (err) {
       console.error('Error renovarSiVencido:', err);
-      return null;
     }
   }
 
