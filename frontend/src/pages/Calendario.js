@@ -391,7 +391,7 @@ const Calendario = () => {
               <div className="flex justify-between">
                 <span className="text-sm text-slate-500">Fechas:</span>
                 <span className="text-sm font-medium text-slate-700">
-                  {format(new Date(selectedEvent.fecha_inicio_vacaciones), "d MMM", { locale: es })} - {format(new Date(selectedEvent.fecha_fin_vacaciones), "d MMM yyyy", { locale: es })}
+                  {format(parseFechaSegura(selectedEvent.fecha_inicio_vacaciones), "d MMM", { locale: es })} - {format(parseFechaSegura(selectedEvent.fecha_fin_vacaciones), "d MMM yyyy", { locale: es })}
                 </span>
               </div>
               <div className="flex justify-between">

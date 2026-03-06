@@ -3,14 +3,22 @@ import { es } from 'date-fns/locale';
 
 /**
  * Parsea una fecha de forma segura (maneja null, undefined, strings).
+ * Para fechas solo día (ej. "2025-01-15") se interpreta como fecha local para evitar
+ * desfase de un día por zona horaria (new Date("2025-01-15") = UTC medianoche = día anterior en UTC-5).
  * Para fechas con hora del servidor (ej. "2025-01-15 20:24:00") añade Z (UTC).
- * Para fechas solo día (ej. "2025-01-15") se interpreta como fecha local.
  */
 export function parseFechaSegura(fechaStr) {
   if (fechaStr == null || fechaStr === '') return new Date();
   if (fechaStr instanceof Date) return isNaN(fechaStr.getTime()) ? new Date() : fechaStr;
   try {
     const str = String(fechaStr).trim();
+    // Fechas solo día (YYYY-MM-DD): parsear como fecha local para evitar desfase de zona horaria
+    const soloDia = /^\d{4}-\d{2}-\d{2}$/;
+    if (soloDia.test(str)) {
+      const [y, m, d] = str.split('-').map(Number);
+      const fecha = new Date(y, m - 1, d);
+      return isNaN(fecha.getTime()) ? new Date() : fecha;
+    }
     let conZona = str;
     if (!str.includes('Z')) {
       conZona = str.replace(' ', 'T').replace(/\.\d{3}$/, '');
