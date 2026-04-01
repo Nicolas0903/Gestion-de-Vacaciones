@@ -111,22 +111,37 @@ const enviar = async (req, res) => {
     const empleado = await Empleado.buscarPorId(req.usuario.id);
     
     if (empleado.jefe_id) {
-      // Tiene jefe directo: pasar a pendiente_jefe
+      // Tiene jefe: aprobación en paralelo con contadora (mismo envío de correo a ambos)
       await SolicitudVacaciones.actualizarEstado(parseInt(id), 'pendiente_jefe');
-      
+
       await Aprobacion.crear({
         solicitud_id: parseInt(id),
         aprobador_id: empleado.jefe_id,
         tipo_aprobacion: 'jefe'
       });
 
-      // Notificar al jefe (sistema interno)
+      const contadoras = await Empleado.obtenerPorRol('contadora');
+      const contadora = contadoras[0];
+      if (contadora) {
+        await Aprobacion.crear({
+          solicitud_id: parseInt(id),
+          aprobador_id: contadora.id,
+          tipo_aprobacion: 'contadora'
+        });
+      }
+
       await Notificacion.notificarSolicitudEnviada(parseInt(id), req.usuario.id, empleado.jefe_id);
-      
-      // Enviar email al jefe
+      if (contadora) {
+        await Notificacion.notificarSolicitudEnviadaContadora(parseInt(id), contadora.id);
+      }
+
       const jefe = await Empleado.buscarPorId(empleado.jefe_id);
       if (jefe) {
         emailService.notificarNuevaSolicitud(solicitud, empleado, jefe)
+          .catch(err => console.error('Error enviando email:', err));
+      }
+      if (contadora) {
+        emailService.notificarNuevaSolicitud(solicitud, empleado, contadora)
           .catch(err => console.error('Error enviando email:', err));
       }
     } else {
@@ -178,20 +193,78 @@ const aprobar = async (req, res) => {
       });
     }
 
-    // Admin o Contadora pueden aprobar directamente cualquier solicitud pendiente
     const esContadoraOAdmin = req.usuario.rol_nombre === 'admin' || req.usuario.rol_nombre === 'contadora';
 
-    // Determinar tipo de aprobación según estado actual
+    // Aprobación en paralelo: jefe + contadora (dos filas pendientes en pendiente_jefe)
+    if (solicitud.estado === 'pendiente_jefe') {
+      const aprobPendJefe = await Aprobacion.obtenerPendientePorTipo(parseInt(id), 'jefe');
+      const aprobPendCont = await Aprobacion.obtenerPendientePorTipo(parseInt(id), 'contadora');
+      const esParalelo = aprobPendJefe && aprobPendCont;
+
+      if (esParalelo) {
+        let tipoAprobacion;
+        if (aprobPendJefe.aprobador_id === aprobadorId) {
+          tipoAprobacion = 'jefe';
+        } else if (aprobPendCont.aprobador_id === aprobadorId || esContadoraOAdmin) {
+          tipoAprobacion = 'contadora';
+        } else {
+          return res.status(403).json({
+            success: false,
+            mensaje: 'No tienes permisos para aprobar esta solicitud'
+          });
+        }
+
+        if (tipoAprobacion === 'jefe' && aprobadorId !== aprobPendJefe.aprobador_id) {
+          return res.status(403).json({
+            success: false,
+            mensaje: 'No tienes permisos para aprobar esta solicitud'
+          });
+        }
+
+        const aprobacion = await Aprobacion.obtenerPendientePorTipo(parseInt(id), tipoAprobacion);
+        if (!aprobacion) {
+          return res.status(400).json({
+            success: false,
+            mensaje: 'No hay aprobación pendiente'
+          });
+        }
+
+        await Aprobacion.aprobar(aprobacion.id, comentarios);
+
+        const sigueJefe = await Aprobacion.obtenerPendientePorTipo(parseInt(id), 'jefe');
+        const sigueCont = await Aprobacion.obtenerPendientePorTipo(parseInt(id), 'contadora');
+        const siguienteEstado = !sigueJefe && !sigueCont ? 'aprobada' : 'pendiente_jefe';
+
+        await SolicitudVacaciones.actualizarEstado(parseInt(id), siguienteEstado);
+
+        const empleadoSolicitud = await Empleado.buscarPorId(solicitud.empleado_id);
+        const aprobador = await Empleado.buscarPorId(aprobadorId);
+
+        if (siguienteEstado === 'aprobada') {
+          await PeriodoVacaciones.actualizarDiasGozados(solicitud.periodo_id, solicitud.dias_solicitados);
+          await Notificacion.notificarAprobacionFinal(parseInt(id), solicitud.empleado_id);
+          emailService.notificarAprobacionFinal(solicitud, empleadoSolicitud, aprobador)
+            .catch(err => console.error('Error enviando email:', err));
+        }
+
+        return res.json({
+          success: true,
+          mensaje:
+            siguienteEstado === 'aprobada'
+              ? 'Solicitud aprobada correctamente'
+              : 'Aprobación registrada. Falta la otra firma.'
+        });
+      }
+    }
+
     let tipoAprobacion;
     let siguienteEstado;
 
     if (solicitud.estado === 'pendiente_jefe') {
-      // Si es contadora/admin, puede aprobar directamente y pasar a aprobada
       if (esContadoraOAdmin) {
         tipoAprobacion = 'contadora';
         siguienteEstado = 'aprobada';
-        
-        // Aprobar primero como jefe si existe la aprobación pendiente
+
         const aprobacionJefe = await Aprobacion.obtenerPendientePorTipo(parseInt(id), 'jefe');
         if (aprobacionJefe) {
           await Aprobacion.aprobar(aprobacionJefe.id, 'Aprobado por contadora');
@@ -210,10 +283,8 @@ const aprobar = async (req, res) => {
       });
     }
 
-    // Verificar que el usuario tenga permisos
     const aprobacion = await Aprobacion.obtenerPendientePorTipo(parseInt(id), tipoAprobacion);
     if (!aprobacion) {
-      // Si no existe, verificar que tenga el rol adecuado
       if (!esContadoraOAdmin) {
         if (tipoAprobacion === 'jefe' && req.usuario.nivel_aprobacion < 1) {
           return res.status(403).json({
@@ -229,7 +300,6 @@ const aprobar = async (req, res) => {
         }
       }
 
-      // Crear el registro de aprobación
       const nuevaAprobacionId = await Aprobacion.crear({
         solicitud_id: parseInt(id),
         aprobador_id: aprobadorId,
@@ -240,16 +310,12 @@ const aprobar = async (req, res) => {
       await Aprobacion.aprobar(aprobacion.id, comentarios);
     }
 
-    // Actualizar estado de solicitud
     await SolicitudVacaciones.actualizarEstado(parseInt(id), siguienteEstado);
 
-    // Obtener datos del empleado y aprobador para emails
     const empleadoSolicitud = await Empleado.buscarPorId(solicitud.empleado_id);
     const aprobador = await Empleado.buscarPorId(aprobadorId);
 
-    // Notificaciones
     if (tipoAprobacion === 'jefe' && !esContadoraOAdmin) {
-      // Buscar contadora para siguiente aprobación
       const contadoras = await Empleado.obtenerPorRol('contadora');
       if (contadoras.length > 0) {
         await Aprobacion.crear({
@@ -258,20 +324,16 @@ const aprobar = async (req, res) => {
           tipo_aprobacion: 'contadora'
         });
         await Notificacion.notificarAprobacionJefe(parseInt(id), solicitud.empleado_id, contadoras[0].id);
-        
-        // Enviar emails: al empleado y a la contadora
+
         emailService.notificarAprobacionJefe(solicitud, empleadoSolicitud, aprobador, contadoras[0])
           .catch(err => console.error('Error enviando email:', err));
       }
     }
-    
-    // Si llegamos a aprobada (sea por contadora directamente o después del jefe)
+
     if (siguienteEstado === 'aprobada') {
-      // Aprobación final - actualizar días gozados
       await PeriodoVacaciones.actualizarDiasGozados(solicitud.periodo_id, solicitud.dias_solicitados);
       await Notificacion.notificarAprobacionFinal(parseInt(id), solicitud.empleado_id);
-      
-      // Enviar email de aprobación final al empleado
+
       emailService.notificarAprobacionFinal(solicitud, empleadoSolicitud, aprobador)
         .catch(err => console.error('Error enviando email:', err));
     }
@@ -310,10 +372,29 @@ const rechazar = async (req, res) => {
       });
     }
 
-    // Determinar tipo de aprobación según estado
+    const esContadoraOAdmin = req.usuario.rol_nombre === 'admin' || req.usuario.rol_nombre === 'contadora';
+
+    const aprobIniJefe = await Aprobacion.obtenerPendientePorTipo(parseInt(id), 'jefe');
+    const aprobIniCont = await Aprobacion.obtenerPendientePorTipo(parseInt(id), 'contadora');
+    const esParaleloRechazo =
+      solicitud.estado === 'pendiente_jefe' && aprobIniJefe && aprobIniCont;
+
     let tipoAprobacion;
     if (solicitud.estado === 'pendiente_jefe') {
-      tipoAprobacion = 'jefe';
+      if (esParaleloRechazo) {
+        if (aprobIniJefe.aprobador_id === req.usuario.id) {
+          tipoAprobacion = 'jefe';
+        } else if (aprobIniCont.aprobador_id === req.usuario.id || esContadoraOAdmin) {
+          tipoAprobacion = 'contadora';
+        } else {
+          return res.status(403).json({
+            success: false,
+            mensaje: 'No tienes permisos para rechazar esta solicitud'
+          });
+        }
+      } else {
+        tipoAprobacion = 'jefe';
+      }
     } else if (solicitud.estado === 'pendiente_contadora') {
       tipoAprobacion = 'contadora';
     } else {
@@ -323,13 +404,18 @@ const rechazar = async (req, res) => {
       });
     }
 
-    // Actualizar aprobación
     const aprobacion = await Aprobacion.obtenerPendientePorTipo(parseInt(id), tipoAprobacion);
     if (aprobacion) {
       await Aprobacion.rechazar(aprobacion.id, comentarios);
+      if (esParaleloRechazo) {
+        await Aprobacion.rechazarOtrasPendientes(
+          parseInt(id),
+          aprobacion.id,
+          `Anulado: solicitud rechazada (${comentarios})`
+        );
+      }
     }
 
-    // Actualizar estado de solicitud
     await SolicitudVacaciones.actualizarEstado(parseInt(id), 'rechazada');
 
     // Notificar al empleado (sistema interno)

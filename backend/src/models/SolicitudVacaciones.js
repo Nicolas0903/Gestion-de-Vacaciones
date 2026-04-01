@@ -64,14 +64,16 @@ class SolicitudVacaciones {
 
   // Listar solicitudes pendientes de aprobación para un aprobador
   static async listarPendientesAprobacion(aprobadorId, tipoAprobacion) {
-    let estadoRequerido;
+    // Jefe: solo fase pendiente_jefe (secuencial o paralelo con contadora)
+    // Contadora: pendiente_contadora O pendiente_jefe cuando ya existe fila contadora pendiente (aprobación en paralelo)
+    let estadoSql;
+    const params = [aprobadorId, tipoAprobacion];
     if (tipoAprobacion === 'jefe') {
-      estadoRequerido = 'pendiente_jefe';
-    } else if (tipoAprobacion === 'contadora') {
-      estadoRequerido = 'pendiente_contadora';
+      estadoSql = `sv.estado = 'pendiente_jefe'`;
+    } else {
+      estadoSql = `sv.estado IN ('pendiente_jefe', 'pendiente_contadora')`;
     }
 
-    // IMPORTANTE: Filtrar solo las solicitudes donde este usuario es el aprobador asignado
     const [rows] = await pool.execute(
       `SELECT sv.*, 
               e.codigo_empleado, e.nombres, e.apellidos, e.cargo,
@@ -80,12 +82,12 @@ class SolicitudVacaciones {
        JOIN empleados e ON sv.empleado_id = e.id
        JOIN periodos_vacaciones pv ON sv.periodo_id = pv.id
        JOIN aprobaciones a ON a.solicitud_id = sv.id
-       WHERE sv.estado = ?
+       WHERE ${estadoSql}
          AND a.aprobador_id = ?
          AND a.tipo_aprobacion = ?
          AND a.estado = 'pendiente'
        ORDER BY sv.fecha_solicitud ASC`,
-      [estadoRequerido, aprobadorId, tipoAprobacion]
+      params
     );
     return rows;
   }

@@ -73,6 +73,27 @@ class Aprobacion {
     return rows[0];
   }
 
+  /** Aprobación pendiente asignada a un aprobador concreto (p. ej. enlace por email) */
+  static async obtenerPendientePorAprobador(solicitudId, aprobadorId) {
+    const [rows] = await pool.execute(
+      `SELECT * FROM aprobaciones 
+       WHERE solicitud_id = ? AND aprobador_id = ? AND estado = 'pendiente'`,
+      [solicitudId, aprobadorId]
+    );
+    return rows[0];
+  }
+
+  /** Rechaza el resto de aprobaciones pendientes de la solicitud (flujo paralelo) */
+  static async rechazarOtrasPendientes(solicitudId, exceptId, comentarios) {
+    const [result] = await pool.execute(
+      `UPDATE aprobaciones 
+       SET estado = 'rechazado', comentarios = ?, fecha_accion = NOW()
+       WHERE solicitud_id = ? AND estado = 'pendiente' AND id != ?`,
+      [comentarios, solicitudId, exceptId]
+    );
+    return result.affectedRows;
+  }
+
   // Verificar si todas las aprobaciones están completas
   static async todasAprobadas(solicitudId) {
     const [rows] = await pool.execute(

@@ -87,6 +87,16 @@ class Notificacion {
     });
   }
 
+  static async notificarSolicitudEnviadaContadora(solicitudId, contadoraId) {
+    await this.crear({
+      empleado_id: contadoraId,
+      titulo: 'Nueva solicitud de vacaciones',
+      mensaje: 'Hay una solicitud de vacaciones pendiente de tu aprobación (junto con el jefe directo).',
+      tipo: 'info',
+      enlace: `/solicitudes/${solicitudId}`
+    });
+  }
+
   static async notificarAprobacionJefe(solicitudId, empleadoId, contadoraId) {
     // Notificar al empleado
     await this.crear({
