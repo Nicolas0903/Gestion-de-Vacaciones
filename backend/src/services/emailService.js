@@ -840,6 +840,77 @@ const notificarRegistroRechazado = async (solicitud, motivo) => {
   }
 };
 
+const etiquetaTipoPermiso = (tipo) => {
+  const map = {
+    descanso_medico: 'Descanso médico',
+    permiso_personal: 'Permiso personal',
+    permiso_sin_goce: 'Permiso sin goce',
+    otro: 'Otro'
+  };
+  return map[tipo] || tipo;
+};
+
+/**
+ * Notificar a contaduría que hay un permiso o descanso médico pendiente de revisión
+ */
+const notificarPermisoPendienteContadora = async (permiso, empleado, contadora) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('Email no configurado - Notificacion de permiso pendiente omitida');
+    return false;
+  }
+
+  const empNombre = empleado.nombres || empleado.nombre;
+  const empApellido = empleado.apellidos || empleado.apellido;
+  const contNombre = contadora.nombres || contadora.nombre;
+  const contApellido = contadora.apellidos || contadora.apellido;
+  const tipoLabel = etiquetaTipoPermiso(permiso.tipo);
+
+  const contenido = `
+    <p>Hola <strong>${contNombre} ${contApellido}</strong>,</p>
+    <p><strong>${empNombre} ${empApellido}</strong> registró una solicitud pendiente de tu revisión.</p>
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">Tipo:</span>
+        <span class="info-value">${tipoLabel}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Desde:</span>
+        <span class="info-value">${formatearFecha(permiso.fecha_inicio)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Hasta:</span>
+        <span class="info-value">${formatearFecha(permiso.fecha_fin)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Días:</span>
+        <span class="info-value">${permiso.dias_totales}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Motivo:</span>
+        <span class="info-value">${permiso.motivo || '—'}</span>
+      </div>
+    </div>
+    <center>
+      <a href="${FRONTEND_URL}/permisos/gestion" class="button">Revisar en el sistema</a>
+    </center>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      to: contadora.email,
+      subject: `Nueva solicitud: ${tipoLabel} - ${empNombre} ${empApellido}`,
+      html: plantillaBase(contenido, 'Permiso o descanso pendiente')
+    });
+    console.log(`Email enviado a ${contadora.email} - Permiso pendiente (${tipoLabel})`);
+    return true;
+  } catch (error) {
+    console.error('Error al enviar email de permiso pendiente:', error.message);
+    return false;
+  }
+};
+
 /**
  * Enviar email de prueba para verificar configuración
  */
@@ -885,5 +956,6 @@ module.exports = {
   enviarRecuperacionPassword,
   notificarNuevaSolicitudRegistro,
   notificarRegistroAprobado,
-  notificarRegistroRechazado
+  notificarRegistroRechazado,
+  notificarPermisoPendienteContadora
 };

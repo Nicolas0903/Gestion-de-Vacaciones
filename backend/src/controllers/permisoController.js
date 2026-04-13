@@ -1,5 +1,6 @@
 const PermisoDescanso = require('../models/PermisoDescanso');
 const Empleado = require('../models/Empleado');
+const emailService = require('../services/emailService');
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -77,7 +78,23 @@ const crear = async (req, res) => {
       archivo_path: req.file?.filename || null
     });
 
-    // TODO: Enviar notificación/correo a Rocío si es descanso médico
+    const empleado = await Empleado.buscarPorId(req.usuario.id);
+    const contadoras = await Empleado.obtenerPorRol('contadora');
+    const permisoParaCorreo = {
+      id: permisoId,
+      tipo,
+      fecha_inicio,
+      fecha_fin,
+      dias_totales,
+      motivo,
+      observaciones
+    };
+    if (empleado && contadoras.length > 0) {
+      for (const contadora of contadoras) {
+        emailService.notificarPermisoPendienteContadora(permisoParaCorreo, empleado, contadora)
+          .catch((err) => console.error('Error enviando email permiso pendiente:', err));
+      }
+    }
 
     res.json({
       success: true,
