@@ -6,7 +6,7 @@ import { parseFechaSegura } from '../utils/dateUtils';
 import { solicitudService, periodoService } from '../services/api';
 import toast from 'react-hot-toast';
 import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XMarkIcon, PaperAirplaneIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
-import { calcularDiasVacaciones } from '../utils/calcularDiasVacaciones';
+import { calcularDiasVacaciones, calcularFechaEfectivaRegreso } from '../utils/calcularDiasVacaciones';
 import Button from '../components/Button';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
@@ -67,14 +67,26 @@ const Calendario = () => {
       
       const res = await solicitudService.calendario(inicio, fin);
       
-      const eventosFormateados = res.data.data.map(solicitud => ({
-        id: solicitud.id,
-        title: `${solicitud.nombres} ${solicitud.apellidos}`,
-        start: new Date(solicitud.fecha_inicio_vacaciones + 'T12:00:00'),
-        end: new Date(solicitud.fecha_fin_vacaciones + 'T23:59:59'),
-        resource: solicitud,
-        estado: solicitud.estado
-      }));
+      const eventosFormateados = res.data.data.map((solicitud) => {
+        const calc = calcularDiasVacaciones(
+          solicitud.fecha_inicio_vacaciones,
+          solicitud.fecha_fin_vacaciones
+        );
+        const contados = calc.detalle.filter((d) => d.cuenta);
+        const ultimaFecha =
+          contados.length > 0
+            ? contados[contados.length - 1].fecha
+            : parseFechaSegura(solicitud.fecha_fin_vacaciones);
+        const finVisual = format(ultimaFecha, 'yyyy-MM-dd');
+        return {
+          id: solicitud.id,
+          title: `${solicitud.nombres} ${solicitud.apellidos}`,
+          start: new Date(solicitud.fecha_inicio_vacaciones + 'T12:00:00'),
+          end: new Date(finVisual + 'T23:59:59'),
+          resource: solicitud,
+          estado: solicitud.estado
+        };
+      });
       
       setEventos(eventosFormateados);
     } catch (error) {
@@ -192,9 +204,7 @@ const Calendario = () => {
     try {
       setSubmitting(true);
       
-      // Calcular fechas efectivas
-      const fechaFin = parseFechaSegura(formData.fecha_fin_vacaciones);
-      const fechaEfectivaRegreso = format(addDays(fechaFin, 1), 'yyyy-MM-dd');
+      const fechaEfectivaRegreso = calcularFechaEfectivaRegreso(formData.fecha_fin_vacaciones);
       
       const res = await solicitudService.crear({
         periodo_id: parseInt(formData.periodo_id),

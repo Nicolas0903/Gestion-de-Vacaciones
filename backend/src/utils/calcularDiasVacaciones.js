@@ -87,4 +87,19 @@ function calcularDiasVacaciones(fechaInicio, fechaFin) {
   };
 }
 
-module.exports = { calcularDiasVacaciones };
+/**
+ * Primer día laboral después del último día de vacaciones (alineado con la política de viernes + fin de semana).
+ */
+function calcularFechaEfectivaRegreso(fechaFin) {
+  let fin = moment(fechaFin).startOf('day');
+  if (fin.day() === 5) {
+    fin = fin.clone().add(2, 'days');
+  }
+  let regreso = fin.clone().add(1, 'day');
+  while (regreso.day() === 0 || regreso.day() === 6) {
+    regreso.add(1, 'day');
+  }
+  return regreso.format('YYYY-MM-DD');
+}
+
+module.exports = { calcularDiasVacaciones, calcularFechaEfectivaRegreso };

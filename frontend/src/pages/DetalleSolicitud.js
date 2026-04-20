@@ -16,6 +16,7 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { parseFechaSegura } from '../utils/dateUtils';
+import { calcularFechaEfectivaRegreso } from '../utils/calcularDiasVacaciones';
 
 const DetalleSolicitud = () => {
   const { id } = useParams();
@@ -232,7 +233,14 @@ const DetalleSolicitud = () => {
             <div>
               <p className="text-sm text-slate-500">Fecha Efectiva de Regreso</p>
               <p className="font-medium text-slate-800">
-                {format(parseFechaSegura(solicitud.fecha_efectiva_regreso || solicitud.fecha_fin_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
+                {format(
+                  parseFechaSegura(
+                    solicitud.fecha_efectiva_regreso ||
+                      calcularFechaEfectivaRegreso(solicitud.fecha_fin_vacaciones)
+                  ),
+                  "d 'de' MMMM, yyyy",
+                  { locale: es }
+                )}
               </p>
             </div>
             {solicitud.observaciones && (

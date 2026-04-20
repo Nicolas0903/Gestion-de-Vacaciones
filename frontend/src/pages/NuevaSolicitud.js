@@ -7,7 +7,7 @@ import { CalendarDaysIcon, PaperAirplaneIcon, DocumentIcon, InformationCircleIco
 import { format, addDays, isWeekend } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { parseFechaSegura } from '../utils/dateUtils';
-import { calcularDiasVacaciones } from '../utils/calcularDiasVacaciones';
+import { calcularDiasVacaciones, calcularFechaEfectivaRegreso } from '../utils/calcularDiasVacaciones';
 
 const NuevaSolicitud = () => {
   const navigate = useNavigate();
@@ -38,20 +38,16 @@ const NuevaSolicitud = () => {
 
   useEffect(() => {
     if (formData.fecha_inicio_vacaciones && formData.fecha_fin_vacaciones) {
-      const inicio = parseFechaSegura(formData.fecha_inicio_vacaciones);
-      const fin = parseFechaSegura(formData.fecha_fin_vacaciones);
-      
       // Usar la nueva función de cálculo con política de empresa
       const resultado = calcularDiasVacaciones(formData.fecha_inicio_vacaciones, formData.fecha_fin_vacaciones);
       setCalculoDias(resultado);
 
       // Auto-completar fechas efectivas
-      if (!formData.fecha_efectiva_salida) {
-        setFormData(prev => ({ ...prev, fecha_efectiva_salida: formData.fecha_inicio_vacaciones }));
-      }
-      if (!formData.fecha_efectiva_regreso) {
-        setFormData(prev => ({ ...prev, fecha_efectiva_regreso: format(addDays(fin, 1), 'yyyy-MM-dd') }));
-      }
+      setFormData((prev) => ({
+        ...prev,
+        fecha_efectiva_salida: formData.fecha_inicio_vacaciones,
+        fecha_efectiva_regreso: calcularFechaEfectivaRegreso(formData.fecha_fin_vacaciones)
+      }));
     } else {
       setCalculoDias({ diasTotales: 0, diasLaborales: 0, diasFinDeSemana: 0, detalle: [] });
     }

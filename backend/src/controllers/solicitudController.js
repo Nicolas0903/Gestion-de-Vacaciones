@@ -6,7 +6,7 @@ const {
   Empleado 
 } = require('../models');
 const moment = require('moment');
-const { calcularDiasVacaciones } = require('../utils/calcularDiasVacaciones');
+const { calcularDiasVacaciones, calcularFechaEfectivaRegreso } = require('../utils/calcularDiasVacaciones');
 const emailService = require('../services/emailService');
 
 // Crear solicitud
@@ -53,14 +53,17 @@ const crear = async (req, res) => {
       });
     }
 
+    const fechaSalidaEfectiva = fecha_efectiva_salida || fecha_inicio_vacaciones;
+    const fechaRegresoEfectiva = calcularFechaEfectivaRegreso(fecha_fin_vacaciones);
+
     const id = await SolicitudVacaciones.crear({
       empleado_id: empleadoId,
       periodo_id,
       fecha_inicio_vacaciones,
       fecha_fin_vacaciones,
       dias_solicitados: diasSolicitados,
-      fecha_efectiva_salida,
-      fecha_efectiva_regreso,
+      fecha_efectiva_salida: fechaSalidaEfectiva,
+      fecha_efectiva_regreso: fechaRegresoEfectiva,
       observaciones
     });
 

@@ -1,4 +1,4 @@
-import { eachDayOfInterval, isWeekend, isFriday, addDays } from 'date-fns';
+import { eachDayOfInterval, isWeekend, isFriday, addDays, format } from 'date-fns';
 import { parseFechaSegura } from './dateUtils';
 
 /**
@@ -91,6 +91,20 @@ export function calcularDiasVacaciones(fechaInicio, fechaFin) {
 export function contarDiasVacaciones(fechaInicio, fechaFin) {
   const resultado = calcularDiasVacaciones(fechaInicio, fechaFin);
   return resultado.diasTotales;
+}
+
+/** Primer día laboral después del último día de vacaciones (política viernes + fin de semana). */
+export function calcularFechaEfectivaRegreso(fechaFinVacaciones) {
+  const fin = typeof fechaFinVacaciones === 'string' ? parseFechaSegura(fechaFinVacaciones) : fechaFinVacaciones;
+  let ultimoDiaVacaciones = fin;
+  if (isFriday(ultimoDiaVacaciones)) {
+    ultimoDiaVacaciones = addDays(ultimoDiaVacaciones, 2);
+  }
+  let regreso = addDays(ultimoDiaVacaciones, 1);
+  while (isWeekend(regreso)) {
+    regreso = addDays(regreso, 1);
+  }
+  return format(regreso, 'yyyy-MM-dd');
 }
 
 export default calcularDiasVacaciones;

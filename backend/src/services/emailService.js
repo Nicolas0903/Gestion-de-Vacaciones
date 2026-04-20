@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const TokenAprobacion = require('../models/TokenAprobacion');
+const { calcularFechaEfectivaRegreso } = require('../utils/calcularDiasVacaciones');
 
 // URL base para los enlaces de aprobación
 const API_URL = process.env.API_URL || 'http://96.126.124.60:3002/api';
@@ -126,6 +127,12 @@ const plantillaBase = (contenido, titulo) => `
 </html>
 `;
 
+const fechaSalidaCorreo = (solicitud) =>
+  solicitud.fecha_efectiva_salida || solicitud.fecha_inicio_vacaciones;
+
+const fechaRegresoCorreo = (solicitud) =>
+  solicitud.fecha_efectiva_regreso || calcularFechaEfectivaRegreso(solicitud.fecha_fin_vacaciones);
+
 // Formatear fecha
 const formatearFecha = (fecha) => {
   if (!fecha) return 'N/A';
@@ -190,8 +197,16 @@ const notificarNuevaSolicitud = async (solicitud, empleado, aprobador) => {
           <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Días Solicitados:</span>
+          <span class="info-label">Días solicitados:</span>
           <span class="info-value"><strong>${solicitud.dias_solicitados} días</strong></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Salida efectiva:</span>
+          <span class="info-value">${formatearFecha(fechaSalidaCorreo(solicitud))}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Regreso efectivo:</span>
+          <span class="info-value">${formatearFecha(fechaRegresoCorreo(solicitud))}</span>
         </div>
         ${solicitud.observaciones ? `
         <div class="info-row">
@@ -285,8 +300,16 @@ const notificarAprobacionJefe = async (solicitud, empleado, jefe, contadora) => 
           <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Días:</span>
+          <span class="info-label">Días solicitados:</span>
           <span class="info-value">${solicitud.dias_solicitados} días</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Salida efectiva:</span>
+          <span class="info-value">${formatearFecha(fechaSalidaCorreo(solicitud))}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Regreso efectivo:</span>
+          <span class="info-value">${formatearFecha(fechaRegresoCorreo(solicitud))}</span>
         </div>
         <div class="info-row">
           <span class="info-label">Aprobado por:</span>
@@ -325,8 +348,16 @@ const notificarAprobacionJefe = async (solicitud, empleado, jefe, contadora) => 
           <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Días:</span>
+          <span class="info-label">Días solicitados:</span>
           <span class="info-value"><strong>${solicitud.dias_solicitados} días</strong></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Salida efectiva:</span>
+          <span class="info-value">${formatearFecha(fechaSalidaCorreo(solicitud))}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Regreso efectivo:</span>
+          <span class="info-value">${formatearFecha(fechaRegresoCorreo(solicitud))}</span>
         </div>
         <div class="info-row">
           <span class="info-label">Aprobado por:</span>
@@ -422,8 +453,16 @@ const notificarAprobacionJefeConBotones = async (solicitud, empleado, jefe, cont
           <span class="info-value">${formatearFecha(solicitud.fecha_fin_vacaciones)}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Días:</span>
+          <span class="info-label">Días solicitados:</span>
           <span class="info-value"><strong>${solicitud.dias_solicitados} días</strong></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Salida efectiva:</span>
+          <span class="info-value">${formatearFecha(fechaSalidaCorreo(solicitud))}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Regreso efectivo:</span>
+          <span class="info-value">${formatearFecha(fechaRegresoCorreo(solicitud))}</span>
         </div>
         <div class="info-row">
           <span class="info-label">Aprobado por:</span>
