@@ -53,8 +53,9 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 };
 
 function ReembolsosGestionGate() {
-  const { esAprobadorReembolsos } = useAuth();
-  if (!esAprobadorReembolsos()) {
+  const { esAdmin, esAprobadorReembolsos } = useAuth();
+  // Admin puede entrar aunque no sea el aprobador designado (p. ej. para eliminar registros).
+  if (!esAdmin() && !esAprobadorReembolsos()) {
     return <Navigate to="/portal" replace />;
   }
   return (

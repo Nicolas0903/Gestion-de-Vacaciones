@@ -179,6 +179,12 @@ const GestionReembolsos = () => {
           <div>
             <h1 className="text-2xl font-bold text-slate-800 mb-1">Gestión de solicitudes de reintegro</h1>
             <p className="text-sm text-slate-500">Revisión y resolución</p>
+            {esAdmin() && (
+              <p className="text-xs text-slate-500 mt-2 max-w-xl">
+                Como administrador puedes <strong className="font-medium text-slate-700">eliminar</strong> cualquier
+                solicitud desde la columna de acciones (se borran también los archivos adjuntos o el PDF generado).
+              </p>
+            )}
           </div>
         </div>
 
@@ -223,6 +229,7 @@ const GestionReembolsos = () => {
                   <th className="px-4 py-3 font-medium">Estado</th>
                   <th className="px-4 py-3 font-medium">Observaciones</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
+                  {esAdmin() && <th className="px-4 py-3 font-medium w-28">Admin</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -304,20 +311,22 @@ const GestionReembolsos = () => {
                             </button>
                           </>
                         )}
-                        {esAdmin() && (
-                          <button
-                            type="button"
-                            disabled={procesando}
-                            className="text-slate-500 text-xs font-medium hover:text-rose-600 disabled:opacity-50 inline-flex items-center gap-0.5"
-                            title="Eliminar registro"
-                            onClick={() => eliminarRegistro(r.id, r.codigo_ticket)}
-                          >
-                            <TrashIcon className="w-3.5 h-3.5" />
-                            Borrar
-                          </button>
-                        )}
                       </div>
                     </td>
+                    {esAdmin() && (
+                      <td className="px-4 py-3 align-top">
+                        <button
+                          type="button"
+                          disabled={procesando}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                          title="Eliminar solicitud y archivos (solo administrador)"
+                          onClick={() => eliminarRegistro(r.id, r.codigo_ticket)}
+                        >
+                          <TrashIcon className="w-3.5 h-3.5 shrink-0" />
+                          Eliminar
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

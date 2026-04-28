@@ -202,7 +202,7 @@ const Portal = () => {
                   {/* Botón de gestión: reintegros solo aprobador o admin */}
                   {modulo.adminLink &&
                     (modulo.id === 'reembolsos'
-                      ? esAprobadorReembolsos()
+                      ? esAdmin() || esAprobadorReembolsos()
                       : esAdmin() || esContadora()) && (
                     <Link
                       to={modulo.adminLink}
