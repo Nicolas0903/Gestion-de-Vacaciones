@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, Cog6ToothIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
@@ -41,6 +41,14 @@ function descargarBlob(blob, nombre) {
   window.URL.revokeObjectURL(url);
 }
 
+/** YYYY-MM desde fecha del gasto (fecha_solicitud_usuario). */
+function yyyymmFechaGasto(row) {
+  const d = row?.fecha_solicitud_usuario;
+  if (!d) return '';
+  const s = String(d);
+  return s.length >= 7 ? s.slice(0, 7) : '';
+}
+
 const GestionReembolsos = () => {
   const { esAdmin } = useAuth();
   const [tab, setTab] = useState('pendientes');
@@ -57,6 +65,8 @@ const GestionReembolsos = () => {
   const [editar, setEditar] = useState(null);
   const [formEdit, setFormEdit] = useState(null);
   const [archivoReemplazo, setArchivoReemplazo] = useState(null);
+  const [mesFiltro, setMesFiltro] = useState('');
+  const [solicitanteFiltro, setSolicitanteFiltro] = useState('');
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -190,6 +200,31 @@ const GestionReembolsos = () => {
 
   const filas = tab === 'pendientes' ? pendientes : todos;
 
+  const opcionesSolicitantes = useMemo(() => {
+    const map = new Map();
+    const ingest = (lista) => {
+      for (const r of lista) {
+        const id = r.empleado_id;
+        if (id == null) continue;
+        const nombre = `${r.empleado_nombres || ''} ${r.empleado_apellidos || ''}`.trim() || `ID ${id}`;
+        if (!map.has(id)) map.set(id, nombre);
+      }
+    };
+    ingest(pendientes);
+    ingest(todos);
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], 'es'));
+  }, [pendientes, todos]);
+
+  const filasFiltradas = useMemo(() => {
+    return filas.filter((r) => {
+      if (mesFiltro && yyyymmFechaGasto(r) !== mesFiltro) return false;
+      if (solicitanteFiltro && String(r.empleado_id) !== solicitanteFiltro) return false;
+      return true;
+    });
+  }, [filas, mesFiltro, solicitanteFiltro]);
+
+  const hayFiltros = Boolean(mesFiltro || solicitanteFiltro);
+
   const guardarEdicionAdmin = async () => {
     if (!editar || !formEdit) return;
     if (!formEdit.fecha_solicitud_usuario || !formEdit.concepto.trim()) {
@@ -284,10 +319,65 @@ const GestionReembolsos = () => {
           </button>
         </div>
 
+        {!loading && filas.length > 0 && (
+          <div className="flex flex-col sm:flex-row flex-wrap gap-4 mb-4 items-start sm:items-end">
+            <div>
+              <label htmlFor="filtro-mes-reintegro" className="block text-xs font-medium text-slate-600 mb-1">
+                Mes (fecha del gasto)
+              </label>
+              <input
+                id="filtro-mes-reintegro"
+                type="month"
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 bg-white"
+                value={mesFiltro}
+                onChange={(e) => setMesFiltro(e.target.value)}
+              />
+            </div>
+            <div className="min-w-[220px] flex-1 sm:flex-initial">
+              <label htmlFor="filtro-solicitante-reintegro" className="block text-xs font-medium text-slate-600 mb-1">
+                Solicitante
+              </label>
+              <select
+                id="filtro-solicitante-reintegro"
+                className="w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 bg-white"
+                value={solicitanteFiltro}
+                onChange={(e) => setSolicitanteFiltro(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {opcionesSolicitantes.map(([id, nombre]) => (
+                  <option key={id} value={String(id)}>
+                    {nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {hayFiltros && (
+              <button
+                type="button"
+                className="text-sm font-medium text-sky-600 hover:text-sky-800 py-2"
+                onClick={() => {
+                  setMesFiltro('');
+                  setSolicitanteFiltro('');
+                }}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        )}
+
+        {!loading && filas.length > 0 && hayFiltros && (
+          <p className="text-xs text-slate-500 mb-3">
+            Mostrando {filasFiltradas.length} de {filas.length} en esta pestaña.
+          </p>
+        )}
+
         {loading ? (
           <p className="text-slate-500 text-sm">Cargando…</p>
         ) : filas.length === 0 ? (
           <p className="text-slate-500 text-sm">No hay registros en esta vista.</p>
+        ) : filasFiltradas.length === 0 ? (
+          <p className="text-slate-500 text-sm">Ningún registro coincide con los filtros. Prueba otro mes o solicitante.</p>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-slate-100">
             <table className="min-w-full text-sm">
@@ -305,7 +395,7 @@ const GestionReembolsos = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filas.map((r) => (
+                {filasFiltradas.map((r) => (
                   <tr key={r.id} className="text-slate-700">
                     <td className="px-4 py-3 font-mono text-xs">{r.codigo_ticket}</td>
                     <td className="px-4 py-3">
