@@ -27,6 +27,7 @@ import GestionPermisos from './pages/GestionPermisos';
 import SolicitudesRegistro from './pages/admin/SolicitudesRegistro';
 import Reembolsos from './pages/Reembolsos';
 import GestionReembolsos from './pages/GestionReembolsos';
+import CajaChica from './pages/CajaChica';
 
 // Components
 import Layout from './components/Layout';
@@ -142,6 +143,12 @@ function AppRoutes() {
       <Route path="/reembolsos/gestion" element={
         <ProtectedRoute>
           <ReembolsosGestionGate />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/caja-chica" element={
+        <ProtectedRoute roles={['admin', 'contadora']}>
+          <PageWrapper><CajaChica /></PageWrapper>
         </ProtectedRoute>
       } />
 

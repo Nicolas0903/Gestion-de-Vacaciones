@@ -140,6 +140,21 @@ class Reembolso {
     const [r] = await pool.execute(`DELETE FROM solicitudes_reembolso WHERE id = ?`, [id]);
     return r.affectedRows > 0;
   }
+
+  /** Reintegros aprobados cuya fecha de documento (usuario) cae en el rango inclusive (YYYY-MM-DD). */
+  static async listarAprobadosPorRangoFechaDocumento(fechaDesde, fechaHasta) {
+    const [rows] = await pool.execute(
+      `SELECT sr.*, e.nombres as empleado_nombres, e.apellidos as empleado_apellidos
+       FROM solicitudes_reembolso sr
+       JOIN empleados e ON sr.empleado_id = e.id
+       WHERE sr.estado = 'aprobado'
+         AND sr.fecha_solicitud_usuario >= ?
+         AND sr.fecha_solicitud_usuario <= ?
+       ORDER BY sr.fecha_solicitud_usuario ASC, sr.id ASC`,
+      [fechaDesde, fechaHasta]
+    );
+    return rows;
+  }
 }
 
 module.exports = Reembolso;

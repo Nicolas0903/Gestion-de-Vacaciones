@@ -172,5 +172,14 @@ export const reembolsoService = {
   eliminar: (id) => api.delete(`/reembolsos/${id}`),
 };
 
+// Caja chica (admin / contadora)
+export const cajaChicaService = {
+  listarPeriodos: () => api.get('/caja-chica/periodos'),
+  crearPeriodo: (anio, mes) => api.post('/caja-chica/periodos', { anio, mes }),
+  detalle: (id) => api.get(`/caja-chica/periodos/${id}`),
+  guardarIngresos: (id, ingresos) => api.put(`/caja-chica/periodos/${id}/ingresos`, { ingresos }),
+  cerrar: (id) => api.post(`/caja-chica/periodos/${id}/cerrar`),
+};
+
 export default api;
 

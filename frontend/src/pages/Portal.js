@@ -10,7 +10,8 @@ import {
   ArrowRightIcon,
   Cog6ToothIcon,
   UserPlusIcon,
-  BanknotesIcon
+  BanknotesIcon,
+  WalletIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
@@ -82,6 +83,23 @@ const Portal = () => {
       bgLight: 'bg-rose-50',
       textColor: 'text-rose-600',
       link: '/reporte-asistencia',
+      activo: true,
+      restringido: true
+    });
+  }
+
+  // Caja chica (solo admin / contadora)
+  if (esAdmin() || esContadora()) {
+    modulos.push({
+      id: 'caja-chica',
+      titulo: 'Caja chica',
+      descripcion: 'Reporte mensual: ingresos manuales y egresos desde reintegros aprobados',
+      icono: WalletIcon,
+      color: 'from-emerald-500 to-teal-600',
+      shadowColor: 'shadow-emerald-500/30',
+      bgLight: 'bg-emerald-50',
+      textColor: 'text-emerald-600',
+      link: '/caja-chica',
       activo: true,
       restringido: true
     });

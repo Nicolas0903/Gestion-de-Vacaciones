@@ -4,6 +4,7 @@ const SolicitudVacaciones = require('./SolicitudVacaciones');
 const Aprobacion = require('./Aprobacion');
 const Notificacion = require('./Notificacion');
 const Reembolso = require('./Reembolso');
+const CajaChica = require('./CajaChica');
 
 module.exports = {
   Empleado,
@@ -11,7 +12,8 @@ module.exports = {
   SolicitudVacaciones,
   Aprobacion,
   Notificacion,
-  Reembolso
+  Reembolso,
+  CajaChica
 };
 
 
