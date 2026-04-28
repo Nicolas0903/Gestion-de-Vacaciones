@@ -105,7 +105,8 @@ export const AuthProvider = ({ children }) => {
   const esAprobadorReembolsos = () =>
     !!usuario &&
     (usuario.es_aprobador_reembolsos === true ||
-      /* respaldo si el perfil aún no trae el flag (sesión antigua) */
+      tieneRol('admin') ||
+      /* respaldo sesión antigua sin flag */
       (usuario.email || '').toLowerCase().trim() ===
         (process.env.REACT_APP_REEMBOLSOS_APROBADOR_EMAIL || 'enrique.agapito@prayaga.biz'));
 

@@ -55,7 +55,10 @@ const login = async (req, res) => {
     const { password: _, ...empleadoSinPassword } = empleado;
 
     const aprobadorReemb = await Empleado.obtenerAprobadorReembolsos();
-    const es_aprobador_reembolsos = !!(aprobadorReemb && aprobadorReemb.id === empleado.id);
+    const es_aprobador_reembolsos = !!(
+      empleado.rol_nombre === 'admin' ||
+      (aprobadorReemb && aprobadorReemb.id === empleado.id)
+    );
 
     res.json({
       success: true,
@@ -80,7 +83,10 @@ const perfil = async (req, res) => {
     const { password: _, ...usuarioSinPassword } = req.usuario;
 
     const aprobadorReemb = await Empleado.obtenerAprobadorReembolsos();
-    const es_aprobador_reembolsos = !!(aprobadorReemb && aprobadorReemb.id === req.usuario.id);
+    const es_aprobador_reembolsos = !!(
+      req.usuario.rol_nombre === 'admin' ||
+      (aprobadorReemb && aprobadorReemb.id === req.usuario.id)
+    );
 
     res.json({
       success: true,

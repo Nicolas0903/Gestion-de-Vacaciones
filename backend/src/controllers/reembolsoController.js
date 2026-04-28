@@ -25,6 +25,12 @@ async function idAprobadorReembolsos() {
   return a ? a.id : null;
 }
 
+async function puedeGestionarReembolsosComoStaff(usuario) {
+  if (usuario.rol_nombre === 'admin') return true;
+  const aprobId = await idAprobadorReembolsos();
+  return aprobId != null && usuario.id === aprobId;
+}
+
 const crear = async (req, res) => {
   try {
     const {
@@ -186,10 +192,9 @@ const obtener = async (req, res) => {
     if (!r) {
       return res.status(404).json({ success: false, mensaje: 'No encontrado.' });
     }
-    const aprobId = await idAprobadorReembolsos();
     const esDueño = r.empleado_id === req.usuario.id;
-    const esAprob = aprobId != null && req.usuario.id === aprobId;
-    if (!esDueño && !esAprob) {
+    const esStaff = await puedeGestionarReembolsosComoStaff(req.usuario);
+    if (!esDueño && !esStaff) {
       return res.status(403).json({ success: false, mensaje: 'Sin permiso.' });
     }
     res.json({ success: true, data: enriquecer(r) });
@@ -206,8 +211,8 @@ const descargarReciboPdf = async (req, res) => {
     if (!r || !r.archivo_recibo_generado_path) {
       return res.status(404).json({ success: false, mensaje: 'Recibo no disponible.' });
     }
-    const aprobId = await idAprobadorReembolsos();
-    if (r.empleado_id !== req.usuario.id && (aprobId == null || req.usuario.id !== aprobId)) {
+    const esStaff = await puedeGestionarReembolsosComoStaff(req.usuario);
+    if (r.empleado_id !== req.usuario.id && !esStaff) {
       return res.status(403).json({ success: false, mensaje: 'Sin permiso.' });
     }
     if (!fs.existsSync(r.archivo_recibo_generado_path)) {
@@ -228,8 +233,8 @@ const descargarComprobante = async (req, res) => {
     if (!r || !r.archivo_comprobante_path) {
       return res.status(404).json({ success: false, mensaje: 'Sin comprobante.' });
     }
-    const aprobId = await idAprobadorReembolsos();
-    if (r.empleado_id !== req.usuario.id && (aprobId == null || req.usuario.id !== aprobId)) {
+    const esStaff = await puedeGestionarReembolsosComoStaff(req.usuario);
+    if (r.empleado_id !== req.usuario.id && !esStaff) {
       return res.status(403).json({ success: false, mensaje: 'Sin permiso.' });
     }
     if (!fs.existsSync(r.archivo_comprobante_path)) {
