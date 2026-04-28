@@ -39,7 +39,18 @@ const verificarConexion = async () => {
 };
 
 // Plantilla base HTML para emails
-const plantillaBase = (contenido, titulo) => `
+// tituloMarca: texto grande del encabezado (ej. vacaciones vs reintegro)
+// textoPie: línea del pie (por módulo)
+const plantillaBase = (contenido, titulo, tituloMarca, textoPie) => {
+  const marca =
+    tituloMarca != null && tituloMarca !== ''
+      ? tituloMarca
+      : '🏖️ Gestión de Vacaciones';
+  const pie =
+    textoPie != null && textoPie !== ''
+      ? textoPie
+      : 'Este es un mensaje automático del Sistema de Gestión de Vacaciones - Prayaga';
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -115,19 +126,20 @@ const plantillaBase = (contenido, titulo) => `
 </head>
 <body>
   <div class="header">
-    <h1>🏖️ Gestión de Vacaciones</h1>
+    <h1>${marca}</h1>
     <p style="margin: 5px 0 0 0; opacity: 0.9;">${titulo}</p>
   </div>
   <div class="content">
     ${contenido}
   </div>
   <div class="footer">
-    <p>Este es un mensaje automático del Sistema de Gestión de Vacaciones - Prayaga</p>
+    <p>${pie}</p>
     <p>Por favor no responda a este correo.</p>
   </div>
 </body>
 </html>
 `;
+};
 
 const fechaSalidaCorreo = (solicitud) =>
   solicitud.fecha_efectiva_salida || solicitud.fecha_inicio_vacaciones;
@@ -1002,6 +1014,11 @@ const htmlVistaReciboReembolso = (r, codigoTicket) => {
   </div>`;
 };
 
+/** Encabezado y pie distintos al de vacaciones en plantillaBase */
+const MARCA_ENCABEZADO_EMAIL_REINTEGRO = '💳 Solicitud de reintegro';
+const PIE_EMAIL_REINTEGRO =
+  'Este es un mensaje automático del Portal RRHH - Prayaga (solicitudes de reintegro).';
+
 /**
  * Notificación al aprobador único (Enrique por defecto). Solo este correo recibe la solicitud para aprobar/rechazar.
  */
@@ -1072,7 +1089,12 @@ const notificarNuevaSolicitudReembolsoAprobador = async ({
       from: `"Portal RRHH - Reembolsos" <${process.env.SMTP_USER}>`,
       to: aprobador.email,
       subject: `Solicitud de reembolso ${codigo} - ${empNombre}`,
-      html: plantillaBase(contenido, 'Nueva solicitud de reembolso'),
+      html: plantillaBase(
+        contenido,
+        'Nueva solicitud de reintegro',
+        MARCA_ENCABEZADO_EMAIL_REINTEGRO,
+        PIE_EMAIL_REINTEGRO
+      ),
       attachments
     });
     console.log(`📧 Reembolso: correo enviado a aprobador ${aprobador.email}`);
@@ -1142,7 +1164,12 @@ const notificarReembolsoResueltoEmpleado = async (reembolso, empleado, resultado
       from: `"Portal RRHH - Reintegros" <${process.env.SMTP_USER}>`,
       to: empleado.email,
       subject,
-      html: plantillaBase(contenido, tituloPlantilla)
+      html: plantillaBase(
+        contenido,
+        tituloPlantilla,
+        MARCA_ENCABEZADO_EMAIL_REINTEGRO,
+        PIE_EMAIL_REINTEGRO
+      )
     });
     return true;
   } catch (error) {
