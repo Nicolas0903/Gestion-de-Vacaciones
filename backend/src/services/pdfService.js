@@ -297,6 +297,15 @@ class PDFService {
         doc.fontSize(18).font('Helvetica-Bold').fillColor('#000000')
           .text('Recibo', margin, y + 20, { width: contentW, align: 'center' });
 
+        const yTicket = y + 46;
+        const codigoTicket =
+          (r.codigo_ticket && String(r.codigo_ticket).trim()) ||
+          (r.id && r.created_at
+            ? `RMB-${new Date(r.created_at).getFullYear()}-${String(r.id).padStart(5, '0')}`
+            : '');
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000')
+          .text(`ID de ticket: ${codigoTicket || '—'}`, margin, yTicket, { width: contentW, align: 'center' });
+
         const monto = Number(r.monto) || 0;
         const montoTxt = `S/ ${monto.toFixed(2)}`;
         const boxW = 100;
@@ -304,7 +313,7 @@ class PDFService {
         doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000')
           .text(montoTxt, pageW - margin - boxW, y + 12, { width: boxW, align: 'center' });
 
-        y += headerH + 16;
+        y += headerH + 34;
 
         const fechaUser = r.fecha_solicitud_usuario
           ? moment(r.fecha_solicitud_usuario).format('DD/MM/YYYY')
@@ -327,11 +336,12 @@ class PDFService {
         doc.text(`Nombre Completo: ${r.nombre_completo || ''}`, pieX, y, { width: pieW, align: 'right' });
         doc.text(`DNI: ${r.dni || ''}`, pieX, y + 18, { width: pieW, align: 'right' });
 
+        const pieTicket = codigoTicket || (r.codigo_ticket || '');
         doc.fontSize(8).fillColor('#64748b')
           .text(
-            `Ticket: ${r.codigo_ticket || ''} · Registro: ${moment(r.created_at).format('DD/MM/YYYY HH:mm')}`,
+            `Ticket: ${pieTicket || '—'} · Registro solicitud: ${r.created_at ? moment(r.created_at).format('DD/MM/YYYY HH:mm') : '—'}`,
             margin,
-            780,
+            750,
             { width: contentW, align: 'center' }
           );
 

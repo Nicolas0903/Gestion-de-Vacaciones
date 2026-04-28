@@ -1,11 +1,12 @@
 const TokenReembolso = require('../models/TokenReembolso');
 const { Empleado, Reembolso } = require('../models');
 const emailService = require('../services/emailService');
+const { getPortalBaseUrl } = require('../config/frontendPublic');
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 function generarHtmlRespuesta(titulo, mensaje, tipo) {
+  const portalUrl = `${getPortalBaseUrl()}/portal`;
   const colores = {
     success: { bg: '#10b981', icon: '✓' },
     error: { bg: '#ef4444', icon: '✗' },
@@ -70,7 +71,7 @@ function generarHtmlRespuesta(titulo, mensaje, tipo) {
     <div class="icon">${config.icon}</div>
     <h1>${titulo}</h1>
     <p>${mensaje}</p>
-    <a href="${FRONTEND_URL}/portal" class="btn">Ir al portal</a>
+    <a href="${portalUrl}" class="btn">Ir al portal</a>
   </div>
 </body>
 </html>
@@ -78,6 +79,7 @@ function generarHtmlRespuesta(titulo, mensaje, tipo) {
 }
 
 function generarFormularioRechazo(token, tokenData) {
+  const portalUrl = `${getPortalBaseUrl()}/portal`;
   return `
 <!DOCTYPE html>
 <html>
@@ -128,7 +130,7 @@ function generarFormularioRechazo(token, tokenData) {
       <label for="motivo">Motivo (requerido):</label>
       <textarea name="motivo" id="motivo" required placeholder="Motivo del rechazo..."></textarea>
       <div class="buttons">
-        <a href="${FRONTEND_URL}/portal" class="btn btn-cancel">Cancelar</a>
+        <a href="${portalUrl}" class="btn btn-cancel">Cancelar</a>
         <button type="submit" class="btn btn-reject">Confirmar rechazo</button>
       </div>
     </form>
