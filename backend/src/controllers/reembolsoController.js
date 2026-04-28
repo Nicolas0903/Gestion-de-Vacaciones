@@ -71,11 +71,18 @@ const crear = async (req, res) => {
       });
     }
 
-    const rucNumeroDoc = String(req.body.ruc_numero_documento || '').trim();
-    if (tComp && !rucNumeroDoc) {
+    const rucProveedor = String(req.body.ruc_proveedor || '').trim();
+    const numeroDocumento = String(req.body.numero_documento || '').trim();
+    if (tComp && !rucProveedor) {
       return res.status(400).json({
         success: false,
-        mensaje: 'Indique RUC y N° de documento (mismo valor en ambos campos del formulario).'
+        mensaje: 'Indique el RUC del emisor según el comprobante.'
+      });
+    }
+    if (tComp && !numeroDocumento) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique el número de documento (factura) según el comprobante.'
       });
     }
 
@@ -119,8 +126,8 @@ const crear = async (req, res) => {
           ? String(numero_cuenta || '').trim() || null
           : null,
       monto: montoNum,
-      ruc_proveedor: tComp ? rucNumeroDoc : null,
-      numero_documento: tComp ? rucNumeroDoc : null
+      ruc_proveedor: tComp ? rucProveedor : null,
+      numero_documento: tComp ? numeroDocumento : null
     });
 
     let row = await Reembolso.buscarPorId(id);
@@ -402,7 +409,8 @@ const actualizarAdmin = async (req, res) => {
       celular,
       nombre_en_metodo,
       numero_cuenta,
-      ruc_numero_documento
+      ruc_proveedor: rucProveedorBody,
+      numero_documento: numeroDocumentoBody
     } = req.body;
 
     if (!fecha_solicitud_usuario || !String(concepto || '').trim()) {
@@ -429,11 +437,18 @@ const actualizarAdmin = async (req, res) => {
     }
 
     const tComp = !!r.tiene_comprobante;
-    const rucNumeroDoc = String(ruc_numero_documento || '').trim();
-    if (tComp && !rucNumeroDoc) {
+    const rucProveedor = String(rucProveedorBody || '').trim();
+    const numeroDocumento = String(numeroDocumentoBody || '').trim();
+    if (tComp && !rucProveedor) {
       return res.status(400).json({
         success: false,
-        mensaje: 'Con comprobante, RUC y N° de documento (mismo valor) son obligatorios.'
+        mensaje: 'Indique el RUC del emisor.'
+      });
+    }
+    if (tComp && !numeroDocumento) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique el número de documento (factura).'
       });
     }
 
@@ -461,8 +476,8 @@ const actualizarAdmin = async (req, res) => {
         metodo_reembolso === 'transferencia'
           ? String(numero_cuenta || '').trim() || null
           : null,
-      ruc_proveedor: tComp ? rucNumeroDoc : null,
-      numero_documento: tComp ? rucNumeroDoc : null,
+      ruc_proveedor: tComp ? rucProveedor : null,
+      numero_documento: tComp ? numeroDocumento : null,
       archivo_comprobante_nombre,
       archivo_comprobante_path
     });

@@ -50,8 +50,8 @@ const Reembolsos = () => {
   const [celular, setCelular] = useState('');
   const [nombreEnMetodo, setNombreEnMetodo] = useState('');
   const [numeroCuenta, setNumeroCuenta] = useState('');
-  /** Un solo valor para RUC y N° documento (mismo dato en BD y en caja chica). */
-  const [rucNumeroDocumento, setRucNumeroDocumento] = useState('');
+  const [rucProveedor, setRucProveedor] = useState('');
+  const [numeroDocumento, setNumeroDocumento] = useState('');
 
   const nombreCompleto = `${usuario?.nombres || ''} ${usuario?.apellidos || ''}`.trim();
   const dni = usuario?.dni || '—';
@@ -86,8 +86,12 @@ const Reembolsos = () => {
       toast.error('Indique el nombre que debe figurar en Yape o Plin.');
       return;
     }
-    if (tieneComprobante && !String(rucNumeroDocumento).trim()) {
-      toast.error('Indique RUC y N° de documento (el mismo valor en ambos campos).');
+    if (tieneComprobante && !String(rucProveedor).trim()) {
+      toast.error('Indique el RUC del emisor según el comprobante.');
+      return;
+    }
+    if (tieneComprobante && !String(numeroDocumento).trim()) {
+      toast.error('Indique el número de documento (factura).');
       return;
     }
     if (tieneComprobante && !archivo) {
@@ -112,7 +116,8 @@ const Reembolsos = () => {
       fd.append('numero_cuenta', numeroCuenta.trim());
     }
     if (tieneComprobante) {
-      fd.append('ruc_numero_documento', String(rucNumeroDocumento).trim());
+      fd.append('ruc_proveedor', String(rucProveedor).trim());
+      fd.append('numero_documento', String(numeroDocumento).trim());
     }
     if (tieneComprobante && archivo) {
       fd.append('comprobante', archivo);
@@ -126,7 +131,8 @@ const Reembolsos = () => {
       setArchivo(null);
       setMonto('0');
       setNumeroCuenta('');
-      setRucNumeroDocumento('');
+      setRucProveedor('');
+      setNumeroDocumento('');
       cargarLista();
     } catch (err) {
       const msg = err.response?.data?.mensaje || 'No se pudo enviar la solicitud.';
@@ -229,7 +235,8 @@ const Reembolsos = () => {
                   onChange={() => {
                     setTieneComprobante(false);
                     setArchivo(null);
-                    setRucNumeroDocumento('');
+                    setRucProveedor('');
+                    setNumeroDocumento('');
                   }}
                 />
                 No — generar recibo Prayaga
@@ -259,9 +266,9 @@ const Reembolsos = () => {
                   <input
                     type="text"
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"
-                    value={rucNumeroDocumento}
-                    onChange={(e) => setRucNumeroDocumento(e.target.value)}
-                    placeholder="Mismo valor que N° documento"
+                    value={rucProveedor}
+                    onChange={(e) => setRucProveedor(e.target.value)}
+                    placeholder="RUC del emisor en la factura"
                     autoComplete="off"
                   />
                 </div>
@@ -270,16 +277,13 @@ const Reembolsos = () => {
                   <input
                     type="text"
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"
-                    value={rucNumeroDocumento}
-                    onChange={(e) => setRucNumeroDocumento(e.target.value)}
-                    placeholder="Mismo valor que RUC"
+                    value={numeroDocumento}
+                    onChange={(e) => setNumeroDocumento(e.target.value)}
+                    placeholder="Serie y número de la factura"
                     autoComplete="off"
                   />
                 </div>
               </div>
-              <p className="text-xs text-slate-500 -mt-2">
-                Ambos campos guardan el mismo dato (como en el registro de caja chica).
-              </p>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Adjuntar comprobante *</label>
                 <input
@@ -427,10 +431,10 @@ const Reembolsos = () => {
                       <dd>{r.tiene_comprobante ? 'Sí (archivo adjunto)' : 'No (recibo Prayaga)'}</dd>
                       {r.tiene_comprobante && (
                         <>
-                          <dt className="text-slate-500">RUC / N° documento</dt>
-                          <dd className="font-mono break-all">
-                            {String(r.ruc_proveedor || r.numero_documento || '').trim() || '—'}
-                          </dd>
+                          <dt className="text-slate-500">RUC</dt>
+                          <dd className="font-mono break-all">{String(r.ruc_proveedor || '').trim() || '—'}</dd>
+                          <dt className="text-slate-500">N° documento</dt>
+                          <dd className="font-mono break-all">{String(r.numero_documento || '').trim() || '—'}</dd>
                           <dt className="text-slate-500">Archivo</dt>
                           <dd className="break-all">{r.archivo_comprobante_nombre || '—'}</dd>
                         </>

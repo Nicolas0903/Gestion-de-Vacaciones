@@ -1161,9 +1161,13 @@ const notificarNuevaSolicitudReembolsoAprobador = async ({
       <div class="info-row"><span class="info-label">Nombre en método</span><span class="info-value">${escapeHtml(reembolso.nombre_en_metodo)}</span></div>
       ${reembolso.metodo_reembolso === 'transferencia' ? `<div class="info-row"><span class="info-label">Cuenta/CCI</span><span class="info-value">${escapeHtml(reembolso.numero_cuenta || '')}</span></div>` : ''}
       ${
-        reembolso.tiene_comprobante &&
-        String(reembolso.ruc_proveedor || reembolso.numero_documento || '').trim()
-          ? `<div class="info-row"><span class="info-label">RUC / N° documento</span><span class="info-value">${escapeHtml(String(reembolso.ruc_proveedor || reembolso.numero_documento || '').trim())}</span></div>`
+        reembolso.tiene_comprobante && String(reembolso.ruc_proveedor || '').trim()
+          ? `<div class="info-row"><span class="info-label">RUC</span><span class="info-value">${escapeHtml(String(reembolso.ruc_proveedor).trim())}</span></div>`
+          : ''
+      }
+      ${
+        reembolso.tiene_comprobante && String(reembolso.numero_documento || '').trim()
+          ? `<div class="info-row"><span class="info-label">N° documento</span><span class="info-value">${escapeHtml(String(reembolso.numero_documento).trim())}</span></div>`
           : ''
       }
     </div>

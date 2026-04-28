@@ -92,7 +92,8 @@ const GestionReembolsos = () => {
       celular: editar.celular || '',
       nombre_en_metodo: editar.nombre_en_metodo || '',
       numero_cuenta: editar.numero_cuenta || '',
-      ruc_numero_documento: String(editar.ruc_proveedor || editar.numero_documento || '').trim()
+      ruc_proveedor: String(editar.ruc_proveedor || '').trim(),
+      numero_documento: String(editar.numero_documento || '').trim()
     });
     setArchivoReemplazo(null);
   }, [editar]);
@@ -195,8 +196,12 @@ const GestionReembolsos = () => {
       toast.error('Fecha y concepto son obligatorios.');
       return;
     }
-    if (editar.tiene_comprobante && !String(formEdit.ruc_numero_documento).trim()) {
-      toast.error('Indique RUC y N° de documento (mismo valor).');
+    if (editar.tiene_comprobante && !String(formEdit.ruc_proveedor).trim()) {
+      toast.error('Indique el RUC del emisor.');
+      return;
+    }
+    if (editar.tiene_comprobante && !String(formEdit.numero_documento).trim()) {
+      toast.error('Indique el número de documento (factura).');
       return;
     }
     setProcesando(true);
@@ -211,7 +216,8 @@ const GestionReembolsos = () => {
       if (formEdit.metodo_reembolso === 'transferencia') {
         fd.append('numero_cuenta', formEdit.numero_cuenta.trim());
       }
-      fd.append('ruc_numero_documento', String(formEdit.ruc_numero_documento || '').trim());
+      fd.append('ruc_proveedor', String(formEdit.ruc_proveedor || '').trim());
+      fd.append('numero_documento', String(formEdit.numero_documento || '').trim());
       if (archivoReemplazo) {
         fd.append('comprobante', archivoReemplazo);
       }
@@ -339,9 +345,15 @@ const GestionReembolsos = () => {
                           {r.tiene_comprobante && (
                             <>
                               <p>
-                                <span className="text-slate-500">RUC / N° doc.:</span>{' '}
+                                <span className="text-slate-500">RUC:</span>{' '}
                                 <span className="font-mono break-all">
-                                  {String(r.ruc_proveedor || r.numero_documento || '').trim() || '—'}
+                                  {String(r.ruc_proveedor || '').trim() || '—'}
+                                </span>
+                              </p>
+                              <p>
+                                <span className="text-slate-500">N° doc.:</span>{' '}
+                                <span className="font-mono break-all">
+                                  {String(r.numero_documento || '').trim() || '—'}
                                 </span>
                               </p>
                               <p className="break-all">
@@ -571,20 +583,20 @@ const GestionReembolsos = () => {
                       <label className="block text-slate-600 mb-1">RUC *</label>
                       <input
                         className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
-                        value={formEdit.ruc_numero_documento}
-                        onChange={(e) =>
-                          setFormEdit({ ...formEdit, ruc_numero_documento: e.target.value })
-                        }
+                        value={formEdit.ruc_proveedor}
+                        onChange={(e) => setFormEdit({ ...formEdit, ruc_proveedor: e.target.value })}
+                        placeholder="Emisor"
                       />
                     </div>
                     <div>
                       <label className="block text-slate-600 mb-1">N° documento *</label>
                       <input
                         className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
-                        value={formEdit.ruc_numero_documento}
+                        value={formEdit.numero_documento}
                         onChange={(e) =>
-                          setFormEdit({ ...formEdit, ruc_numero_documento: e.target.value })
+                          setFormEdit({ ...formEdit, numero_documento: e.target.value })
                         }
+                        placeholder="Factura"
                       />
                     </div>
                   </div>

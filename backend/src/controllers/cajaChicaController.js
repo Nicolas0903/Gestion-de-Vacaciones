@@ -38,12 +38,13 @@ function rangoMes(anio, mes) {
 function mapEgresoRow(r) {
   const codigo = Reembolso.codigoTicket(r);
   const tiene = !!r.tiene_comprobante;
-  const idFiscal = String(r.ruc_proveedor || r.numero_documento || '').trim();
+  const ruc = String(r.ruc_proveedor || '').trim();
+  const nroDoc = String(r.numero_documento || '').trim();
   return {
     reembolso_id: r.id,
     fecha_documento: r.fecha_solicitud_usuario,
-    ruc_proveedor: tiene ? (idFiscal || '—') : 'Recibo Prayaga',
-    numero_documento: tiene ? (idFiscal || r.archivo_comprobante_nombre || '—') : codigo,
+    ruc_proveedor: tiene ? (ruc || '—') : 'Recibo Prayaga',
+    numero_documento: tiene ? (nroDoc || r.archivo_comprobante_nombre || '—') : codigo,
     descripcion: r.concepto,
     monto: Number(r.monto) || 0,
     codigo_ticket: codigo,
