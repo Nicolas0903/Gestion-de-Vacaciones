@@ -12,10 +12,19 @@ const estadoBadge = (e) => {
   const map = {
     pendiente: 'bg-amber-100 text-amber-800',
     aprobado: 'bg-emerald-100 text-emerald-800',
-    rechazado: 'bg-rose-100 text-rose-800'
+    rechazado: 'bg-rose-100 text-rose-800',
+    observado: 'bg-sky-100 text-sky-900'
   };
   return map[e] || 'bg-slate-100 text-slate-700';
 };
+
+const estadoLabel = (e) =>
+  ({
+    pendiente: 'Pendiente',
+    aprobado: 'Aprobado',
+    rechazado: 'Rechazado',
+    observado: 'Observado'
+  }[e] || e);
 
 function descargarBlob(blob, nombre) {
   const url = window.URL.createObjectURL(blob);
@@ -115,7 +124,7 @@ const Reembolsos = () => {
   const bajarRecibo = async (id, codigo) => {
     try {
       const res = await reembolsoService.descargarRecibo(id);
-      descargarBlob(res.data, `recibo-${codigo}.pdf`);
+      descargarBlob(res.data, `${codigo}.pdf`);
     } catch {
       toast.error('No hay recibo generado o no se pudo descargar.');
     }
@@ -144,7 +153,7 @@ const Reembolsos = () => {
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/25 mb-6">
           <BanknotesIcon className="w-7 h-7 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-slate-800 mb-2">Solicitud de reembolso</h1>
+        <h1 className="text-2xl font-bold text-slate-800 mb-2">Solicitud de reintegro</h1>
         <p className="text-slate-600 mb-6 text-sm">
           Los datos de nombre y DNI se toman de tu cuenta. El ID de ticket y la fecha de registro se generan al enviar.
         </p>
@@ -309,7 +318,7 @@ const Reembolsos = () => {
       </div>
 
       <div className="rounded-3xl bg-white border border-slate-100 shadow-lg p-8 md:p-10">
-        <h2 className="text-lg font-bold text-slate-800 mb-4">Mis solicitudes</h2>
+        <h2 className="text-lg font-bold text-slate-800 mb-4">Mis solicitudes de reintegro</h2>
         {loading ? (
           <p className="text-slate-500 text-sm">Cargando…</p>
         ) : lista.length === 0 ? (
@@ -328,10 +337,17 @@ const Reembolsos = () => {
                   </p>
                   <p className="text-sm text-slate-600 mt-1 line-clamp-2">{r.concepto}</p>
                   <p className="text-xs text-slate-500 mt-1">{metodoLabel(r.metodo_reembolso)}</p>
+                  {r.comentarios_resolucion &&
+                    ['aprobado', 'rechazado', 'observado'].includes(r.estado) && (
+                      <p className="text-xs text-slate-600 mt-2 bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-100">
+                        <span className="font-medium text-slate-700">Observaciones: </span>
+                        {r.comentarios_resolucion}
+                      </p>
+                    )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${estadoBadge(r.estado)}`}>
-                    {r.estado}
+                    {estadoLabel(r.estado)}
                   </span>
                   {!r.tiene_comprobante && (
                     <button

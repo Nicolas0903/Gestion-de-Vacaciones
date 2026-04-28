@@ -1055,7 +1055,7 @@ const notificarNuevaSolicitudReembolsoAprobador = async ({
   const attachments = [];
   if (pdfReciboBuffer && Buffer.isBuffer(pdfReciboBuffer)) {
     attachments.push({
-      filename: `recibo-${reembolso.id}.pdf`,
+      filename: `${codigo}.pdf`,
       content: pdfReciboBuffer
     });
   }
@@ -1083,39 +1083,66 @@ const notificarNuevaSolicitudReembolsoAprobador = async ({
   }
 };
 
-const notificarReembolsoResueltoEmpleado = async (reembolso, empleado, resultado, aprobador, motivoRechazo) => {
+const notificarReembolsoResueltoEmpleado = async (reembolso, empleado, resultado, aprobador, detalle) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     return false;
   }
   const codigo = codigoTicketReembolso(reembolso);
   const nombre = `${empleado.nombres || ''} ${empleado.apellidos || ''}`.trim();
   const aprob = `${aprobador.nombres || ''} ${aprobador.apellidos || ''}`.trim();
+  const obs =
+    detalle && String(detalle).trim()
+      ? `<div class="info-box" style="margin-top:12px;">
+      <div class="info-row"><span class="info-label">Observaciones</span><span class="info-value">${escapeHtml(String(detalle).trim())}</span></div>
+    </div>`
+      : '';
 
-  const ok = resultado === 'aprobado';
-  const contenido = ok
-    ? `
+  let contenido;
+  let subject;
+  let tituloPlantilla;
+
+  if (resultado === 'aprobado') {
+    contenido = `
     <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
-    <p>Tu solicitud de reembolso <strong>${escapeHtml(codigo)}</strong> fue <span class="status-aprobada">APROBADA</span>.</p>
+    <p>Tu solicitud de reintegro <strong>${escapeHtml(codigo)}</strong> quedó en estado <span class="status-aprobada">APROBADO</span>.</p>
     <div class="info-box">
       <div class="info-row"><span class="info-label">Aprobado por</span><span class="info-value">${escapeHtml(aprob)}</span></div>
-    </div>`
-    : `
+    </div>${obs}`;
+    subject = `Reintegro aprobado · ${codigo}`;
+    tituloPlantilla = 'Solicitud aprobada';
+  } else if (resultado === 'observado') {
+    contenido = `
     <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
-    <p>Tu solicitud de reembolso <strong>${escapeHtml(codigo)}</strong> fue <span class="status-rechazada">RECHAZADA</span>.</p>
-    <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;">
-      <strong>Motivo:</strong> ${escapeHtml(motivoRechazo || '—')}
+    <p>Tu solicitud de reintegro <strong>${escapeHtml(codigo)}</strong> fue marcada como <strong>observada</strong> por revisión.</p>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:12px;border-radius:8px;">
+      <strong>Observaciones:</strong> ${escapeHtml(detalle || '—')}
     </div>
     <div class="info-box" style="margin-top:12px;">
       <div class="info-row"><span class="info-label">Revisado por</span><span class="info-value">${escapeHtml(aprob)}</span></div>
     </div>`;
+    subject = `Reintegro observado · ${codigo}`;
+    tituloPlantilla = 'Solicitud observada';
+  } else {
+    contenido = `
+    <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
+    <p>Tu solicitud de reintegro <strong>${escapeHtml(codigo)}</strong> fue <span class="status-rechazada">RECHAZADA</span>.</p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;">
+      <strong>Motivo / observaciones:</strong> ${escapeHtml(detalle || '—')}
+    </div>
+    <div class="info-box" style="margin-top:12px;">
+      <div class="info-row"><span class="info-label">Revisado por</span><span class="info-value">${escapeHtml(aprob)}</span></div>
+    </div>`;
+    subject = `Reintegro rechazado · ${codigo}`;
+    tituloPlantilla = 'Solicitud rechazada';
+  }
 
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal RRHH - Reembolsos" <${process.env.SMTP_USER}>`,
+      from: `"Portal RRHH - Reintegros" <${process.env.SMTP_USER}>`,
       to: empleado.email,
-      subject: ok ? `Reembolso aprobado · ${codigo}` : `Reembolso rechazado · ${codigo}`,
-      html: plantillaBase(contenido, ok ? 'Reembolso aprobado' : 'Reembolso rechazado')
+      subject,
+      html: plantillaBase(contenido, tituloPlantilla)
     });
     return true;
   } catch (error) {

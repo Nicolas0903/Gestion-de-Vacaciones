@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS solicitudes_reembolso (
   nombre_en_metodo VARCHAR(220) NOT NULL,
   numero_cuenta TEXT NULL COMMENT 'Cuenta o CCI si es transferencia',
   monto DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
-  estado ENUM('pendiente', 'aprobado', 'rechazado') NOT NULL DEFAULT 'pendiente',
+  estado ENUM('pendiente', 'aprobado', 'rechazado', 'observado') NOT NULL DEFAULT 'pendiente',
   comentarios_resolucion TEXT NULL,
   aprobado_por INT NULL,
   fecha_resolucion TIMESTAMP NULL,

@@ -57,8 +57,8 @@ const Portal = () => {
     },
     {
       id: 'reembolsos',
-      titulo: 'Gestión de reembolsos',
-      descripcion: 'Solicita y gestiona reembolsos de gastos',
+      titulo: 'Solicitud de reintegro',
+      descripcion: 'Registra y da seguimiento a tus solicitudes de reintegro de gastos',
       icono: BanknotesIcon,
       color: 'from-sky-500 to-indigo-600',
       shadowColor: 'shadow-sky-500/30',
@@ -199,7 +199,7 @@ const Portal = () => {
                     <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
                   </Link>
                   
-                  {/* Botón de gestión: reembolsos solo aprobador asignado; resto admin/contadora */}
+                  {/* Botón de gestión: reintegros solo aprobador o admin */}
                   {modulo.adminLink &&
                     (modulo.id === 'reembolsos'
                       ? esAprobadorReembolsos()

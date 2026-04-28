@@ -110,7 +110,7 @@ class Reembolso {
     const [r] = await pool.execute(
       `UPDATE solicitudes_reembolso
        SET estado = 'aprobado', aprobado_por = ?, fecha_resolucion = NOW(), comentarios_resolucion = ?
-       WHERE id = ? AND estado = 'pendiente'`,
+       WHERE id = ? AND estado IN ('pendiente', 'observado')`,
       [aprobadorId, comentario, id]
     );
     return r.affectedRows > 0;
@@ -120,9 +120,24 @@ class Reembolso {
     const [r] = await pool.execute(
       `UPDATE solicitudes_reembolso
        SET estado = 'rechazado', aprobado_por = ?, fecha_resolucion = NOW(), comentarios_resolucion = ?
-       WHERE id = ? AND estado = 'pendiente'`,
+       WHERE id = ? AND estado IN ('pendiente', 'observado')`,
       [aprobadorId, comentario, id]
     );
+    return r.affectedRows > 0;
+  }
+
+  static async marcarObservado(id, revisadorId, comentario) {
+    const [r] = await pool.execute(
+      `UPDATE solicitudes_reembolso
+       SET estado = 'observado', aprobado_por = ?, fecha_resolucion = NOW(), comentarios_resolucion = ?
+       WHERE id = ? AND estado = 'pendiente'`,
+      [revisadorId, comentario, id]
+    );
+    return r.affectedRows > 0;
+  }
+
+  static async eliminarPorId(id) {
+    const [r] = await pool.execute(`DELETE FROM solicitudes_reembolso WHERE id = ?`, [id]);
     return r.affectedRows > 0;
   }
 }

@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { autenticar } = require('../middleware/auth');
+const { autenticar, verificarRol } = require('../middleware/auth');
 const { soloAprobadorReembolsos } = require('../middleware/reembolsosAprobador');
 const reembolsoController = require('../controllers/reembolsoController');
 
@@ -49,10 +49,13 @@ router.get('/mis-solicitudes', autenticar, reembolsoController.misSolicitudes);
 router.get('/pendientes', autenticar, soloAprobadorReembolsos, reembolsoController.listarPendientes);
 router.get('/todos', autenticar, soloAprobadorReembolsos, reembolsoController.listarTodos);
 
-router.get('/:id/recibo', autenticar, reembolsoController.descargarReciboPdf);
-router.get('/:id/comprobante', autenticar, reembolsoController.descargarComprobante);
+router.put('/:id/observar', autenticar, soloAprobadorReembolsos, reembolsoController.observar);
 router.put('/:id/aprobar', autenticar, soloAprobadorReembolsos, reembolsoController.aprobar);
 router.put('/:id/rechazar', autenticar, soloAprobadorReembolsos, reembolsoController.rechazar);
+router.delete('/:id', autenticar, verificarRol('admin'), reembolsoController.eliminar);
+
+router.get('/:id/recibo', autenticar, reembolsoController.descargarReciboPdf);
+router.get('/:id/comprobante', autenticar, reembolsoController.descargarComprobante);
 router.get('/:id', autenticar, reembolsoController.obtener);
 
 module.exports = router;

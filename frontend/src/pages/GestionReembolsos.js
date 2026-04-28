@@ -1,11 +1,30 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, Cog6ToothIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../context/AuthContext';
 import { reembolsoService } from '../services/api';
 
 const metodoLabel = (m) =>
   ({ yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia' }[m] || m);
+
+const estadoBadge = (e) => {
+  const map = {
+    pendiente: 'bg-amber-100 text-amber-800',
+    aprobado: 'bg-emerald-100 text-emerald-800',
+    rechazado: 'bg-rose-100 text-rose-800',
+    observado: 'bg-sky-100 text-sky-900'
+  };
+  return map[e] || 'bg-slate-100 text-slate-700';
+};
+
+const estadoLabel = (e) =>
+  ({
+    pendiente: 'Pendiente',
+    aprobado: 'Aprobado',
+    rechazado: 'Rechazado',
+    observado: 'Observado'
+  }[e] || e);
 
 function descargarBlob(blob, nombre) {
   const url = window.URL.createObjectURL(blob);
@@ -17,12 +36,17 @@ function descargarBlob(blob, nombre) {
 }
 
 const GestionReembolsos = () => {
+  const { esAdmin } = useAuth();
   const [tab, setTab] = useState('pendientes');
   const [pendientes, setPendientes] = useState([]);
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rechazoId, setRechazoId] = useState(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [aprobarId, setAprobarId] = useState(null);
+  const [comentarioAprobar, setComentarioAprobar] = useState('');
+  const [observarId, setObservarId] = useState(null);
+  const [comentarioObservar, setComentarioObservar] = useState('');
   const [procesando, setProcesando] = useState(false);
 
   const cargar = useCallback(async () => {
@@ -45,14 +69,38 @@ const GestionReembolsos = () => {
     cargar();
   }, [cargar]);
 
-  const aprobar = async (id) => {
+  const puedeResolver = (r) => r.estado === 'pendiente' || r.estado === 'observado';
+
+  const confirmarAprobar = async () => {
+    if (!aprobarId) return;
     setProcesando(true);
     try {
-      await reembolsoService.aprobar(id, '');
+      await reembolsoService.aprobar(aprobarId, comentarioAprobar.trim());
       toast.success('Solicitud aprobada.');
+      setAprobarId(null);
+      setComentarioAprobar('');
       cargar();
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al aprobar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const confirmarObservar = async () => {
+    if (!observarId || !comentarioObservar.trim()) {
+      toast.error('Indique las observaciones.');
+      return;
+    }
+    setProcesando(true);
+    try {
+      await reembolsoService.observar(observarId, comentarioObservar.trim());
+      toast.success('Registrado como observado.');
+      setObservarId(null);
+      setComentarioObservar('');
+      cargar();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al registrar.');
     } finally {
       setProcesando(false);
     }
@@ -77,10 +125,26 @@ const GestionReembolsos = () => {
     }
   };
 
+  const eliminarRegistro = async (id, codigo) => {
+    if (!window.confirm(`¿Eliminar definitivamente la solicitud ${codigo}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    setProcesando(true);
+    try {
+      await reembolsoService.eliminar(id);
+      toast.success('Registro eliminado.');
+      cargar();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo eliminar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
   const bajarRecibo = async (id, codigo) => {
     try {
       const res = await reembolsoService.descargarRecibo(id);
-      descargarBlob(res.data, `recibo-${codigo}.pdf`);
+      descargarBlob(res.data, `${codigo}.pdf`);
     } catch {
       toast.error('Sin recibo o error al descargar.');
     }
@@ -113,8 +177,8 @@ const GestionReembolsos = () => {
             <Cog6ToothIcon className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 mb-1">Gestión de reembolsos</h1>
-            <p className="text-sm text-slate-500">Aprobación centralizada</p>
+            <h1 className="text-2xl font-bold text-slate-800 mb-1">Gestión de solicitudes de reintegro</h1>
+            <p className="text-sm text-slate-500">Revisión y resolución</p>
           </div>
         </div>
 
@@ -157,6 +221,7 @@ const GestionReembolsos = () => {
                   <th className="px-4 py-3 font-medium">Concepto</th>
                   <th className="px-4 py-3 font-medium">Método</th>
                   <th className="px-4 py-3 font-medium">Estado</th>
+                  <th className="px-4 py-3 font-medium">Observaciones</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
                 </tr>
               </thead>
@@ -171,9 +236,20 @@ const GestionReembolsos = () => {
                       {r.concepto}
                     </td>
                     <td className="px-4 py-3">{metodoLabel(r.metodo_reembolso)}</td>
-                    <td className="px-4 py-3 capitalize">{r.estado}</td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${estadoBadge(r.estado)}`}>
+                        {estadoLabel(r.estado)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 max-w-[200px] text-xs text-slate-600" title={r.comentarios_resolucion || ''}>
+                      {r.comentarios_resolucion ? (
+                        <span className="line-clamp-3">{r.comentarios_resolucion}</span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2 items-center">
                         {!r.tiene_comprobante && (
                           <button
                             type="button"
@@ -192,16 +268,32 @@ const GestionReembolsos = () => {
                             Comp.
                           </button>
                         )}
-                        {r.estado === 'pendiente' && tab === 'pendientes' && (
+                        {puedeResolver(r) && (tab === 'pendientes' || tab === 'todos') && (
                           <>
                             <button
                               type="button"
                               disabled={procesando}
                               className="text-emerald-600 text-xs font-medium hover:underline disabled:opacity-50"
-                              onClick={() => aprobar(r.id)}
+                              onClick={() => {
+                                setAprobarId(r.id);
+                                setComentarioAprobar('');
+                              }}
                             >
                               Aprobar
                             </button>
+                            {r.estado === 'pendiente' && (
+                              <button
+                                type="button"
+                                disabled={procesando}
+                                className="text-indigo-600 text-xs font-medium hover:underline disabled:opacity-50"
+                                onClick={() => {
+                                  setObservarId(r.id);
+                                  setComentarioObservar('');
+                                }}
+                              >
+                                Observar
+                              </button>
+                            )}
                             <button
                               type="button"
                               disabled={procesando}
@@ -212,6 +304,18 @@ const GestionReembolsos = () => {
                             </button>
                           </>
                         )}
+                        {esAdmin() && (
+                          <button
+                            type="button"
+                            disabled={procesando}
+                            className="text-slate-500 text-xs font-medium hover:text-rose-600 disabled:opacity-50 inline-flex items-center gap-0.5"
+                            title="Eliminar registro"
+                            onClick={() => eliminarRegistro(r.id, r.codigo_ticket)}
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                            Borrar
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -221,6 +325,79 @@ const GestionReembolsos = () => {
           </div>
         )}
       </div>
+
+      {aprobarId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 className="font-bold text-slate-800 mb-2">Aprobar solicitud</h3>
+            <p className="text-sm text-slate-600 mb-3">Opcional: observaciones para el colaborador.</p>
+            <textarea
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4"
+              rows={3}
+              value={comentarioAprobar}
+              onChange={(e) => setComentarioAprobar(e.target.value)}
+              placeholder="Observaciones (opcional)"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm bg-slate-100 text-slate-700"
+                onClick={() => {
+                  setAprobarId(null);
+                  setComentarioAprobar('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={procesando}
+                className="px-4 py-2 rounded-xl text-sm bg-emerald-600 text-white disabled:opacity-50"
+                onClick={confirmarAprobar}
+              >
+                Confirmar aprobación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {observarId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 className="font-bold text-slate-800 mb-2">Marcar como observado</h3>
+            <p className="text-sm text-slate-600 mb-3">Indique observaciones para el solicitante (obligatorio).</p>
+            <textarea
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4"
+              rows={4}
+              value={comentarioObservar}
+              onChange={(e) => setComentarioObservar(e.target.value)}
+              placeholder="Observaciones"
+              required
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm bg-slate-100 text-slate-700"
+                onClick={() => {
+                  setObservarId(null);
+                  setComentarioObservar('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={procesando}
+                className="px-4 py-2 rounded-xl text-sm bg-indigo-600 text-white disabled:opacity-50"
+                onClick={confirmarObservar}
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {rechazoId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

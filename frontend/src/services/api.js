@@ -168,6 +168,8 @@ export const reembolsoService = {
   descargarComprobante: (id) => api.get(`/reembolsos/${id}/comprobante`, { responseType: 'blob' }),
   aprobar: (id, comentarios = '') => api.put(`/reembolsos/${id}/aprobar`, { comentarios }),
   rechazar: (id, comentarios) => api.put(`/reembolsos/${id}/rechazar`, { comentarios }),
+  observar: (id, comentarios) => api.put(`/reembolsos/${id}/observar`, { comentarios }),
+  eliminar: (id) => api.delete(`/reembolsos/${id}`),
 };
 
 export default api;

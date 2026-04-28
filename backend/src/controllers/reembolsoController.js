@@ -112,7 +112,7 @@ const crear = async (req, res) => {
       if (!fs.existsSync(reciboDir)) {
         fs.mkdirSync(reciboDir, { recursive: true });
       }
-      const reciboPath = path.join(reciboDir, `recibo-${id}.pdf`);
+      const reciboPath = path.join(reciboDir, `${codigo}.pdf`);
       fs.writeFileSync(reciboPath, pdfReciboBuffer);
       await Reembolso.actualizarArchivoRecibo(id, reciboPath);
       row = await Reembolso.buscarPorId(id);
@@ -219,7 +219,7 @@ const descargarReciboPdf = async (req, res) => {
       return res.status(404).json({ success: false, mensaje: 'Archivo no encontrado.' });
     }
     const codigo = Reembolso.codigoTicket(r);
-    res.download(r.archivo_recibo_generado_path, `recibo-${codigo}.pdf`);
+    res.download(r.archivo_recibo_generado_path, `${codigo}.pdf`);
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, mensaje: 'Error al descargar.' });
@@ -263,7 +263,13 @@ const aprobar = async (req, res) => {
     const actualizado = await Reembolso.buscarPorId(id);
     const empleado = await Empleado.buscarPorId(r.empleado_id);
     emailService
-      .notificarReembolsoResueltoEmpleado(actualizado, empleado, 'aprobado', req.usuario, null)
+      .notificarReembolsoResueltoEmpleado(
+        actualizado,
+        empleado,
+        'aprobado',
+        req.usuario,
+        comentarios || null
+      )
       .catch((e) => console.error(e));
     res.json({ success: true, mensaje: 'Aprobado.', data: enriquecer(actualizado) });
   } catch (error) {
@@ -300,6 +306,64 @@ const rechazar = async (req, res) => {
   }
 };
 
+const observar = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { comentarios } = req.body;
+    if (!comentarios || !String(comentarios).trim()) {
+      return res.status(400).json({ success: false, mensaje: 'Indique las observaciones.' });
+    }
+    const r = await Reembolso.buscarPorId(id);
+    if (!r) {
+      return res.status(404).json({ success: false, mensaje: 'No encontrado.' });
+    }
+    const ok = await Reembolso.marcarObservado(id, req.usuario.id, String(comentarios).trim());
+    if (!ok) {
+      return res.status(400).json({ success: false, mensaje: 'No se pudo registrar (¿solo pendientes?).' });
+    }
+    await TokenReembolso.invalidarTodosReembolso(id);
+    const actualizado = await Reembolso.buscarPorId(id);
+    const empleado = await Empleado.buscarPorId(r.empleado_id);
+    emailService
+      .notificarReembolsoResueltoEmpleado(actualizado, empleado, 'observado', req.usuario, comentarios)
+      .catch((e) => console.error(e));
+    res.json({ success: true, mensaje: 'Marcado como observado.', data: enriquecer(actualizado) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, mensaje: 'Error.' });
+  }
+};
+
+function unlinkSeguro(p) {
+  try {
+    if (p && fs.existsSync(p)) {
+      fs.unlinkSync(p);
+    }
+  } catch (e) {
+    console.warn('unlink reembolso:', e.message);
+  }
+}
+
+const eliminar = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const r = await Reembolso.buscarPorId(id);
+    if (!r) {
+      return res.status(404).json({ success: false, mensaje: 'No encontrado.' });
+    }
+    unlinkSeguro(r.archivo_comprobante_path);
+    unlinkSeguro(r.archivo_recibo_generado_path);
+    const ok = await Reembolso.eliminarPorId(id);
+    if (!ok) {
+      return res.status(400).json({ success: false, mensaje: 'No se pudo eliminar.' });
+    }
+    res.json({ success: true, mensaje: 'Registro eliminado.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, mensaje: 'Error al eliminar.' });
+  }
+};
+
 module.exports = {
   crear,
   misSolicitudes,
@@ -309,5 +373,7 @@ module.exports = {
   descargarReciboPdf,
   descargarComprobante,
   aprobar,
-  rechazar
+  rechazar,
+  observar,
+  eliminar
 };
