@@ -21,15 +21,18 @@ class Reembolso {
       celular,
       nombre_en_metodo,
       numero_cuenta,
-      monto
+      monto,
+      ruc_proveedor,
+      numero_documento
     } = datos;
 
     const [result] = await pool.execute(
       `INSERT INTO solicitudes_reembolso
        (empleado_id, fecha_solicitud_usuario, concepto, nombre_completo, dni, tiene_comprobante,
         archivo_comprobante_nombre, archivo_comprobante_path, archivo_recibo_generado_path,
-        metodo_reembolso, celular, nombre_en_metodo, numero_cuenta, monto, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+        metodo_reembolso, celular, nombre_en_metodo, numero_cuenta, monto,
+        ruc_proveedor, numero_documento, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
       [
         empleado_id,
         fecha_solicitud_usuario,
@@ -44,7 +47,9 @@ class Reembolso {
         celular,
         nombre_en_metodo,
         numero_cuenta || null,
-        monto != null ? monto : 0
+        monto != null ? monto : 0,
+        ruc_proveedor || null,
+        numero_documento || null
       ]
     );
     return result.insertId;
@@ -138,6 +143,53 @@ class Reembolso {
 
   static async eliminarPorId(id) {
     const [r] = await pool.execute(`DELETE FROM solicitudes_reembolso WHERE id = ?`, [id]);
+    return r.affectedRows > 0;
+  }
+
+  static async actualizarPorAdmin(id, datos) {
+    const {
+      fecha_solicitud_usuario,
+      concepto,
+      monto,
+      metodo_reembolso,
+      celular,
+      nombre_en_metodo,
+      numero_cuenta,
+      ruc_proveedor,
+      numero_documento,
+      archivo_comprobante_nombre,
+      archivo_comprobante_path
+    } = datos;
+
+    const [r] = await pool.execute(
+      `UPDATE solicitudes_reembolso SET
+        fecha_solicitud_usuario = ?,
+        concepto = ?,
+        monto = ?,
+        metodo_reembolso = ?,
+        celular = ?,
+        nombre_en_metodo = ?,
+        numero_cuenta = ?,
+        ruc_proveedor = ?,
+        numero_documento = ?,
+        archivo_comprobante_nombre = ?,
+        archivo_comprobante_path = ?
+       WHERE id = ?`,
+      [
+        fecha_solicitud_usuario,
+        concepto,
+        monto,
+        metodo_reembolso,
+        celular,
+        nombre_en_metodo,
+        numero_cuenta || null,
+        ruc_proveedor || null,
+        numero_documento || null,
+        archivo_comprobante_nombre || null,
+        archivo_comprobante_path || null,
+        id
+      ]
+    );
     return r.affectedRows > 0;
   }
 

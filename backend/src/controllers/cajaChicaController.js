@@ -1,4 +1,21 @@
 const { Reembolso, CajaChica } = require('../models');
+const emailService = require('../services/emailService');
+
+const MESES_NOMBRE = [
+  '',
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre'
+];
 
 const TIPOS_INGRESO_LABEL = {
   caja_chica: 'Caja chica',
@@ -21,13 +38,12 @@ function rangoMes(anio, mes) {
 function mapEgresoRow(r) {
   const codigo = Reembolso.codigoTicket(r);
   const tiene = !!r.tiene_comprobante;
+  const idFiscal = String(r.ruc_proveedor || r.numero_documento || '').trim();
   return {
     reembolso_id: r.id,
     fecha_documento: r.fecha_solicitud_usuario,
-    ruc_proveedor: tiene ? '—' : 'Recibo Prayaga',
-    numero_documento: tiene
-      ? r.archivo_comprobante_nombre || '—'
-      : codigo,
+    ruc_proveedor: tiene ? (idFiscal || '—') : 'Recibo Prayaga',
+    numero_documento: tiene ? (idFiscal || r.archivo_comprobante_nombre || '—') : codigo,
     descripcion: r.concepto,
     monto: Number(r.monto) || 0,
     codigo_ticket: codigo,
@@ -65,6 +81,42 @@ const crearPeriodo = async (req, res) => {
   }
 };
 
+async function construirDetallePeriodo(periodo) {
+  const id = periodo.id;
+  const { desde, hasta } = rangoMes(periodo.anio, periodo.mes);
+  const [ingresosRows, reembolsos] = await Promise.all([
+    CajaChica.listarIngresos(id),
+    Reembolso.listarAprobadosPorRangoFechaDocumento(desde, hasta)
+  ]);
+
+  const ingresos = ingresosRows.map((row) => ({
+    id: row.id,
+    tipo_motivo: row.tipo_motivo,
+    motivo_label: TIPOS_INGRESO_LABEL[row.tipo_motivo] || row.tipo_motivo,
+    monto: Number(row.monto),
+    orden: row.orden
+  }));
+
+  const totalIngreso = ingresos.reduce((s, x) => s + x.monto, 0);
+  const egresos = reembolsos.map(mapEgresoRow);
+  const totalEgreso = egresos.reduce((s, x) => s + x.monto, 0);
+  const saldoCalculado = totalIngreso - totalEgreso;
+  const saldoAnteriorSugerido = await CajaChica.saldoCierrePeriodoAnterior(periodo.anio, periodo.mes);
+
+  return {
+    periodo,
+    ingresos,
+    egresos,
+    totales: {
+      total_ingreso: totalIngreso,
+      total_egreso: totalEgreso,
+      saldo: saldoCalculado
+    },
+    saldo_anterior_sugerido: saldoAnteriorSugerido,
+    rango_fecha_documento: { desde, hasta }
+  };
+}
+
 const detallePeriodo = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -72,41 +124,8 @@ const detallePeriodo = async (req, res) => {
     if (!periodo) {
       return res.status(404).json({ success: false, mensaje: 'Período no encontrado.' });
     }
-    const { desde, hasta } = rangoMes(periodo.anio, periodo.mes);
-    const [ingresosRows, reembolsos] = await Promise.all([
-      CajaChica.listarIngresos(id),
-      Reembolso.listarAprobadosPorRangoFechaDocumento(desde, hasta)
-    ]);
-
-    const ingresos = ingresosRows.map((row) => ({
-      id: row.id,
-      tipo_motivo: row.tipo_motivo,
-      motivo_label: TIPOS_INGRESO_LABEL[row.tipo_motivo] || row.tipo_motivo,
-      monto: Number(row.monto),
-      orden: row.orden
-    }));
-
-    const totalIngreso = ingresos.reduce((s, x) => s + x.monto, 0);
-    const egresos = reembolsos.map(mapEgresoRow);
-    const totalEgreso = egresos.reduce((s, x) => s + x.monto, 0);
-    const saldoCalculado = totalIngreso - totalEgreso;
-    const saldoAnteriorSugerido = await CajaChica.saldoCierrePeriodoAnterior(periodo.anio, periodo.mes);
-
-    res.json({
-      success: true,
-      data: {
-        periodo,
-        ingresos,
-        egresos,
-        totales: {
-          total_ingreso: totalIngreso,
-          total_egreso: totalEgreso,
-          saldo: saldoCalculado
-        },
-        saldo_anterior_sugerido: saldoAnteriorSugerido,
-        rango_fecha_documento: { desde, hasta }
-      }
-    });
+    const data = await construirDetallePeriodo(periodo);
+    res.json({ success: true, data });
   } catch (e) {
     console.error(e);
     res.status(500).json({ success: false, mensaje: 'Error al cargar el período.' });
@@ -184,10 +203,78 @@ const cerrarPeriodo = async (req, res) => {
   }
 };
 
+const reabrirPeriodo = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const periodo = await CajaChica.buscarPeriodoPorId(id);
+    if (!periodo) {
+      return res.status(404).json({ success: false, mensaje: 'Período no encontrado.' });
+    }
+    if (periodo.estado !== 'cerrado') {
+      return res.status(400).json({ success: false, mensaje: 'Solo se puede reabrir un período cerrado.' });
+    }
+    const ok = await CajaChica.reabrirPeriodo(id);
+    if (!ok) {
+      return res.status(400).json({ success: false, mensaje: 'No se pudo reabrir el período.' });
+    }
+    const actualizado = await CajaChica.buscarPeriodoPorId(id);
+    res.json({
+      success: true,
+      mensaje:
+        'Período reabierto en borrador. Podrás editar ingresos y volver a cerrar. El saldo de cierre anterior quedó anulado.',
+      data: { periodo: actualizado }
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al reabrir período.' });
+  }
+};
+
+const enviarResumenRocio = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const periodo = await CajaChica.buscarPeriodoPorId(id);
+    if (!periodo) {
+      return res.status(404).json({ success: false, mensaje: 'Período no encontrado.' });
+    }
+    const data = await construirDetallePeriodo(periodo);
+    const periodoEtiqueta = `${MESES_NOMBRE[periodo.mes] || periodo.mes} ${periodo.anio}`;
+    const estadoLabel = periodo.estado === 'cerrado' ? 'Cerrado' : 'Borrador';
+    const u = req.usuario;
+    const enviadoPorNombre = `${u.nombres || ''} ${u.apellidos || ''}`.trim() || u.email || '—';
+
+    const resultado = await emailService.enviarCajaChicaResumenRocio({
+      periodoEtiqueta,
+      estadoPeriodo: estadoLabel,
+      saldoCierreGuardado: periodo.estado === 'cerrado' ? periodo.saldo_cierre : null,
+      rangoDesde: data.rango_fecha_documento.desde,
+      rangoHasta: data.rango_fecha_documento.hasta,
+      ingresos: data.ingresos,
+      egresos: data.egresos,
+      totales: data.totales,
+      enviadoPorNombre
+    });
+
+    if (!resultado.ok) {
+      return res.status(503).json({ success: false, mensaje: resultado.mensaje || 'No se pudo enviar el correo.' });
+    }
+    const destinoRocio = (process.env.CAJA_CHICA_EMAIL_ROCIO || 'rocio.picon@prayaga.biz').trim();
+    res.json({
+      success: true,
+      mensaje: `Resumen enviado a ${destinoRocio}.`
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al enviar resumen.' });
+  }
+};
+
 module.exports = {
   listarPeriodos,
   crearPeriodo,
   detallePeriodo,
   guardarIngresos,
-  cerrarPeriodo
+  cerrarPeriodo,
+  reabrirPeriodo,
+  enviarResumenRocio
 };

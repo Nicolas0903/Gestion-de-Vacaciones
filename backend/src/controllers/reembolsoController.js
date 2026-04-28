@@ -71,6 +71,14 @@ const crear = async (req, res) => {
       });
     }
 
+    const rucNumeroDoc = String(req.body.ruc_numero_documento || '').trim();
+    if (tComp && !rucNumeroDoc) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique RUC y N° de documento (mismo valor en ambos campos del formulario).'
+      });
+    }
+
     if (tComp && !req.file) {
       return res.status(400).json({ success: false, mensaje: 'Debe adjuntar el comprobante de pago.' });
     }
@@ -110,7 +118,9 @@ const crear = async (req, res) => {
         metodo_reembolso === 'transferencia'
           ? String(numero_cuenta || '').trim() || null
           : null,
-      monto: montoNum
+      monto: montoNum,
+      ruc_proveedor: tComp ? rucNumeroDoc : null,
+      numero_documento: tComp ? rucNumeroDoc : null
     });
 
     let row = await Reembolso.buscarPorId(id);
@@ -376,6 +386,99 @@ const eliminar = async (req, res) => {
   }
 };
 
+const actualizarAdmin = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const r = await Reembolso.buscarPorId(id);
+    if (!r) {
+      return res.status(404).json({ success: false, mensaje: 'No encontrado.' });
+    }
+
+    const {
+      fecha_solicitud_usuario,
+      concepto,
+      monto,
+      metodo_reembolso,
+      celular,
+      nombre_en_metodo,
+      numero_cuenta,
+      ruc_numero_documento
+    } = req.body;
+
+    if (!fecha_solicitud_usuario || !String(concepto || '').trim()) {
+      return res.status(400).json({ success: false, mensaje: 'Fecha y concepto son obligatorios.' });
+    }
+    if (!metodo_reembolso) {
+      return res.status(400).json({ success: false, mensaje: 'Indique el método de reembolso.' });
+    }
+    const metodos = ['yape', 'plin', 'transferencia'];
+    if (!metodos.includes(metodo_reembolso)) {
+      return res.status(400).json({ success: false, mensaje: 'Método de reembolso no válido.' });
+    }
+    if (metodo_reembolso !== 'transferencia' && !String(celular || '').trim()) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique el celular asociado a Yape o Plin.'
+      });
+    }
+    if (metodo_reembolso !== 'transferencia' && !String(nombre_en_metodo || '').trim()) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique el nombre que debe figurar en Yape o Plin.'
+      });
+    }
+
+    const tComp = !!r.tiene_comprobante;
+    const rucNumeroDoc = String(ruc_numero_documento || '').trim();
+    if (tComp && !rucNumeroDoc) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Con comprobante, RUC y N° de documento (mismo valor) son obligatorios.'
+      });
+    }
+
+    const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : 0;
+    if (Number.isNaN(montoNum) || montoNum < 0) {
+      return res.status(400).json({ success: false, mensaje: 'Monto no válido.' });
+    }
+
+    let archivo_comprobante_nombre = r.archivo_comprobante_nombre;
+    let archivo_comprobante_path = r.archivo_comprobante_path;
+    if (req.file && tComp) {
+      unlinkSeguro(r.archivo_comprobante_path);
+      archivo_comprobante_nombre = req.file.originalname;
+      archivo_comprobante_path = req.file.path;
+    }
+
+    const ok = await Reembolso.actualizarPorAdmin(id, {
+      fecha_solicitud_usuario,
+      concepto: String(concepto).trim(),
+      monto: montoNum,
+      metodo_reembolso,
+      celular: String(celular || '').trim(),
+      nombre_en_metodo: String(nombre_en_metodo || '').trim(),
+      numero_cuenta:
+        metodo_reembolso === 'transferencia'
+          ? String(numero_cuenta || '').trim() || null
+          : null,
+      ruc_proveedor: tComp ? rucNumeroDoc : null,
+      numero_documento: tComp ? rucNumeroDoc : null,
+      archivo_comprobante_nombre,
+      archivo_comprobante_path
+    });
+
+    if (!ok) {
+      return res.status(400).json({ success: false, mensaje: 'No se pudo actualizar.' });
+    }
+
+    const actualizado = await Reembolso.buscarPorId(id);
+    res.json({ success: true, mensaje: 'Solicitud actualizada.', data: enriquecer(actualizado) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, mensaje: 'Error al actualizar.' });
+  }
+};
+
 module.exports = {
   crear,
   misSolicitudes,
@@ -387,5 +490,6 @@ module.exports = {
   aprobar,
   rechazar,
   observar,
-  eliminar
+  eliminar,
+  actualizarAdmin
 };

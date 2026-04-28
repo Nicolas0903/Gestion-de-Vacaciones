@@ -1019,6 +1019,108 @@ const MARCA_ENCABEZADO_EMAIL_REINTEGRO = '💳 Solicitud de reintegro';
 const PIE_EMAIL_REINTEGRO =
   'Este es un mensaje automático del Portal RRHH - Prayaga (solicitudes de reintegro).';
 
+const MARCA_ENCABEZADO_CAJA_CHICA = '💰 Caja chica';
+const PIE_EMAIL_CAJA_CHICA =
+  'Este es un mensaje automático del Portal RRHH - Prayaga (módulo Caja chica).';
+
+const emailDestinoCajaChicaRocio = () =>
+  (process.env.CAJA_CHICA_EMAIL_ROCIO || 'rocio.picon@prayaga.biz').trim();
+
+/**
+ * Resumen de período caja chica para contadora (Rocío).
+ */
+const enviarCajaChicaResumenRocio = async ({
+  periodoEtiqueta,
+  estadoPeriodo,
+  saldoCierreGuardado,
+  rangoDesde,
+  rangoHasta,
+  ingresos,
+  egresos,
+  totales,
+  enviadoPorNombre
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return { ok: false, mensaje: 'Email no configurado.' };
+  }
+  const destino = emailDestinoCajaChicaRocio();
+  if (!destino) {
+    return { ok: false, mensaje: 'Sin destinatario configurado.' };
+  }
+
+  const filasIng = (ingresos || [])
+    .map(
+      (r) =>
+        `<tr><td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(r.motivo_label)}</td>` +
+        `<td style="padding:8px;border:1px solid #e2e8f0;text-align:right;">S/ ${Number(r.monto).toFixed(2)}</td></tr>`
+    )
+    .join('');
+
+  const filasEgr = (egresos || [])
+    .map(
+      (e) =>
+        `<tr>` +
+        `<td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(String(e.fecha_documento))}</td>` +
+        `<td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(e.ruc_proveedor)}</td>` +
+        `<td style="padding:8px;border:1px solid #e2e8f0;font-size:12px;">${escapeHtml(String(e.numero_documento))}</td>` +
+        `<td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(e.descripcion)}</td>` +
+        `<td style="padding:8px;border:1px solid #e2e8f0;text-align:right;">S/ ${Number(e.monto).toFixed(2)}</td>` +
+        `</tr>`
+    )
+    .join('');
+
+  const ti = Number(totales?.total_ingreso) || 0;
+  const te = Number(totales?.total_egreso) || 0;
+  const sal = Number(totales?.saldo) || 0;
+
+  const contenido = `
+    <p>Hola <strong>Rocío</strong>,</p>
+    <p>Se envía el resumen de <strong>caja chica</strong> solicitado desde el portal.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Período</span><span class="info-value">${escapeHtml(periodoEtiqueta)}</span></div>
+      <div class="info-row"><span class="info-label">Estado</span><span class="info-value">${escapeHtml(estadoPeriodo)}</span></div>
+      <div class="info-row"><span class="info-label">Fechas documento (egresos)</span><span class="info-value">${escapeHtml(rangoDesde)} — ${escapeHtml(rangoHasta)}</span></div>
+      ${saldoCierreGuardado != null ? `<div class="info-row"><span class="info-label">Saldo cierre guardado</span><span class="info-value">S/ ${Number(saldoCierreGuardado).toFixed(2)}</span></div>` : ''}
+      <div class="info-row"><span class="info-label">Enviado por</span><span class="info-value">${escapeHtml(enviadoPorNombre || '—')}</span></div>
+    </div>
+    <h3 style="margin:20px 0 8px;font-size:15px;">Ingresos</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="background:#f1f5f9;"><th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Motivo</th><th style="padding:8px;border:1px solid #e2e8f0;">Monto</th></tr></thead>
+      <tbody>${filasIng || '<tr><td colspan="2" style="padding:8px;">Sin líneas de ingreso</td></tr>'}</tbody>
+    </table>
+    <h3 style="margin:20px 0 8px;font-size:15px;">Egresos (reintegros aprobados)</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="background:#f1f5f9;">
+        <th style="padding:8px;border:1px solid #e2e8f0;">Fecha doc.</th>
+        <th style="padding:8px;border:1px solid #e2e8f0;">RUC / tipo</th>
+        <th style="padding:8px;border:1px solid #e2e8f0;">Nº doc.</th>
+        <th style="padding:8px;border:1px solid #e2e8f0;">Descripción</th>
+        <th style="padding:8px;border:1px solid #e2e8f0;">Monto</th>
+      </tr></thead>
+      <tbody>${filasEgr || '<tr><td colspan="5" style="padding:8px;">Sin egresos en el período</td></tr>'}</tbody>
+    </table>
+    <div class="info-box" style="margin-top:16px;">
+      <div class="info-row"><span class="info-label">Total ingreso</span><span class="info-value">S/ ${ti.toFixed(2)}</span></div>
+      <div class="info-row"><span class="info-label">Total egreso</span><span class="info-value">S/ ${te.toFixed(2)}</span></div>
+      <div class="info-row"><span class="info-label">Saldo (ing. − egr.)</span><span class="info-value"><strong>S/ ${sal.toFixed(2)}</strong></span></div>
+    </div>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Portal RRHH - Caja chica" <${process.env.SMTP_USER}>`,
+      to: destino,
+      subject: `Caja chica · ${periodoEtiqueta} (${estadoPeriodo})`,
+      html: plantillaBase(contenido, 'Resumen enviado desde el portal', MARCA_ENCABEZADO_CAJA_CHICA, PIE_EMAIL_CAJA_CHICA)
+    });
+    return { ok: true };
+  } catch (error) {
+    console.error('❌ Error email caja chica Rocío:', error.message);
+    return { ok: false, mensaje: error.message };
+  }
+};
+
 /**
  * Notificación al aprobador único (Enrique por defecto). Solo este correo recibe la solicitud para aprobar/rechazar.
  */
@@ -1058,6 +1160,12 @@ const notificarNuevaSolicitudReembolsoAprobador = async ({
       <div class="info-row"><span class="info-label">Celular</span><span class="info-value">${escapeHtml(reembolso.celular)}</span></div>
       <div class="info-row"><span class="info-label">Nombre en método</span><span class="info-value">${escapeHtml(reembolso.nombre_en_metodo)}</span></div>
       ${reembolso.metodo_reembolso === 'transferencia' ? `<div class="info-row"><span class="info-label">Cuenta/CCI</span><span class="info-value">${escapeHtml(reembolso.numero_cuenta || '')}</span></div>` : ''}
+      ${
+        reembolso.tiene_comprobante &&
+        String(reembolso.ruc_proveedor || reembolso.numero_documento || '').trim()
+          ? `<div class="info-row"><span class="info-label">RUC / N° documento</span><span class="info-value">${escapeHtml(String(reembolso.ruc_proveedor || reembolso.numero_documento || '').trim())}</span></div>`
+          : ''
+      }
     </div>
     ${bloqueRecibo}
     <p style="text-align:center; margin:24px 0 10px;"><strong>¿Aprobar o rechazar?</strong></p>
@@ -1223,5 +1331,6 @@ module.exports = {
   notificarRegistroRechazado,
   notificarPermisoPendienteContadora,
   notificarNuevaSolicitudReembolsoAprobador,
-  notificarReembolsoResueltoEmpleado
+  notificarReembolsoResueltoEmpleado,
+  enviarCajaChicaResumenRocio
 };

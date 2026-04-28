@@ -54,6 +54,14 @@ router.put('/:id/aprobar', autenticar, soloAprobadorReembolsos, reembolsoControl
 router.put('/:id/rechazar', autenticar, soloAprobadorReembolsos, reembolsoController.rechazar);
 router.delete('/:id', autenticar, verificarRol('admin'), reembolsoController.eliminar);
 
+router.put(
+  '/:id/admin',
+  autenticar,
+  verificarRol('admin'),
+  upload.single('comprobante'),
+  reembolsoController.actualizarAdmin
+);
+
 router.get('/:id/recibo', autenticar, reembolsoController.descargarReciboPdf);
 router.get('/:id/comprobante', autenticar, reembolsoController.descargarComprobante);
 router.get('/:id', autenticar, reembolsoController.obtener);

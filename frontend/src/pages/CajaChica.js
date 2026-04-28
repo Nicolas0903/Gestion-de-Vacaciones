@@ -7,7 +7,9 @@ import {
   TrashIcon,
   WalletIcon,
   ArrowPathIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  LockOpenIcon,
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 import { cajaChicaService } from '../services/api';
 
@@ -45,6 +47,8 @@ const CajaChica = () => {
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [ingresosEdit, setIngresosEdit] = useState([]);
   const [guardando, setGuardando] = useState(false);
+  const [reabriendo, setReabriendo] = useState(false);
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
 
   const [nuevoAnio, setNuevoAnio] = useState(new Date().getFullYear());
   const [nuevoMes, setNuevoMes] = useState(new Date().getMonth() + 1);
@@ -141,6 +145,41 @@ const CajaChica = () => {
       await cargarDetalle(selId);
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'No se pudo cerrar.');
+    }
+  };
+
+  const reabrirPeriodo = async () => {
+    if (!selId || detalle?.periodo?.estado !== 'cerrado') return;
+    if (
+      !window.confirm(
+        '¿Reabrir este período en borrador? Solo ante correcciones excepcionales. Se anulará el saldo de cierre guardado hasta que vuelvas a cerrar.'
+      )
+    ) {
+      return;
+    }
+    setReabriendo(true);
+    try {
+      await cajaChicaService.reabrir(selId);
+      toast.success('Período reabierto. Ya puedes editar ingresos.');
+      await cargarLista();
+      await cargarDetalle(selId);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo reabrir.');
+    } finally {
+      setReabriendo(false);
+    }
+  };
+
+  const enviarResumenRocio = async () => {
+    if (!selId) return;
+    setEnviandoCorreo(true);
+    try {
+      const { data } = await cajaChicaService.enviarResumenRocio(selId);
+      toast.success(data.mensaje || 'Correo enviado.');
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo enviar el correo.');
+    } finally {
+      setEnviandoCorreo(false);
     }
   };
 
@@ -441,8 +480,28 @@ const CajaChica = () => {
                 </div>
               </div>
 
-              {esBorrador && (
-                <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={enviandoCorreo}
+                  onClick={enviarResumenRocio}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white text-emerald-800 text-sm font-medium px-5 py-2.5 hover:bg-emerald-50 disabled:opacity-50"
+                >
+                  <EnvelopeIcon className="w-4 h-4" />
+                  {enviandoCorreo ? 'Enviando…' : 'Enviar resumen a Rocío'}
+                </button>
+                {detalle.periodo.estado === 'cerrado' && (
+                  <button
+                    type="button"
+                    disabled={reabriendo}
+                    onClick={reabrirPeriodo}
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-sm font-medium px-5 py-2.5 hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    <LockOpenIcon className="w-4 h-4" />
+                    {reabriendo ? 'Reabriendo…' : 'Reabrir período'}
+                  </button>
+                )}
+                {esBorrador && (
                   <button
                     type="button"
                     onClick={cerrarPeriodo}
@@ -451,8 +510,8 @@ const CajaChica = () => {
                     <LockClosedIcon className="w-4 h-4" />
                     Cerrar período
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
         </div>

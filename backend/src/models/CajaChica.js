@@ -77,6 +77,17 @@ class CajaChica {
     return r.affectedRows > 0;
   }
 
+  /** Vuelve a borrador (casos excepcionales). Limpia saldo de cierre. */
+  static async reabrirPeriodo(periodoId) {
+    const [r] = await pool.execute(
+      `UPDATE caja_chica_periodos
+       SET estado = 'borrador', saldo_cierre = NULL
+       WHERE id = ? AND estado = 'cerrado'`,
+      [periodoId]
+    );
+    return r.affectedRows > 0;
+  }
+
   /** Último período cerrado anterior al (anio, mes); devuelve saldo_cierre o null */
   static async saldoCierrePeriodoAnterior(anio, mes) {
     const prevMes = mes === 1 ? 12 : mes - 1;

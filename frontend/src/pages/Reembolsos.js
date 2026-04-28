@@ -50,6 +50,8 @@ const Reembolsos = () => {
   const [celular, setCelular] = useState('');
   const [nombreEnMetodo, setNombreEnMetodo] = useState('');
   const [numeroCuenta, setNumeroCuenta] = useState('');
+  /** Un solo valor para RUC y N° documento (mismo dato en BD y en caja chica). */
+  const [rucNumeroDocumento, setRucNumeroDocumento] = useState('');
 
   const nombreCompleto = `${usuario?.nombres || ''} ${usuario?.apellidos || ''}`.trim();
   const dni = usuario?.dni || '—';
@@ -84,6 +86,10 @@ const Reembolsos = () => {
       toast.error('Indique el nombre que debe figurar en Yape o Plin.');
       return;
     }
+    if (tieneComprobante && !String(rucNumeroDocumento).trim()) {
+      toast.error('Indique RUC y N° de documento (el mismo valor en ambos campos).');
+      return;
+    }
     if (tieneComprobante && !archivo) {
       toast.error('Adjunte el comprobante.');
       return;
@@ -105,6 +111,9 @@ const Reembolsos = () => {
     if (metodo === 'transferencia') {
       fd.append('numero_cuenta', numeroCuenta.trim());
     }
+    if (tieneComprobante) {
+      fd.append('ruc_numero_documento', String(rucNumeroDocumento).trim());
+    }
     if (tieneComprobante && archivo) {
       fd.append('comprobante', archivo);
     }
@@ -117,6 +126,7 @@ const Reembolsos = () => {
       setArchivo(null);
       setMonto('0');
       setNumeroCuenta('');
+      setRucNumeroDocumento('');
       cargarLista();
     } catch (err) {
       const msg = err.response?.data?.mensaje || 'No se pudo enviar la solicitud.';
@@ -219,6 +229,7 @@ const Reembolsos = () => {
                   onChange={() => {
                     setTieneComprobante(false);
                     setArchivo(null);
+                    setRucNumeroDocumento('');
                   }}
                 />
                 No — generar recibo Prayaga
@@ -241,15 +252,44 @@ const Reembolsos = () => {
           </div>
 
           {tieneComprobante && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Adjuntar comprobante *</label>
-              <input
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
-                className="text-sm text-slate-600"
-                onChange={(e) => setArchivo(e.target.files?.[0] || null)}
-              />
-            </div>
+            <>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">RUC *</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"
+                    value={rucNumeroDocumento}
+                    onChange={(e) => setRucNumeroDocumento(e.target.value)}
+                    placeholder="Mismo valor que N° documento"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">N° de documento *</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"
+                    value={rucNumeroDocumento}
+                    onChange={(e) => setRucNumeroDocumento(e.target.value)}
+                    placeholder="Mismo valor que RUC"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 -mt-2">
+                Ambos campos guardan el mismo dato (como en el registro de caja chica).
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Adjuntar comprobante *</label>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                  className="text-sm text-slate-600"
+                  onChange={(e) => setArchivo(e.target.files?.[0] || null)}
+                />
+              </div>
+            </>
           )}
 
           <div>
@@ -366,13 +406,47 @@ const Reembolsos = () => {
                 key={r.id}
                 className="rounded-2xl border border-slate-100 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="font-semibold text-slate-800">{r.codigo_ticket}</p>
                   <p className="text-xs text-slate-500">
                     Registro: {r.fecha_registro_ticket ? new Date(r.fecha_registro_ticket).toLocaleString('es-PE') : '—'}
                   </p>
                   <p className="text-sm text-slate-600 mt-1 line-clamp-2">{r.concepto}</p>
-                  <p className="text-xs text-slate-500 mt-1">{metodoLabel(r.metodo_reembolso)}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Fecha gasto: {r.fecha_solicitud_usuario || '—'} · Monto: S/ {Number(r.monto || 0).toFixed(2)} ·{' '}
+                    {metodoLabel(r.metodo_reembolso)}
+                  </p>
+                  <details className="mt-2 text-xs text-slate-600">
+                    <summary className="cursor-pointer text-sky-600 font-medium select-none">Ver todos los datos</summary>
+                    <dl className="mt-2 grid gap-1.5 sm:grid-cols-2 border border-slate-100 rounded-xl p-3 bg-slate-50/80">
+                      <dt className="text-slate-500">Nombre (cuenta)</dt>
+                      <dd className="text-slate-800">{r.nombre_completo || '—'}</dd>
+                      <dt className="text-slate-500">DNI</dt>
+                      <dd className="font-mono">{r.dni || '—'}</dd>
+                      <dt className="text-slate-500">Comprobante</dt>
+                      <dd>{r.tiene_comprobante ? 'Sí (archivo adjunto)' : 'No (recibo Prayaga)'}</dd>
+                      {r.tiene_comprobante && (
+                        <>
+                          <dt className="text-slate-500">RUC / N° documento</dt>
+                          <dd className="font-mono break-all">
+                            {String(r.ruc_proveedor || r.numero_documento || '').trim() || '—'}
+                          </dd>
+                          <dt className="text-slate-500">Archivo</dt>
+                          <dd className="break-all">{r.archivo_comprobante_nombre || '—'}</dd>
+                        </>
+                      )}
+                      <dt className="text-slate-500">Celular</dt>
+                      <dd className="font-mono">{r.celular || '—'}</dd>
+                      <dt className="text-slate-500">Nombre en método</dt>
+                      <dd>{r.nombre_en_metodo || '—'}</dd>
+                      {r.metodo_reembolso === 'transferencia' && (
+                        <>
+                          <dt className="text-slate-500">Cuenta / CCI</dt>
+                          <dd className="break-all whitespace-pre-wrap">{r.numero_cuenta || '—'}</dd>
+                        </>
+                      )}
+                    </dl>
+                  </details>
                   {r.comentarios_resolucion &&
                     ['aprobado', 'rechazado', 'observado'].includes(r.estado) && (
                       <p className="text-xs text-slate-600 mt-2 bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-100">

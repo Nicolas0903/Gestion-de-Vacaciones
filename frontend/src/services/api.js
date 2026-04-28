@@ -170,6 +170,10 @@ export const reembolsoService = {
   rechazar: (id, comentarios) => api.put(`/reembolsos/${id}/rechazar`, { comentarios }),
   observar: (id, comentarios) => api.put(`/reembolsos/${id}/observar`, { comentarios }),
   eliminar: (id) => api.delete(`/reembolsos/${id}`),
+  actualizarAdmin: (id, formData) =>
+    api.put(`/reembolsos/${id}/admin`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
 };
 
 // Caja chica (admin / contadora)
@@ -179,6 +183,8 @@ export const cajaChicaService = {
   detalle: (id) => api.get(`/caja-chica/periodos/${id}`),
   guardarIngresos: (id, ingresos) => api.put(`/caja-chica/periodos/${id}/ingresos`, { ingresos }),
   cerrar: (id) => api.post(`/caja-chica/periodos/${id}/cerrar`),
+  reabrir: (id) => api.post(`/caja-chica/periodos/${id}/reabrir`),
+  enviarResumenRocio: (id) => api.post(`/caja-chica/periodos/${id}/enviar-resumen-rocio`),
 };
 
 export default api;
