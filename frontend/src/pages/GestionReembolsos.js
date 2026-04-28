@@ -8,6 +8,12 @@ import { reembolsoService } from '../services/api';
 const metodoLabel = (m) =>
   ({ yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia' }[m] || m);
 
+const formatoMonto = (m) => {
+  const n = Number(m);
+  if (Number.isNaN(n)) return '—';
+  return `S/ ${n.toFixed(2)}`;
+};
+
 const estadoBadge = (e) => {
   const map = {
     pendiente: 'bg-amber-100 text-amber-800',
@@ -225,6 +231,7 @@ const GestionReembolsos = () => {
                   <th className="px-4 py-3 font-medium">Ticket</th>
                   <th className="px-4 py-3 font-medium">Solicitante</th>
                   <th className="px-4 py-3 font-medium">Concepto</th>
+                  <th className="px-4 py-3 font-medium whitespace-nowrap">Monto</th>
                   <th className="px-4 py-3 font-medium">Método</th>
                   <th className="px-4 py-3 font-medium">Estado</th>
                   <th className="px-4 py-3 font-medium">Observaciones</th>
@@ -241,6 +248,9 @@ const GestionReembolsos = () => {
                     </td>
                     <td className="px-4 py-3 max-w-xs truncate" title={r.concepto}>
                       {r.concepto}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap tabular-nums text-slate-800">
+                      {formatoMonto(r.monto)}
                     </td>
                     <td className="px-4 py-3">{metodoLabel(r.metodo_reembolso)}</td>
                     <td className="px-4 py-3">
