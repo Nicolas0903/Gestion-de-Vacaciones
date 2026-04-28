@@ -76,8 +76,8 @@ const Reembolsos = () => {
       toast.error('Complete la fecha y el concepto.');
       return;
     }
-    if (!celular.trim()) {
-      toast.error('Indique el celular asociado al método de pago.');
+    if (metodo !== 'transferencia' && !celular.trim()) {
+      toast.error('Indique el celular asociado a Yape o Plin.');
       return;
     }
     if (metodo !== 'transferencia' && !nombreEnMetodo.trim()) {
@@ -263,6 +263,13 @@ const Reembolsos = () => {
 
           <div className="border-t border-slate-100 pt-5">
             <h2 className="text-sm font-semibold text-slate-800 mb-3">Método de reembolso</h2>
+            {metodo === 'transferencia' && (
+              <p className="text-xs text-slate-500 mb-3">
+                Si eliges <strong className="font-medium text-slate-600">transferencia</strong>, celular, nombre y cuenta/CCI
+                son <strong className="font-medium text-slate-600">opcionales</strong> (puedes completarlos si ya los
+                tienes). En Yape o Plin sí se pide celular y nombre.
+              </p>
+            )}
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Método *</label>
@@ -277,12 +284,23 @@ const Reembolsos = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Celular *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Celular
+                  {metodo === 'transferencia' ? (
+                    <span className="font-normal text-slate-500"> (opcional si es transferencia)</span>
+                  ) : (
+                    ' *'
+                  )}
+                </label>
                 <input
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5"
                   value={celular}
                   onChange={(e) => setCelular(e.target.value)}
-                  placeholder="Número asociado"
+                  placeholder={
+                    metodo === 'transferencia'
+                      ? 'Opcional'
+                      : 'Número asociado a Yape o Plin'
+                  }
                 />
               </div>
               <div className="sm:col-span-2">
@@ -303,14 +321,15 @@ const Reembolsos = () => {
               {metodo === 'transferencia' && (
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Número de cuenta o CCI <span className="font-normal text-slate-500">(opcional)</span>
+                    Número de cuenta o CCI{' '}
+                    <span className="font-normal text-slate-500">(opcional si es transferencia)</span>
                   </label>
                   <textarea
                     rows={2}
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"
                     value={numeroCuenta}
                     onChange={(e) => setNumeroCuenta(e.target.value)}
-                    placeholder="Si aún no lo tienes, puedes dejarlo en blanco"
+                    placeholder="Opcional — completa si ya tienes cuenta o CCI"
                   />
                 </div>
               )}

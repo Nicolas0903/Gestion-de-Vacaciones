@@ -51,12 +51,18 @@ const crear = async (req, res) => {
     if (!fecha_solicitud_usuario || !concepto?.trim()) {
       return res.status(400).json({ success: false, mensaje: 'Fecha y concepto son obligatorios.' });
     }
-    if (!metodo_reembolso || !String(celular || '').trim()) {
-      return res.status(400).json({ success: false, mensaje: 'Complete método de reembolso y celular.' });
+    if (!metodo_reembolso) {
+      return res.status(400).json({ success: false, mensaje: 'Indique el método de reembolso.' });
     }
     const metodos = ['yape', 'plin', 'transferencia'];
     if (!metodos.includes(metodo_reembolso)) {
       return res.status(400).json({ success: false, mensaje: 'Método de reembolso no válido.' });
+    }
+    if (metodo_reembolso !== 'transferencia' && !String(celular || '').trim()) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique el celular asociado a Yape o Plin.'
+      });
     }
     if (metodo_reembolso !== 'transferencia' && !String(nombre_en_metodo || '').trim()) {
       return res.status(400).json({
@@ -98,7 +104,7 @@ const crear = async (req, res) => {
       archivo_comprobante_path,
       archivo_recibo_generado_path: null,
       metodo_reembolso,
-      celular: String(celular).trim(),
+      celular: String(celular || '').trim(),
       nombre_en_metodo: String(nombre_en_metodo || '').trim(),
       numero_cuenta:
         metodo_reembolso === 'transferencia'
