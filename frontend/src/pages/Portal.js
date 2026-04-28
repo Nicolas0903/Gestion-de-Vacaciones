@@ -9,7 +9,8 @@ import {
   ChartBarSquareIcon,
   ArrowRightIcon,
   Cog6ToothIcon,
-  UserPlusIcon
+  UserPlusIcon,
+  BanknotesIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
@@ -53,6 +54,19 @@ const Portal = () => {
       link: '/permisos',
       activo: true,
       adminLink: '/permisos/gestion'
+    },
+    {
+      id: 'reembolsos',
+      titulo: 'Gestión de reembolsos',
+      descripcion: 'Solicita y gestiona reembolsos de gastos',
+      icono: BanknotesIcon,
+      color: 'from-sky-500 to-indigo-600',
+      shadowColor: 'shadow-sky-500/30',
+      bgLight: 'bg-sky-50',
+      textColor: 'text-sky-600',
+      link: '/reembolsos',
+      activo: true,
+      adminLink: '/reembolsos/gestion'
     }
   ];
 

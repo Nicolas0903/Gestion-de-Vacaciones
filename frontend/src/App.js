@@ -25,6 +25,8 @@ import GestionBoletas from './pages/GestionBoletas';
 import MisPermisos from './pages/MisPermisos';
 import GestionPermisos from './pages/GestionPermisos';
 import SolicitudesRegistro from './pages/admin/SolicitudesRegistro';
+import Reembolsos from './pages/Reembolsos';
+import GestionReembolsos from './pages/GestionReembolsos';
 
 // Components
 import Layout from './components/Layout';
@@ -115,6 +117,18 @@ function AppRoutes() {
       <Route path="/permisos/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
           <PageWrapper><GestionPermisos /></PageWrapper>
+        </ProtectedRoute>
+      } />
+
+      {/* Gestión de reembolsos */}
+      <Route path="/reembolsos" element={
+        <ProtectedRoute>
+          <PageWrapper><Reembolsos /></PageWrapper>
+        </ProtectedRoute>
+      } />
+      <Route path="/reembolsos/gestion" element={
+        <ProtectedRoute roles={['admin', 'contadora']}>
+          <PageWrapper><GestionReembolsos /></PageWrapper>
         </ProtectedRoute>
       } />
 
