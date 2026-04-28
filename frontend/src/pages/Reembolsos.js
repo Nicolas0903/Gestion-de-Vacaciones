@@ -88,6 +88,11 @@ const Reembolsos = () => {
       toast.error('Adjunte el comprobante.');
       return;
     }
+    const montoNum = parseFloat(String(monto).replace(',', '.')) || 0;
+    if (tieneComprobante && (Number.isNaN(montoNum) || montoNum <= 0)) {
+      toast.error('Indique el monto del gasto según el comprobante.');
+      return;
+    }
 
     const fd = new FormData();
     fd.append('fecha_solicitud_usuario', fechaSolicitud);
@@ -235,20 +240,6 @@ const Reembolsos = () => {
             )}
           </div>
 
-          {!tieneComprobante && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Monto en recibo (S/)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="w-full max-w-xs rounded-xl border border-slate-200 px-4 py-2.5"
-                value={monto}
-                onChange={(e) => setMonto(e.target.value)}
-              />
-            </div>
-          )}
-
           {tieneComprobante && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Adjuntar comprobante *</label>
@@ -260,6 +251,25 @@ const Reembolsos = () => {
               />
             </div>
           )}
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Monto (S/) {tieneComprobante ? '*' : ''}
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full max-w-xs rounded-xl border border-slate-200 px-4 py-2.5"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+            />
+            <p className="text-xs text-slate-500 mt-1.5">
+              {tieneComprobante
+                ? 'Importe del gasto según el comprobante (obligatorio si adjuntas factura o voucher).'
+                : 'Importe que figurará en el recibo Prayaga generado.'}
+            </p>
+          </div>
 
           <div className="border-t border-slate-100 pt-5">
             <h2 className="text-sm font-semibold text-slate-800 mb-3">Método de reembolso</h2>
