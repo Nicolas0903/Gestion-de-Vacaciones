@@ -51,15 +51,18 @@ const crear = async (req, res) => {
     if (!fecha_solicitud_usuario || !concepto?.trim()) {
       return res.status(400).json({ success: false, mensaje: 'Fecha y concepto son obligatorios.' });
     }
-    if (!metodo_reembolso || !celular || !nombre_en_metodo) {
-      return res.status(400).json({ success: false, mensaje: 'Complete método de reembolso, celular y nombre en el método.' });
+    if (!metodo_reembolso || !String(celular || '').trim()) {
+      return res.status(400).json({ success: false, mensaje: 'Complete método de reembolso y celular.' });
     }
     const metodos = ['yape', 'plin', 'transferencia'];
     if (!metodos.includes(metodo_reembolso)) {
       return res.status(400).json({ success: false, mensaje: 'Método de reembolso no válido.' });
     }
-    if (metodo_reembolso === 'transferencia' && !String(numero_cuenta || '').trim()) {
-      return res.status(400).json({ success: false, mensaje: 'Indique número de cuenta o CCI para transferencia.' });
+    if (metodo_reembolso !== 'transferencia' && !String(nombre_en_metodo || '').trim()) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique el nombre que debe figurar en Yape o Plin.'
+      });
     }
 
     if (tComp && !req.file) {
@@ -96,8 +99,11 @@ const crear = async (req, res) => {
       archivo_recibo_generado_path: null,
       metodo_reembolso,
       celular: String(celular).trim(),
-      nombre_en_metodo: String(nombre_en_metodo).trim(),
-      numero_cuenta: metodo_reembolso === 'transferencia' ? String(numero_cuenta).trim() : null,
+      nombre_en_metodo: String(nombre_en_metodo || '').trim(),
+      numero_cuenta:
+        metodo_reembolso === 'transferencia'
+          ? String(numero_cuenta || '').trim() || null
+          : null,
       monto: montoNum
     });
 

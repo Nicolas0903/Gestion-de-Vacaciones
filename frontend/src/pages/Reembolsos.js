@@ -76,12 +76,12 @@ const Reembolsos = () => {
       toast.error('Complete la fecha y el concepto.');
       return;
     }
-    if (!celular.trim() || !nombreEnMetodo.trim()) {
-      toast.error('Complete celular y nombre en el método de pago.');
+    if (!celular.trim()) {
+      toast.error('Indique el celular asociado al método de pago.');
       return;
     }
-    if (metodo === 'transferencia' && !numeroCuenta.trim()) {
-      toast.error('Indique cuenta o CCI para transferencia.');
+    if (metodo !== 'transferencia' && !nombreEnMetodo.trim()) {
+      toast.error('Indique el nombre que debe figurar en Yape o Plin.');
       return;
     }
     if (tieneComprobante && !archivo) {
@@ -286,7 +286,14 @@ const Reembolsos = () => {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nombre que debe figurar *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Nombre que debe figurar
+                  {metodo === 'transferencia' ? (
+                    <span className="font-normal text-slate-500"> (opcional si es transferencia)</span>
+                  ) : (
+                    ' *'
+                  )}
+                </label>
                 <input
                   className="w-full rounded-xl border border-slate-200 px-4 py-2.5"
                   value={nombreEnMetodo}
@@ -295,12 +302,15 @@ const Reembolsos = () => {
               </div>
               {metodo === 'transferencia' && (
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Número de cuenta o CCI *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Número de cuenta o CCI <span className="font-normal text-slate-500">(opcional)</span>
+                  </label>
                   <textarea
                     rows={2}
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"
                     value={numeroCuenta}
                     onChange={(e) => setNumeroCuenta(e.target.value)}
+                    placeholder="Si aún no lo tienes, puedes dejarlo en blanco"
                   />
                 </div>
               )}
