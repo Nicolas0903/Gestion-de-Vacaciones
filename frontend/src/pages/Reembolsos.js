@@ -265,9 +265,9 @@ const Reembolsos = () => {
             <h2 className="text-sm font-semibold text-slate-800 mb-3">Método de reembolso</h2>
             {metodo === 'transferencia' && (
               <p className="text-xs text-slate-500 mb-3">
-                Si eliges <strong className="font-medium text-slate-600">transferencia</strong>, celular, nombre y cuenta/CCI
-                son <strong className="font-medium text-slate-600">opcionales</strong> (puedes completarlos si ya los
-                tienes). En Yape o Plin sí se pide celular y nombre.
+                Si eliges <strong className="font-medium text-slate-600">transferencia</strong>, celular y nombre son{' '}
+                <strong className="font-medium text-slate-600">opcionales</strong>. En Yape o Plin sí se pide celular y
+                nombre.
               </p>
             )}
             <div className="grid sm:grid-cols-2 gap-4">
@@ -320,16 +320,13 @@ const Reembolsos = () => {
               </div>
               {metodo === 'transferencia' && (
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Número de cuenta o CCI{' '}
-                    <span className="font-normal text-slate-500">(opcional si es transferencia)</span>
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Número de cuenta o CCI</label>
                   <textarea
                     rows={2}
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"
                     value={numeroCuenta}
                     onChange={(e) => setNumeroCuenta(e.target.value)}
-                    placeholder="Opcional — completa si ya tienes cuenta o CCI"
+                    placeholder="Cuenta bancaria o CCI"
                   />
                 </div>
               )}
