@@ -70,6 +70,41 @@ class Empleado {
     return rows[0];
   }
 
+  /**
+   * Aprobador único de reembolsos: siempre un empleado activo del sistema.
+   * 1) Opcional: REEMBOLSOS_APROBADOR_EMPLEADO_ID en .env
+   * 2) Si no: primer registro que coincida con el correo histórico del proyecto o nombre Enrique + Agapito
+   * El correo al que se envían las solicitudes es el de esta fila (empleados.email).
+   */
+  static async obtenerAprobadorReembolsos() {
+    const idOverride = process.env.REEMBOLSOS_APROBADOR_EMPLEADO_ID;
+    if (idOverride) {
+      const e = await this.buscarPorId(parseInt(idOverride, 10));
+      if (e && e.activo) return e;
+    }
+
+    const emailProyecto = 'enrique.agapito@prayaga.biz';
+    const [rows] = await pool.execute(
+      `SELECT e.*, r.nombre as rol_nombre, r.nivel_aprobacion,
+              j.nombres as jefe_nombres, j.apellidos as jefe_apellidos
+       FROM empleados e
+       LEFT JOIN roles r ON e.rol_id = r.id
+       LEFT JOIN empleados j ON e.jefe_id = j.id
+       WHERE e.activo = 1
+         AND (
+           LOWER(TRIM(e.email)) = LOWER(TRIM(?))
+           OR (
+             LOWER(TRIM(e.nombres)) LIKE 'enrique%'
+             AND LOWER(TRIM(e.apellidos)) LIKE '%agapito%'
+           )
+         )
+       ORDER BY CASE WHEN LOWER(TRIM(e.email)) = LOWER(TRIM(?)) THEN 0 ELSE 1 END, e.id ASC
+       LIMIT 1`,
+      [emailProyecto, emailProyecto]
+    );
+    return rows[0] || null;
+  }
+
   // Listar todos los empleados
   static async listarTodos(filtros = {}) {
     let query = `

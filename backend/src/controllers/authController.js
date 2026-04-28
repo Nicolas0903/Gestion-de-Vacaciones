@@ -54,12 +54,15 @@ const login = async (req, res) => {
     // Remover password de la respuesta
     const { password: _, ...empleadoSinPassword } = empleado;
 
+    const aprobadorReemb = await Empleado.obtenerAprobadorReembolsos();
+    const es_aprobador_reembolsos = !!(aprobadorReemb && aprobadorReemb.id === empleado.id);
+
     res.json({
       success: true,
       mensaje: 'Login exitoso',
       data: {
         token,
-        usuario: empleadoSinPassword
+        usuario: { ...empleadoSinPassword, es_aprobador_reembolsos }
       }
     });
   } catch (error) {
@@ -75,10 +78,13 @@ const login = async (req, res) => {
 const perfil = async (req, res) => {
   try {
     const { password: _, ...usuarioSinPassword } = req.usuario;
-    
+
+    const aprobadorReemb = await Empleado.obtenerAprobadorReembolsos();
+    const es_aprobador_reembolsos = !!(aprobadorReemb && aprobadorReemb.id === req.usuario.id);
+
     res.json({
       success: true,
-      data: usuarioSinPassword
+      data: { ...usuarioSinPassword, es_aprobador_reembolsos }
     });
   } catch (error) {
     console.error('Error al obtener perfil:', error);

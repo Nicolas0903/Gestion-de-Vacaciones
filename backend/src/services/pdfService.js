@@ -266,6 +266,81 @@ class PDFService {
       }
     });
   }
+
+  /**
+   * Recibo estilo plantilla Prayaga (sin factura adjunta).
+   * @param {Object} r - Fila solicitudes_reembolso + codigo_ticket (string)
+   */
+  static generarReciboReembolso(r) {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 48, size: 'A4' });
+        const buffers = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => resolve(Buffer.concat(buffers)));
+
+        const pageW = 595.28;
+        const margin = 48;
+        const contentW = pageW - margin * 2;
+        let y = margin;
+
+        const logoPath = path.join(__dirname, '../assets/logo.png');
+        const logoExists = fs.existsSync(logoPath);
+        const headerH = 72;
+
+        if (logoExists) {
+          doc.image(logoPath, margin, y, { width: 100 });
+        } else {
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#0d9488').text('PRAYAGA', margin, y + 8);
+        }
+
+        doc.fontSize(18).font('Helvetica-Bold').fillColor('#000000')
+          .text('Recibo', margin, y + 20, { width: contentW, align: 'center' });
+
+        const monto = Number(r.monto) || 0;
+        const montoTxt = `S/ ${monto.toFixed(2)}`;
+        const boxW = 100;
+        doc.rect(pageW - margin - boxW, y, boxW, 36).stroke('#000000');
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000')
+          .text(montoTxt, pageW - margin - boxW, y + 12, { width: boxW, align: 'center' });
+
+        y += headerH + 16;
+
+        const fechaUser = r.fecha_solicitud_usuario
+          ? moment(r.fecha_solicitud_usuario).format('DD/MM/YYYY')
+          : '—';
+
+        doc.fontSize(11).font('Helvetica').fillColor('#000000');
+        doc.text('Recibí de Prayaga Solutions S.A.C', margin, y, { width: contentW * 0.55, align: 'left' });
+        doc.text(`Fecha: ${fechaUser}`, margin, y, { width: contentW, align: 'right' });
+        y += 28;
+
+        doc.text('Concepto de', margin, y);
+        const lineY = y + 16;
+        doc.moveTo(margin + 72, lineY).lineTo(margin + contentW, lineY).stroke('#000000');
+        doc.font('Helvetica').text(r.concepto || '', margin + 74, y - 2, { width: contentW - 76 });
+
+        y = lineY + 120;
+        const pieW = 240;
+        const pieX = pageW - margin - pieW;
+        doc.fontSize(11).font('Helvetica').fillColor('#000000');
+        doc.text(`Nombre Completo: ${r.nombre_completo || ''}`, pieX, y, { width: pieW, align: 'right' });
+        doc.text(`DNI: ${r.dni || ''}`, pieX, y + 18, { width: pieW, align: 'right' });
+
+        doc.fontSize(8).fillColor('#64748b')
+          .text(
+            `Ticket: ${r.codigo_ticket || ''} · Registro: ${moment(r.created_at).format('DD/MM/YYYY HH:mm')}`,
+            margin,
+            780,
+            { width: contentW, align: 'center' }
+          );
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
 }
 
 module.exports = PDFService;

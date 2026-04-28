@@ -1,0 +1,44 @@
+-- Solicitudes de reembolso de gastos
+CREATE TABLE IF NOT EXISTS solicitudes_reembolso (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  empleado_id INT NOT NULL,
+  fecha_solicitud_usuario DATE NOT NULL COMMENT 'Fecha del recibo indicada por el usuario',
+  concepto TEXT NOT NULL,
+  nombre_completo VARCHAR(220) NOT NULL,
+  dni VARCHAR(15) NOT NULL,
+  tiene_comprobante BOOLEAN NOT NULL DEFAULT FALSE,
+  archivo_comprobante_nombre VARCHAR(255) NULL,
+  archivo_comprobante_path VARCHAR(500) NULL,
+  archivo_recibo_generado_path VARCHAR(500) NULL COMMENT 'PDF generado si no adjuntó factura',
+  metodo_reembolso ENUM('yape', 'plin', 'transferencia') NOT NULL,
+  celular VARCHAR(30) NOT NULL,
+  nombre_en_metodo VARCHAR(220) NOT NULL,
+  numero_cuenta TEXT NULL COMMENT 'Cuenta o CCI si es transferencia',
+  monto DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  estado ENUM('pendiente', 'aprobado', 'rechazado') NOT NULL DEFAULT 'pendiente',
+  comentarios_resolucion TEXT NULL,
+  aprobado_por INT NULL,
+  fecha_resolucion TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (empleado_id) REFERENCES empleados(id) ON DELETE CASCADE,
+  FOREIGN KEY (aprobado_por) REFERENCES empleados(id),
+  INDEX idx_reembolso_empleado (empleado_id),
+  INDEX idx_reembolso_estado (estado)
+);
+
+CREATE TABLE IF NOT EXISTS tokens_reembolso (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  token VARCHAR(64) NOT NULL UNIQUE,
+  reembolso_id INT NOT NULL,
+  aprobador_id INT NOT NULL,
+  accion ENUM('aprobar', 'rechazar') NOT NULL,
+  usado BOOLEAN DEFAULT FALSE,
+  usado_en TIMESTAMP NULL,
+  expira_en TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (reembolso_id) REFERENCES solicitudes_reembolso(id) ON DELETE CASCADE,
+  FOREIGN KEY (aprobador_id) REFERENCES empleados(id),
+  INDEX idx_tr_token (token),
+  INDEX idx_tr_reembolso (reembolso_id)
+);

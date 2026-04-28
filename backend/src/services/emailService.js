@@ -1,4 +1,6 @@
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
 const TokenAprobacion = require('../models/TokenAprobacion');
 const { calcularFechaEfectivaRegreso } = require('../utils/calcularDiasVacaciones');
 
@@ -953,6 +955,175 @@ const notificarPermisoPendienteContadora = async (permiso, empleado, contadora) 
 /**
  * Enviar email de prueba para verificar configuración
  */
+const codigoTicketReembolso = (row) => {
+  const y = row.created_at ? new Date(row.created_at).getFullYear() : new Date().getFullYear();
+  return `RMB-${y}-${String(row.id).padStart(5, '0')}`;
+};
+
+const escapeHtml = (s) => {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+};
+
+const etiquetaMetodoReembolso = (m) =>
+  ({ yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia bancaria' }[m] || m);
+
+/**
+ * Vista HTML del recibo (para correo cuando no hay factura adjunta).
+ */
+const htmlVistaReciboReembolso = (r, codigoTicket) => {
+  const monto = Number(r.monto) || 0;
+  const fecha = r.fecha_solicitud_usuario
+    ? new Date(r.fecha_solicitud_usuario).toLocaleDateString('es-PE')
+    : '—';
+  const reg = r.created_at ? new Date(r.created_at).toLocaleString('es-PE') : '—';
+  return `
+  <div style="border:1px solid #000; padding:20px; max-width:520px; margin:16px auto; font-family:Arial,Helvetica,sans-serif; color:#111;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-size:12px; color:#0d9488;"><strong>PRAYAGA</strong></td>
+      <td align="center" style="font-size:18px; font-weight:bold;">Recibo</td>
+      <td align="right"><span style="border:1px solid #000; padding:8px 12px; display:inline-block;">S/ ${monto.toFixed(2)}</span></td>
+    </tr></table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;"><tr>
+      <td style="font-size:13px;">Recibí de Prayaga Solutions S.A.C</td>
+      <td align="right" style="font-size:13px;"><strong>Fecha:</strong> ${escapeHtml(fecha)}</td>
+    </tr></table>
+    <p style="font-size:13px; margin-top:16px; margin-bottom:4px;"><strong>Concepto de</strong></p>
+    <p style="border-bottom:1px solid #000; font-size:13px; padding-bottom:6px; min-height:24px;">${escapeHtml(r.concepto)}</p>
+    <p style="text-align:right; font-size:13px; margin-top:28px;">Nombre completo: ${escapeHtml(r.nombre_completo)}</p>
+    <p style="text-align:right; font-size:13px;">DNI: ${escapeHtml(r.dni)}</p>
+    <p style="font-size:11px; color:#64748b; text-align:center; margin-top:24px;">
+      ${escapeHtml(codigoTicket)} · Registro ticket: ${escapeHtml(reg)}
+    </p>
+  </div>`;
+};
+
+/**
+ * Notificación al aprobador único (Enrique por defecto). Solo este correo recibe la solicitud para aprobar/rechazar.
+ */
+const notificarNuevaSolicitudReembolsoAprobador = async ({
+  reembolso,
+  empleado,
+  aprobador,
+  urlAprobar,
+  urlRechazar,
+  pdfReciboBuffer,
+  comprobanteDiskPath,
+  comprobanteNombreOriginal
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Reembolso: notificación a aprobador omitida');
+    return false;
+  }
+  if (!aprobador?.email) return false;
+
+  const codigo = codigoTicketReembolso(reembolso);
+  const empNombre = `${empleado.nombres || ''} ${empleado.apellidos || ''}`.trim();
+  const bloqueRecibo =
+    !reembolso.tiene_comprobante && pdfReciboBuffer
+      ? htmlVistaReciboReembolso(reembolso, codigo)
+      : '<p>El solicitante adjuntó su comprobante de pago en este correo.</p>';
+
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(aprobador.nombres)} ${escapeHtml(aprobador.apellidos)}</strong>,</p>
+    <p>Nueva solicitud de reembolso de <strong>${escapeHtml(empNombre)}</strong>.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Ticket</span><span class="info-value">${escapeHtml(codigo)}</span></div>
+      <div class="info-row"><span class="info-label">Registro</span><span class="info-value">${escapeHtml(new Date(reembolso.created_at).toLocaleString('es-PE'))}</span></div>
+      <div class="info-row"><span class="info-label">Fecha (usuario)</span><span class="info-value">${escapeHtml(reembolso.fecha_solicitud_usuario)}</span></div>
+      <div class="info-row"><span class="info-label">Concepto</span><span class="info-value">${escapeHtml(reembolso.concepto)}</span></div>
+      <div class="info-row"><span class="info-label">Monto recibo</span><span class="info-value">S/ ${Number(reembolso.monto || 0).toFixed(2)}</span></div>
+      <div class="info-row"><span class="info-label">Método</span><span class="info-value">${escapeHtml(etiquetaMetodoReembolso(reembolso.metodo_reembolso))}</span></div>
+      <div class="info-row"><span class="info-label">Celular</span><span class="info-value">${escapeHtml(reembolso.celular)}</span></div>
+      <div class="info-row"><span class="info-label">Nombre en método</span><span class="info-value">${escapeHtml(reembolso.nombre_en_metodo)}</span></div>
+      ${reembolso.metodo_reembolso === 'transferencia' ? `<div class="info-row"><span class="info-label">Cuenta/CCI</span><span class="info-value">${escapeHtml(reembolso.numero_cuenta || '')}</span></div>` : ''}
+    </div>
+    ${bloqueRecibo}
+    <p style="text-align:center; margin:24px 0 10px;"><strong>¿Aprobar o rechazar?</strong></p>
+    <center>
+      <table cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr>
+        <td style="padding:0 10px;"><a href="${urlAprobar}" style="display:inline-block;background:#10b981;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">APROBAR</a></td>
+        <td style="padding:0 10px;"><a href="${urlRechazar}" style="display:inline-block;background:#ef4444;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">RECHAZAR</a></td>
+      </tr></table>
+    </center>
+  `;
+
+  const attachments = [];
+  if (pdfReciboBuffer && Buffer.isBuffer(pdfReciboBuffer)) {
+    attachments.push({
+      filename: `recibo-${reembolso.id}.pdf`,
+      content: pdfReciboBuffer
+    });
+  }
+  if (comprobanteDiskPath && fs.existsSync(comprobanteDiskPath)) {
+    attachments.push({
+      filename: comprobanteNombreOriginal || path.basename(comprobanteDiskPath),
+      path: comprobanteDiskPath
+    });
+  }
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Portal RRHH - Reembolsos" <${process.env.SMTP_USER}>`,
+      to: aprobador.email,
+      subject: `Solicitud de reembolso ${codigo} - ${empNombre}`,
+      html: plantillaBase(contenido, 'Nueva solicitud de reembolso'),
+      attachments
+    });
+    console.log(`📧 Reembolso: correo enviado a aprobador ${aprobador.email}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email reembolso a aprobador:', error.message);
+    return false;
+  }
+};
+
+const notificarReembolsoResueltoEmpleado = async (reembolso, empleado, resultado, aprobador, motivoRechazo) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return false;
+  }
+  const codigo = codigoTicketReembolso(reembolso);
+  const nombre = `${empleado.nombres || ''} ${empleado.apellidos || ''}`.trim();
+  const aprob = `${aprobador.nombres || ''} ${aprobador.apellidos || ''}`.trim();
+
+  const ok = resultado === 'aprobado';
+  const contenido = ok
+    ? `
+    <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
+    <p>Tu solicitud de reembolso <strong>${escapeHtml(codigo)}</strong> fue <span class="status-aprobada">APROBADA</span>.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Aprobado por</span><span class="info-value">${escapeHtml(aprob)}</span></div>
+    </div>`
+    : `
+    <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
+    <p>Tu solicitud de reembolso <strong>${escapeHtml(codigo)}</strong> fue <span class="status-rechazada">RECHAZADA</span>.</p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;">
+      <strong>Motivo:</strong> ${escapeHtml(motivoRechazo || '—')}
+    </div>
+    <div class="info-box" style="margin-top:12px;">
+      <div class="info-row"><span class="info-label">Revisado por</span><span class="info-value">${escapeHtml(aprob)}</span></div>
+    </div>`;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Portal RRHH - Reembolsos" <${process.env.SMTP_USER}>`,
+      to: empleado.email,
+      subject: ok ? `Reembolso aprobado · ${codigo}` : `Reembolso rechazado · ${codigo}`,
+      html: plantillaBase(contenido, ok ? 'Reembolso aprobado' : 'Reembolso rechazado')
+    });
+    return true;
+  } catch (error) {
+    console.error('❌ Error email reembolso a empleado:', error.message);
+    return false;
+  }
+};
+
 const enviarEmailPrueba = async (destinatario) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error('Configuración de email no encontrada en variables de entorno');
@@ -996,5 +1167,7 @@ module.exports = {
   notificarNuevaSolicitudRegistro,
   notificarRegistroAprobado,
   notificarRegistroRechazado,
-  notificarPermisoPendienteContadora
+  notificarPermisoPendienteContadora,
+  notificarNuevaSolicitudReembolsoAprobador,
+  notificarReembolsoResueltoEmpleado
 };

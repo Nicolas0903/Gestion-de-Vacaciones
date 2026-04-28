@@ -52,6 +52,18 @@ const ProtectedRoute = ({ children, roles = [] }) => {
   return children;
 };
 
+function ReembolsosGestionGate() {
+  const { esAprobadorReembolsos } = useAuth();
+  if (!esAprobadorReembolsos()) {
+    return <Navigate to="/portal" replace />;
+  }
+  return (
+    <PageWrapper>
+      <GestionReembolsos />
+    </PageWrapper>
+  );
+}
+
 function AppRoutes() {
   const { isAuthenticated, loading } = useAuth();
 
@@ -127,8 +139,8 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/reembolsos/gestion" element={
-        <ProtectedRoute roles={['admin', 'contadora']}>
-          <PageWrapper><GestionReembolsos /></PageWrapper>
+        <ProtectedRoute>
+          <ReembolsosGestionGate />
         </ProtectedRoute>
       } />
 

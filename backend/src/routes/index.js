@@ -11,6 +11,8 @@ const boletasRoutes = require('./boletas');
 const permisosRoutes = require('./permisos');
 const configRoutes = require('./config');
 const aprobacionEmailRoutes = require('./aprobacionEmail');
+const aprobacionReembolsoEmailRoutes = require('./aprobacionReembolsoEmail');
+const reembolsosRoutes = require('./reembolsos');
 
 router.use('/auth', authRoutes);
 router.use('/empleados', empleadosRoutes);
@@ -22,6 +24,8 @@ router.use('/boletas', boletasRoutes);
 router.use('/permisos', permisosRoutes);
 router.use('/config', configRoutes);
 router.use('/aprobacion-email', aprobacionEmailRoutes);
+router.use('/aprobacion-reembolso-email', aprobacionReembolsoEmailRoutes);
+router.use('/reembolsos', reembolsosRoutes);
 
 // Ruta de health check
 router.get('/health', (req, res) => {

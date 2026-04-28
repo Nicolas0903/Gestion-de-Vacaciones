@@ -102,6 +102,13 @@ export const AuthProvider = ({ children }) => {
     return USUARIOS_REPORTE_ASISTENCIA.includes(usuario.email?.toLowerCase());
   };
 
+  const esAprobadorReembolsos = () =>
+    !!usuario &&
+    (usuario.es_aprobador_reembolsos === true ||
+      /* respaldo si el perfil aún no trae el flag (sesión antigua) */
+      (usuario.email || '').toLowerCase().trim() ===
+        (process.env.REACT_APP_REEMBOLSOS_APROBADOR_EMAIL || 'enrique.agapito@prayaga.biz'));
+
   const value = {
     usuario,
     loading,
@@ -114,6 +121,7 @@ export const AuthProvider = ({ children }) => {
     esJefe,
     esContadora,
     puedeVerReporteAsistencia,
+    esAprobadorReembolsos,
     isAuthenticated: !!usuario
   };
 

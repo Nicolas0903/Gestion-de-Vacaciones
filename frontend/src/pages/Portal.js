@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
-  const { usuario, puedeVerReporteAsistencia, esAdmin, esContadora } = useAuth();
+  const { usuario, puedeVerReporteAsistencia, esAdmin, esContadora, esAprobadorReembolsos } = useAuth();
 
   const modulos = [
     {
@@ -199,8 +199,11 @@ const Portal = () => {
                     <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
                   </Link>
                   
-                  {/* Botón de gestión para admin/contadora */}
-                  {modulo.adminLink && (esAdmin() || esContadora()) && (
+                  {/* Botón de gestión: reembolsos solo aprobador asignado; resto admin/contadora */}
+                  {modulo.adminLink &&
+                    (modulo.id === 'reembolsos'
+                      ? esAprobadorReembolsos()
+                      : esAdmin() || esContadora()) && (
                     <Link
                       to={modulo.adminLink}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors"

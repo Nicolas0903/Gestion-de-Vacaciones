@@ -154,5 +154,21 @@ export const permisoService = {
   rechazar: (id, comentarios) => api.put(`/permisos/${id}/rechazar`, { comentarios }),
 };
 
+// Reembolsos
+export const reembolsoService = {
+  crear: (formData) =>
+    api.post('/reembolsos', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  misSolicitudes: () => api.get('/reembolsos/mis-solicitudes'),
+  pendientes: () => api.get('/reembolsos/pendientes'),
+  todos: (params = {}) => api.get('/reembolsos/todos', { params }),
+  obtener: (id) => api.get(`/reembolsos/${id}`),
+  descargarRecibo: (id) => api.get(`/reembolsos/${id}/recibo`, { responseType: 'blob' }),
+  descargarComprobante: (id) => api.get(`/reembolsos/${id}/comprobante`, { responseType: 'blob' }),
+  aprobar: (id, comentarios = '') => api.put(`/reembolsos/${id}/aprobar`, { comentarios }),
+  rechazar: (id, comentarios) => api.put(`/reembolsos/${id}/rechazar`, { comentarios }),
+};
+
 export default api;
 

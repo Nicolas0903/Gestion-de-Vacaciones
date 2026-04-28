@@ -107,6 +107,8 @@ const verificarPropioOAdmin = (req, res, next) => {
 
 module.exports = {
   autenticar,
+  /** Alias usado en varias rutas (mismo comportamiento que autenticar). */
+  verificarToken: autenticar,
   verificarRol,
   verificarNivelAprobacion,
   verificarPropioOAdmin
