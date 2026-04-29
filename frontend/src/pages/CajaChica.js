@@ -35,7 +35,7 @@ const TIPOS = [
   { value: 'deposito_adicional', label: 'Depósito adicional del mes' },
   {
     value: 'saldo_anterior',
-    label: 'Saldo a favor de la caja chica anterior (siempre negativo o cero)'
+    label: 'Saldo de la caja chica (cierre del período anterior)'
   }
 ];
 
@@ -139,7 +139,7 @@ const CajaChica = () => {
     if (!selId || !detalle) return;
     if (
       !window.confirm(
-        '¿Cerrar este período? El saldo quedará fijado y se usará como sugerencia de “saldo anterior” en el mes siguiente.'
+        '¿Cerrar este período? El saldo calculado quedará guardado y, al crear el siguiente período, se cargará automáticamente en la línea de saldo del período anterior (positivo o negativo).'
       )
     ) {
       return;
@@ -360,8 +360,9 @@ const CajaChica = () => {
             <>
               {detalle.saldo_anterior_sugerido != null && (
                 <div className="rounded-xl bg-sky-50 border border-sky-100 px-4 py-3 text-sm text-sky-900">
-                  <strong>Saldo del mes anterior (cerrado):</strong> {fmt(detalle.saldo_anterior_sugerido)}. Puedes
-                  usarlo como línea &quot;Saldo a favor de la caja chica anterior&quot; en ingresos.
+                  <strong>Saldo del último período cerrado antes de este mes:</strong>{' '}
+                  {fmt(detalle.saldo_anterior_sugerido)}. Al crear un período nuevo se rellena solo en la línea
+                  correspondiente; aquí puedes comprobar o ajustar el monto si hace falta.
                 </div>
               )}
 
@@ -429,7 +430,9 @@ const CajaChica = () => {
                                 inputMode="decimal"
                                 className="w-full min-w-[10rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm tabular-nums text-right"
                                 placeholder={
-                                  row.tipo_motivo === 'saldo_anterior' ? 'Ej. -139.85 (negativo)' : ''
+                                  row.tipo_motivo === 'saldo_anterior'
+                                    ? 'Positivo o negativo según el cierre'
+                                    : ''
                                 }
                                 value={row.monto}
                                 onChange={(e) => {

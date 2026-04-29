@@ -9,6 +9,57 @@ class CajaChica {
     return r.insertId;
   }
 
+  /**
+   * Crea período en borrador y, si hay un cierre anterior, deja tres líneas de ingreso:
+   * caja chica y depósito en 0 (para completar) y saldo_anterior con el monto del sistema.
+   */
+  static async crearPeriodoYSembrarSaldoAnterior(anio, mes) {
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [ins] = await conn.execute(
+        `INSERT INTO caja_chica_periodos (anio, mes, estado) VALUES (?, ?, 'borrador')`,
+        [anio, mes]
+      );
+      const periodoId = ins.insertId;
+
+      const [rows] = await conn.execute(
+        `SELECT saldo_cierre FROM caja_chica_periodos
+         WHERE estado = 'cerrado'
+           AND saldo_cierre IS NOT NULL
+           AND (anio < ? OR (anio = ? AND mes < ?))
+         ORDER BY anio DESC, mes DESC
+         LIMIT 1`,
+        [anio, anio, mes]
+      );
+      const saldoAnt =
+        rows[0] && rows[0].saldo_cierre != null ? Number(rows[0].saldo_cierre) : null;
+
+      if (saldoAnt != null) {
+        const lineas = [
+          { tipo_motivo: 'caja_chica', monto: 0 },
+          { tipo_motivo: 'deposito_adicional', monto: 0 },
+          { tipo_motivo: 'saldo_anterior', monto: saldoAnt }
+        ];
+        let orden = 0;
+        for (const linea of lineas) {
+          await conn.execute(
+            `INSERT INTO caja_chica_ingresos (periodo_id, tipo_motivo, monto, orden) VALUES (?, ?, ?, ?)`,
+            [periodoId, linea.tipo_motivo, linea.monto, orden++]
+          );
+        }
+      }
+
+      await conn.commit();
+      return periodoId;
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+  }
+
   static async buscarPeriodoPorId(id) {
     const [rows] = await pool.execute(`SELECT * FROM caja_chica_periodos WHERE id = ?`, [id]);
     return rows[0];
@@ -52,11 +103,6 @@ class CajaChica {
         if (!tipos.includes(linea.tipo_motivo)) {
           throw new Error('tipo_motivo no válido');
         }
-        if (linea.tipo_motivo === 'saldo_anterior' && monto > 0) {
-          throw new Error(
-            'El saldo a favor de la caja chica anterior debe ser negativo o cero (use signo −, ej. −139.85).'
-          );
-        }
         await conn.execute(
           `INSERT INTO caja_chica_ingresos (periodo_id, tipo_motivo, monto, orden) VALUES (?, ?, ?, ?)`,
           [periodoId, linea.tipo_motivo, monto, orden++]
@@ -93,14 +139,19 @@ class CajaChica {
     return r.affectedRows > 0;
   }
 
-  /** Último período cerrado anterior al (anio, mes); devuelve saldo_cierre o null */
+  /**
+   * Saldo de cierre del último período cerrado estrictamente anterior a (anio, mes).
+   * Permite huecos entre meses: no exige que el mes previo calendario exista.
+   */
   static async saldoCierrePeriodoAnterior(anio, mes) {
-    const prevMes = mes === 1 ? 12 : mes - 1;
-    const prevAnio = mes === 1 ? anio - 1 : anio;
     const [rows] = await pool.execute(
       `SELECT saldo_cierre FROM caja_chica_periodos
-       WHERE estado = 'cerrado' AND anio = ? AND mes = ?`,
-      [prevAnio, prevMes]
+       WHERE estado = 'cerrado'
+         AND saldo_cierre IS NOT NULL
+         AND (anio < ? OR (anio = ? AND mes < ?))
+       ORDER BY anio DESC, mes DESC
+       LIMIT 1`,
+      [anio, anio, mes]
     );
     if (rows[0] && rows[0].saldo_cierre != null) {
       return Number(rows[0].saldo_cierre);

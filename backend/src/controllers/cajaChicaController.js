@@ -21,7 +21,7 @@ const MESES_NOMBRE = [
 const TIPOS_INGRESO_LABEL = {
   caja_chica: 'Caja chica',
   deposito_adicional: 'Depósito adicional del mes',
-  saldo_anterior: 'Saldo a favor de la caja chica anterior'
+  saldo_anterior: 'Saldo de la caja chica (cierre del período anterior)'
 };
 
 function ultimoDiaMes(anio, mes) {
@@ -112,7 +112,7 @@ const crearPeriodo = async (req, res) => {
     if (existe) {
       return res.status(409).json({ success: false, mensaje: 'Ya existe un período para ese mes.' });
     }
-    const id = await CajaChica.crearPeriodo(anio, mes);
+    const id = await CajaChica.crearPeriodoYSembrarSaldoAnterior(anio, mes);
     const row = await CajaChica.buscarPeriodoPorId(id);
     res.status(201).json({ success: true, data: row });
   } catch (e) {
