@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const PDFService = require('./pdfService');
 const TokenAprobacion = require('../models/TokenAprobacion');
 const { calcularFechaEfectivaRegreso } = require('../utils/calcularDiasVacaciones');
@@ -1076,10 +1077,9 @@ const enviarCajaChicaResumenRocio = async ({
   const sal = Number(totales?.saldo) || 0;
 
   const safeFile = String(periodoEtiqueta).replace(/[^\w\-]+/g, '_');
-  let resumenPdf;
-  let fusionPdf;
+  let pdfCompletoBuffer;
   try {
-    resumenPdf = await PDFService.generarResumenCajaChicaFormal({
+    const resumenPdf = await PDFService.generarResumenCajaChicaFormal({
       periodoEtiqueta,
       estadoPeriodo,
       saldoCierreGuardado,
@@ -1090,16 +1090,30 @@ const enviarCajaChicaResumenRocio = async ({
       totales,
       enviadoPorNombre
     });
-    fusionPdf = await PDFService.fusionarComprobantesReintegros(reembolsosOrdenados);
+    pdfCompletoBuffer = await PDFService.generarPdfCajaChicaCompletoUnArchivo(
+      resumenPdf,
+      reembolsosOrdenados
+    );
   } catch (errPdf) {
     console.error('PDF caja chica Rocío:', errPdf);
-    return { ok: false, mensaje: errPdf.message || 'Error al generar los PDF adjuntos.' };
+    return { ok: false, mensaje: errPdf.message || 'Error al generar el PDF adjunto.' };
   }
+
+  const bufAdjunto = Buffer.isBuffer(pdfCompletoBuffer)
+    ? pdfCompletoBuffer
+    : Buffer.from(pdfCompletoBuffer || []);
+  if (!bufAdjunto.length || bufAdjunto.length < 200) {
+    console.error('Caja chica Rocío: PDF generado demasiado pequeño o vacío:', bufAdjunto.length);
+    return { ok: false, mensaje: 'El PDF generado no es válido (tamaño cero).' };
+  }
+  console.log(
+    `📎 Caja chica → ${destino}: PDF único ${bufAdjunto.length} bytes (${periodoEtiqueta})`
+  );
 
   const contenido = `
     <p>Hola <strong>Rocío</strong>,</p>
     <p>Se envía el resumen de <strong>caja chica</strong> solicitado desde el portal.</p>
-    <p style="font-size:13px;line-height:1.5;">Adjuntos: <strong>(1)</strong> PDF con el resumen formal (ingresos, egresos y saldos) y <strong>(2)</strong> PDF con la <strong>fusión de comprobantes y recibos Prayaga</strong> del período, en <strong>orden por fecha de documento</strong>. Los formatos que no son PDF ni imagen aparecen indicados en una hoja dentro del segundo archivo.</p>
+    <p style="font-size:13px;line-height:1.5;"><strong>Adjunto:</strong> un solo archivo PDF que incluye primero el <strong>resumen formal</strong> (ingresos, egresos y saldos) y, a continuación, la <strong>fusión de todos los comprobantes y recibos Prayaga</strong> del período, en <strong>orden por fecha de documento</strong>. Los archivos que no son PDF ni imagen aparecen indicados en una hoja aparte.</p>
     <div class="info-box">
       <div class="info-row"><span class="info-label">Período</span><span class="info-value">${escapeHtml(periodoEtiqueta)}</span></div>
       <div class="info-row"><span class="info-label">Estado</span><span class="info-value">${escapeHtml(estadoPeriodo)}</span></div>
@@ -1130,22 +1144,35 @@ const enviarCajaChicaResumenRocio = async ({
     </div>
   `;
 
+  const tmpPdf = path.join(os.tmpdir(), `cchica-rocio-${process.pid}-${Date.now()}.pdf`);
   try {
+    fs.writeFileSync(tmpPdf, bufAdjunto);
     const transporter = createTransporter();
     await transporter.sendMail({
       from: `"Portal RRHH - Caja chica" <${process.env.SMTP_USER}>`,
       to: destino,
       subject: `Caja chica · ${periodoEtiqueta} (${estadoPeriodo})`,
+      text: `Resumen de caja chica (${periodoEtiqueta}). Documento PDF adjunto: resumen formal y fusión de comprobantes/recibos Prayaga por fecha de documento.`,
       html: plantillaBase(contenido, 'Resumen enviado desde el portal', MARCA_ENCABEZADO_CAJA_CHICA, PIE_EMAIL_CAJA_CHICA),
       attachments: [
-        { filename: `Resumen-caja-chica-${safeFile}.pdf`, content: resumenPdf },
-        { filename: `Comprobantes-reintegros-${safeFile}.pdf`, content: fusionPdf }
+        {
+          filename: `Caja-chica-${safeFile}-completo.pdf`,
+          path: tmpPdf,
+          contentType: 'application/pdf',
+          contentDisposition: 'attachment'
+        }
       ]
     });
     return { ok: true };
   } catch (error) {
-    console.error('❌ Error email caja chica Rocío:', error.message);
+    console.error('❌ Error email caja chica Rocío:', error.message, error.stack);
     return { ok: false, mensaje: error.message };
+  } finally {
+    try {
+      if (fs.existsSync(tmpPdf)) fs.unlinkSync(tmpPdf);
+    } catch (_) {
+      /* ignore */
+    }
   }
 };
 

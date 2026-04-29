@@ -483,7 +483,7 @@ class PDFService {
         y += 28;
         doc.fontSize(8).font('Helvetica').fillColor('#64748b')
           .text(
-            'Los comprobantes y recibos originales se adjuntan en un segundo archivo PDF (fusión ordenada por fecha de documento).',
+            'A continuación en el mismo documento PDF se incluyen los comprobantes y recibos Prayaga (orden por fecha de documento).',
             margin,
             y,
             { width: contentW, align: 'center' }
@@ -497,12 +497,12 @@ class PDFService {
   }
 
   /**
-   * Une PDFs e imágenes de comprobantes/recibos Prayaga en orden (misma que reembolsosRows).
+   * Añade al PDF las páginas de cada comprobante o recibo Prayaga (orden de reembolsosRows).
+   * @returns {boolean} true si se añadió al menos una página de archivo
    */
-  static async fusionarComprobantesReintegros(reembolsosRows) {
+  static async _appendComprobantesReintegrosAlPdf(merged, reembolsosRows) {
     const { PDFDocument, StandardFonts } = require('pdf-lib');
     const Reembolso = require('../models/Reembolso');
-    const merged = await PDFDocument.create();
     let any = false;
 
     const drawImageFit = (page, img) => {
@@ -526,7 +526,7 @@ class PDFService {
       const bytes = fs.readFileSync(filePath);
       try {
         if (ext === '.pdf') {
-          const src = await PDFDocument.load(bytes);
+          const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
           const copied = await merged.copyPages(src, src.getPageIndices());
           copied.forEach((p) => merged.addPage(p));
           any = true;
@@ -553,7 +553,7 @@ class PDFService {
           any = true;
         }
       } catch (err) {
-        console.warn('fusionarComprobantesReintegros:', codigo, err.message);
+        console.warn('_appendComprobantesReintegrosAlPdf:', codigo, err.message);
         const page = merged.addPage([595.28, 841.89]);
         const font = await merged.embedFont(StandardFonts.Helvetica);
         page.drawText(`Error al incluir ${codigo}: ${err.message}`, { x: 50, y: 780, size: 9, font });
@@ -561,6 +561,16 @@ class PDFService {
       }
     }
 
+    return any;
+  }
+
+  /**
+   * Solo comprobantes/recibos (sin resumen). Útil para pruebas.
+   */
+  static async fusionarComprobantesReintegros(reembolsosRows) {
+    const { PDFDocument, StandardFonts } = require('pdf-lib');
+    const merged = await PDFDocument.create();
+    const any = await PDFService._appendComprobantesReintegrosAlPdf(merged, reembolsosRows);
     if (!any) {
       const page = merged.addPage([595.28, 841.89]);
       const font = await merged.embedFont(StandardFonts.Helvetica);
@@ -571,8 +581,33 @@ class PDFService {
         font
       });
     }
-
     return Buffer.from(await merged.save());
+  }
+
+  /**
+   * Un solo PDF para Rocío: resumen formal (pdfkit) + fusión de comprobantes y recibos Prayaga.
+   */
+  static async generarPdfCajaChicaCompletoUnArchivo(bufResumenPdf, reembolsosRows) {
+    const { PDFDocument, StandardFonts } = require('pdf-lib');
+    const resumenBuf = Buffer.isBuffer(bufResumenPdf) ? bufResumenPdf : Buffer.from(bufResumenPdf);
+    const merged = await PDFDocument.create();
+
+    const summary = await PDFDocument.load(resumenBuf, { ignoreEncryption: true });
+    const summaryPages = await merged.copyPages(summary, summary.getPageIndices());
+    summaryPages.forEach((p) => merged.addPage(p));
+
+    const anyComp = await PDFService._appendComprobantesReintegrosAlPdf(merged, reembolsosRows);
+    if (!anyComp) {
+      const page = merged.addPage([595.28, 841.89]);
+      const font = await merged.embedFont(StandardFonts.Helvetica);
+      page.drawText(
+        'No se adjuntaron comprobantes ni recibos Prayaga: no hay archivos en el servidor o las rutas no coinciden con este entorno.',
+        { x: 50, y: 780, size: 11, font, maxWidth: 495 }
+      );
+    }
+
+    const out = await merged.save();
+    return Buffer.from(out);
   }
 }
 
