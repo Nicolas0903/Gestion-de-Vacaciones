@@ -1028,6 +1028,19 @@ const PIE_EMAIL_CAJA_CHICA =
 const emailDestinoCajaChicaRocio = () =>
   (process.env.CAJA_CHICA_EMAIL_ROCIO || 'rocio.picon@prayaga.biz').trim();
 
+/** Copia del resumen caja chica (pruebas o segundo destinatario). Vacío en .env = usar default Enrique. */
+const emailCopiaCajaChicaResumen = () =>
+  (process.env.CAJA_CHICA_EMAIL_COPIA !== undefined
+    ? String(process.env.CAJA_CHICA_EMAIL_COPIA).trim()
+    : 'enrique.agapito@prayaga.biz'
+  ).trim();
+
+const destinatariosCajaChicaResumen = () => {
+  const a = emailDestinoCajaChicaRocio();
+  const b = emailCopiaCajaChicaResumen();
+  return [...new Set([a, b].filter(Boolean))];
+};
+
 /**
  * Resumen de período caja chica para contadora (Rocío).
  */
@@ -1046,10 +1059,11 @@ const enviarCajaChicaResumenRocio = async ({
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     return { ok: false, mensaje: 'Email no configurado.' };
   }
-  const destino = emailDestinoCajaChicaRocio();
-  if (!destino) {
+  const destinatarios = destinatariosCajaChicaResumen();
+  if (!destinatarios.length) {
     return { ok: false, mensaje: 'Sin destinatario configurado.' };
   }
+  const toField = destinatarios.join(', ');
 
   const filasIng = (ingresos || [])
     .map(
@@ -1107,7 +1121,7 @@ const enviarCajaChicaResumenRocio = async ({
     return { ok: false, mensaje: 'El PDF generado no es válido (tamaño cero).' };
   }
   console.log(
-    `📎 Caja chica → ${destino}: PDF único ${bufAdjunto.length} bytes (${periodoEtiqueta})`
+    `📎 Caja chica → [${destinatarios.join(' | ')}]: PDF único ${bufAdjunto.length} bytes (${periodoEtiqueta})`
   );
 
   const contenido = `
@@ -1150,7 +1164,7 @@ const enviarCajaChicaResumenRocio = async ({
     const transporter = createTransporter();
     await transporter.sendMail({
       from: `"Portal RRHH - Caja chica" <${process.env.SMTP_USER}>`,
-      to: destino,
+      to: toField,
       subject: `Caja chica · ${periodoEtiqueta} (${estadoPeriodo})`,
       text: `Resumen de caja chica (${periodoEtiqueta}). Documento PDF adjunto: resumen formal y fusión de comprobantes/recibos Prayaga por fecha de documento.`,
       html: plantillaBase(contenido, 'Resumen enviado desde el portal', MARCA_ENCABEZADO_CAJA_CHICA, PIE_EMAIL_CAJA_CHICA),
@@ -1163,7 +1177,7 @@ const enviarCajaChicaResumenRocio = async ({
         }
       ]
     });
-    return { ok: true };
+    return { ok: true, destinatarios };
   } catch (error) {
     console.error('❌ Error email caja chica Rocío:', error.message, error.stack);
     return { ok: false, mensaje: error.message };

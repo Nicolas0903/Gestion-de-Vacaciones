@@ -262,10 +262,12 @@ const enviarResumenRocio = async (req, res) => {
     if (!resultado.ok) {
       return res.status(503).json({ success: false, mensaje: resultado.mensaje || 'No se pudo enviar el correo.' });
     }
-    const destinoRocio = (process.env.CAJA_CHICA_EMAIL_ROCIO || 'rocio.picon@prayaga.biz').trim();
+    const lista = resultado.destinatarios?.length
+      ? resultado.destinatarios.join(', ')
+      : (process.env.CAJA_CHICA_EMAIL_ROCIO || 'rocio.picon@prayaga.biz').trim();
     res.json({
       success: true,
-      mensaje: `Resumen enviado a ${destinoRocio}.`
+      mensaje: `Resumen enviado a: ${lista}.`
     });
   } catch (e) {
     console.error(e);
