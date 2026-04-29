@@ -38,6 +38,17 @@ export default function AdministracionUsuarios() {
   const [accesoExpandido, setAccesoExpandido] = useState(true);
 
   const [modalAlta, setModalAlta] = useState(false);
+  const [guardandoCuenta, setGuardandoCuenta] = useState(false);
+  const [formCuenta, setFormCuenta] = useState({
+    nombres: '',
+    apellidos: '',
+    email: '',
+    dni: '',
+    cargo: '',
+    fecha_ingreso: '',
+    codigo_empleado: '',
+    rol_id: ''
+  });
   const [roles, setRoles] = useState([]);
   const [formAlta, setFormAlta] = useState({
     codigo_empleado: '',
@@ -92,9 +103,19 @@ export default function AdministracionUsuarios() {
       setDetalle({ empleado, modulos_editor });
       const draft = {};
       (modulos_editor || []).forEach((m) => {
-        draft[m.id] = !!m.asignado;
+        draft[m.id] = m.permitido_por_rol ? !!m.asignado : false;
       });
       setModulosDraft(draft);
+      setFormCuenta({
+        nombres: empleado.nombres || '',
+        apellidos: empleado.apellidos || '',
+        email: empleado.email || '',
+        dni: empleado.dni || '',
+        cargo: empleado.cargo || '',
+        fecha_ingreso: (empleado.fecha_ingreso || '').slice(0, 10),
+        codigo_empleado: empleado.codigo_empleado || '',
+        rol_id: empleado.rol_id != null ? String(empleado.rol_id) : ''
+      });
     } catch (e) {
       toast.error(e.response?.data?.mensaje || 'No se pudo cargar el usuario');
       setDrawerId(null);
@@ -225,12 +246,61 @@ export default function AdministracionUsuarios() {
       await adminPortalUsuariosService.actualizarModulos(detalle.empleado.id, modulosDraft);
       toast.success('Acceso guardado');
       const res = await adminPortalUsuariosService.obtener(detalle.empleado.id);
-      setDetalle(res.data.data);
+      const payload = res.data.data;
+      setDetalle(payload);
+      const d2 = {};
+      (payload.modulos_editor || []).forEach((m) => {
+        d2[m.id] = m.permitido_por_rol ? !!m.asignado : false;
+      });
+      setModulosDraft(d2);
       cargarLista();
     } catch (e) {
       toast.error(e.response?.data?.mensaje || 'No se pudo guardar');
     } finally {
       setGuardandoModulos(false);
+    }
+  };
+
+  const guardarCuenta = async (e) => {
+    e.preventDefault();
+    if (!detalle?.empleado) return;
+    setGuardandoCuenta(true);
+    try {
+      await adminPortalUsuariosService.actualizarCuenta(detalle.empleado.id, {
+        nombres: formCuenta.nombres,
+        apellidos: formCuenta.apellidos,
+        email: formCuenta.email,
+        dni: formCuenta.dni,
+        cargo: formCuenta.cargo,
+        fecha_ingreso: formCuenta.fecha_ingreso,
+        codigo_empleado: formCuenta.codigo_empleado,
+        rol_id: formCuenta.rol_id ? parseInt(formCuenta.rol_id, 10) : undefined
+      });
+      toast.success('Cuenta actualizada');
+      const res = await adminPortalUsuariosService.obtener(detalle.empleado.id);
+      const payload = res.data.data;
+      setDetalle(payload);
+      const em = payload.empleado;
+      setFormCuenta({
+        nombres: em.nombres || '',
+        apellidos: em.apellidos || '',
+        email: em.email || '',
+        dni: em.dni || '',
+        cargo: em.cargo || '',
+        fecha_ingreso: (em.fecha_ingreso || '').slice(0, 10),
+        codigo_empleado: em.codigo_empleado || '',
+        rol_id: em.rol_id != null ? String(em.rol_id) : ''
+      });
+      const d2 = {};
+      (payload.modulos_editor || []).forEach((m) => {
+        d2[m.id] = m.permitido_por_rol ? !!m.asignado : false;
+      });
+      setModulosDraft(d2);
+      cargarLista();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo guardar la cuenta');
+    } finally {
+      setGuardandoCuenta(false);
     }
   };
 
@@ -262,9 +332,10 @@ export default function AdministracionUsuarios() {
     }
   };
 
-  const cuentaActivos = detalle?.modulos_editor
-    ? Object.values(modulosDraft).filter(Boolean).length
-    : 0;
+  const cuentaActivos = useMemo(() => {
+    if (!detalle?.modulos_editor?.length) return 0;
+    return detalle.modulos_editor.filter((m) => m.permitido_por_rol && modulosDraft[m.id]).length;
+  }, [detalle?.modulos_editor, modulosDraft]);
 
   return (
     <div className="min-h-screen bg-[#1c1b1a] text-gray-100">
@@ -373,14 +444,22 @@ export default function AdministracionUsuarios() {
                         {row.nombres} {row.apellidos}
                       </td>
                       <td className="px-3 py-3 text-gray-300">{row.email}</td>
-                      <td className="px-3 py-3 text-gray-300 max-w-md">
-                        {(row.acceso_portal || []).length ? (
-                          <span className="line-clamp-2">
-                            {(row.acceso_portal || []).join(', ')}
-                          </span>
-                        ) : (
-                          <span className="text-gray-500">Sin accesos según rol</span>
-                        )}
+                      <td className="px-3 py-3 text-gray-300 max-w-xl">
+                        <div className="flex flex-wrap gap-1">
+                          {(row.acceso_portal_detalle || []).map((x) => (
+                            <span
+                              key={x.id}
+                              className={cx(
+                                'text-xs px-2 py-0.5 rounded border',
+                                x.activo
+                                  ? 'bg-violet-500/20 text-violet-200 border-violet-500/35'
+                                  : 'bg-white/[0.04] text-gray-500 border-white/5'
+                              )}
+                            >
+                              {x.etiqueta}
+                            </span>
+                          ))}
+                        </div>
                       </td>
                       <td className="px-3 py-3">
                         <span
@@ -485,21 +564,120 @@ export default function AdministracionUsuarios() {
 
             <div className="flex-1 overflow-y-auto p-5">
               {!detalle?.empleado ? null : tabDetalle === 'cuenta' ? (
-                <div className="grid grid-cols-1 gap-5 text-sm">
-                  <Campo label="Correo" valor={detalle.empleado.email} />
-                  <Campo label="Rol" valor={detalle.empleado.rol_nombre} />
-                  <Campo label="Código empleado" valor={detalle.empleado.codigo_empleado} />
-                  <Campo label="DNI" valor={detalle.empleado.dni} />
-                  <Campo label="Cargo" valor={detalle.empleado.cargo || '—'} />
-                  <Campo
-                    label="Fecha de ingreso"
-                    valor={detalle.empleado.fecha_ingreso?.slice(0, 10) || '—'}
-                  />
-                  <Campo
-                    label="Estado"
-                    valor={detalle.empleado.activo ? 'Activo' : 'Bloqueado'}
-                  />
-                </div>
+                <form onSubmit={guardarCuenta} className="grid grid-cols-1 gap-4 text-sm">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                      Nombres
+                    </label>
+                    <input
+                      required
+                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      value={formCuenta.nombres}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, nombres: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                      Apellidos
+                    </label>
+                    <input
+                      required
+                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      value={formCuenta.apellidos}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, apellidos: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                      Correo
+                    </label>
+                    <input
+                      required
+                      type="email"
+                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      value={formCuenta.email}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, email: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                      Rol
+                    </label>
+                    <select
+                      required
+                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      value={formCuenta.rol_id}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, rol_id: e.target.value }))}
+                    >
+                      <option value="">Seleccionar…</option>
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                      Código empleado
+                    </label>
+                    <input
+                      required
+                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      value={formCuenta.codigo_empleado}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, codigo_empleado: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                      DNI
+                    </label>
+                    <input
+                      required
+                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      value={formCuenta.dni}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, dni: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                      Cargo
+                    </label>
+                    <input
+                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      placeholder="Opcional"
+                      value={formCuenta.cargo}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, cargo: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                      Fecha de ingreso
+                    </label>
+                    <input
+                      required
+                      type="date"
+                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      value={formCuenta.fecha_ingreso}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, fecha_ingreso: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                      Estado
+                    </div>
+                    <div className="text-white">
+                      {detalle.empleado.activo ? 'Activo' : 'Bloqueado'}
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={guardandoCuenta}
+                    className="mt-2 py-2.5 rounded bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium disabled:opacity-50"
+                  >
+                    {guardandoCuenta ? 'Guardando…' : 'Guardar cambios de cuenta'}
+                  </button>
+                </form>
               ) : (
                 <div>
                   <button
@@ -516,35 +694,61 @@ export default function AdministracionUsuarios() {
                   </button>
                   {accesoExpandido && (
                     <ul className="mt-2 space-y-3">
-                      {(detalle.modulos_editor || []).map((m) => (
-                        <li
-                          key={m.id}
-                          className="flex gap-3 items-start p-3 rounded-lg bg-[#1c1b1a] border border-white/10"
-                        >
-                          <input
-                            type="checkbox"
-                            id={`mod-${m.id}`}
-                            checked={!!modulosDraft[m.id]}
-                            onChange={(e) =>
-                              setModulosDraft((d) => ({ ...d, [m.id]: e.target.checked }))
-                            }
-                            className="mt-1 w-4 h-4 rounded border-gray-500 text-blue-600 focus:ring-blue-500"
-                          />
-                          <label htmlFor={`mod-${m.id}`} className="cursor-pointer flex-1">
-                            <span className="font-medium text-white block">{m.etiqueta}</span>
-                            <span className="text-xs text-gray-400 block mt-0.5">
-                              {m.descripcion}
-                            </span>
-                          </label>
-                        </li>
-                      ))}
+                      {(detalle.modulos_editor || []).map((m) => {
+                        const editable = m.permitido_por_rol;
+                        const on = editable && !!modulosDraft[m.id];
+                        return (
+                          <li
+                            key={m.id}
+                            className={cx(
+                              'flex gap-3 items-start p-3 rounded-lg border transition-colors',
+                              !editable && 'opacity-50 border-white/5 bg-[#1a1918]',
+                              editable && on && 'bg-violet-500/15 border-violet-500/40',
+                              editable && !on && 'border-white/10 bg-[#1c1b1a]'
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              id={`mod-${m.id}`}
+                              disabled={!editable}
+                              checked={editable ? !!modulosDraft[m.id] : false}
+                              onChange={(e) =>
+                                editable &&
+                                setModulosDraft((d) => ({ ...d, [m.id]: e.target.checked }))
+                              }
+                              className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500 text-violet-600 focus:ring-violet-500 disabled:cursor-not-allowed"
+                            />
+                            <label
+                              htmlFor={`mod-${m.id}`}
+                              className={cx('flex-1', editable && 'cursor-pointer')}
+                            >
+                              <span
+                                className={cx(
+                                  'font-medium block',
+                                  on ? 'text-violet-100' : 'text-gray-200'
+                                )}
+                              >
+                                {m.etiqueta}
+                              </span>
+                              <span className="text-xs text-gray-400 block mt-0.5">
+                                {m.descripcion}
+                              </span>
+                              {!editable && (
+                                <span className="text-[11px] text-gray-500 block mt-1">
+                                  No aplica con el rol actual (cambia el rol en Cuenta para habilitarlo)
+                                </span>
+                              )}
+                            </label>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                   <button
                     type="button"
                     onClick={guardarModulos}
                     disabled={guardandoModulos}
-                    className="mt-6 w-full py-2.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium disabled:opacity-50"
+                    className="mt-6 w-full py-2.5 rounded bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium disabled:opacity-50"
                   >
                     {guardandoModulos ? 'Guardando…' : 'Guardar cambios'}
                   </button>
@@ -651,15 +855,6 @@ export default function AdministracionUsuarios() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Campo({ label, valor }) {
-  return (
-    <div>
-      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</div>
-      <div className="text-white mt-1">{valor}</div>
     </div>
   );
 }

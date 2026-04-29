@@ -2,19 +2,16 @@ const bcrypt = require('bcryptjs');
 const { Empleado, PeriodoVacaciones } = require('../models');
 const { pool } = require('../config/database');
 const { MODULOS_PORTAL, MODULO_IDS } = require('../constants/portalModulos');
-const { rolPuedeModuloBase, etiquetasAccesoResumen } = require('../utils/portalAcceso');
+const {
+  rolPuedeModuloBase,
+  tieneAccesoEfectivoModulo,
+  accesoPortalDetalleCompleto
+} = require('../utils/portalAcceso');
 
 function sinPassword(empleado) {
   if (!empleado) return null;
   const { password: _, ...rest } = empleado;
   return rest;
-}
-
-function modulosAsignado(empleado, moduloId) {
-  if (!rolPuedeModuloBase(empleado.rol_nombre, moduloId, empleado.email)) return false;
-  const m = empleado.modulos_portal;
-  if (m == null || typeof m !== 'object') return true;
-  return m[moduloId] !== false;
 }
 
 function construirModulosPortalDesdeBody(empleado, incoming) {
@@ -52,7 +49,7 @@ const listarEmpleados = async (req, res) => {
     const empleados = await Empleado.listarTodos(filtros);
     const data = empleados.map((e) => ({
       ...e,
-      acceso_portal: etiquetasAccesoResumen(e)
+      acceso_portal_detalle: accesoPortalDetalleCompleto(e)
     }));
 
     res.json({ success: true, data });
@@ -70,13 +67,12 @@ const obtenerEmpleado = async (req, res) => {
       return res.status(404).json({ success: false, mensaje: 'Empleado no encontrado' });
     }
 
-    const modulos_editor = MODULOS_PORTAL.filter((mod) =>
-      rolPuedeModuloBase(empleado.rol_nombre, mod.id, empleado.email)
-    ).map((mod) => ({
+    const modulos_editor = MODULOS_PORTAL.map((mod) => ({
       id: mod.id,
       etiqueta: mod.etiqueta,
       descripcion: mod.descripcion,
-      asignado: modulosAsignado(empleado, mod.id)
+      permitido_por_rol: rolPuedeModuloBase(empleado.rol_nombre, mod.id, empleado.email),
+      asignado: tieneAccesoEfectivoModulo(empleado, mod.id)
     }));
 
     res.json({
@@ -219,6 +215,82 @@ const bloquearEmpleado = async (req, res) => {
   }
 };
 
+const actualizarCuenta = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const empleado = await Empleado.buscarPorId(id);
+    if (!empleado) {
+      return res.status(404).json({ success: false, mensaje: 'Empleado no encontrado' });
+    }
+
+    const permitidos = [
+      'nombres',
+      'apellidos',
+      'email',
+      'dni',
+      'cargo',
+      'fecha_ingreso',
+      'codigo_empleado',
+      'rol_id'
+    ];
+    const datos = {};
+    for (const k of permitidos) {
+      if (req.body[k] === undefined) continue;
+      if (k === 'cargo') {
+        datos.cargo = req.body[k] === '' || req.body[k] == null ? null : String(req.body[k]).trim();
+        continue;
+      }
+      const v = req.body[k];
+      datos[k] = typeof v === 'string' ? v.trim() : v;
+    }
+
+    if (datos.rol_id !== undefined) {
+      datos.rol_id = parseInt(datos.rol_id, 10);
+      if (Number.isNaN(datos.rol_id)) {
+        return res.status(400).json({ success: false, mensaje: 'rol_id no válido' });
+      }
+      const [r0] = await pool.execute('SELECT id FROM roles WHERE id = ?', [datos.rol_id]);
+      if (!r0.length) {
+        return res.status(400).json({ success: false, mensaje: 'Rol no existe' });
+      }
+    }
+
+    if (datos.email && datos.email !== empleado.email) {
+      const ex = await Empleado.buscarPorEmail(datos.email);
+      if (ex) {
+        return res.status(400).json({ success: false, mensaje: 'Ya existe un empleado con ese email' });
+      }
+    }
+    if (datos.codigo_empleado && datos.codigo_empleado !== empleado.codigo_empleado) {
+      const ex = await Empleado.buscarPorCodigo(datos.codigo_empleado);
+      if (ex) {
+        return res.status(400).json({ success: false, mensaje: 'Ya existe ese código de empleado' });
+      }
+    }
+    if (datos.dni && datos.dni !== empleado.dni) {
+      const ex = await Empleado.buscarPorDni(datos.dni);
+      if (ex) {
+        return res.status(400).json({ success: false, mensaje: 'Ya existe un empleado con ese DNI' });
+      }
+    }
+
+    if (Object.keys(datos).length === 0) {
+      return res.status(400).json({ success: false, mensaje: 'No hay datos para actualizar' });
+    }
+
+    await Empleado.actualizar(id, datos);
+    const actualizado = await Empleado.buscarPorId(id);
+    res.json({
+      success: true,
+      mensaje: 'Cuenta actualizada',
+      data: sinPassword(actualizado)
+    });
+  } catch (error) {
+    console.error('actualizarCuenta admin portal:', error);
+    res.status(500).json({ success: false, mensaje: 'Error interno del servidor' });
+  }
+};
+
 const restablecerPassword = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -248,6 +320,7 @@ module.exports = {
   listarEmpleados,
   obtenerEmpleado,
   crearEmpleado,
+  actualizarCuenta,
   actualizarModulosPortal,
   bloquearEmpleado,
   restablecerPassword

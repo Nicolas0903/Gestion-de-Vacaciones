@@ -23,19 +23,37 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
 }
 
 /**
- * Etiquetas para columna "Acceso" en listado (respeta modulos_portal cuando existe).
+ * Acceso efectivo (rol + correo + modulos_portal).
+ */
+function tieneAccesoEfectivoModulo(empleado, moduloId) {
+  if (!rolPuedeModuloBase(empleado.rol_nombre, moduloId, empleado.email)) return false;
+  const m = empleado.modulos_portal;
+  if (m == null || typeof m !== 'object') return true;
+  return m[moduloId] !== false;
+}
+
+/** Todos los módulos del catálogo con flag activo (para tabla y resúmenes). */
+function accesoPortalDetalleCompleto(empleado) {
+  return MODULOS_PORTAL.map((mod) => ({
+    id: mod.id,
+    etiqueta: mod.etiqueta,
+    activo: tieneAccesoEfectivoModulo(empleado, mod.id)
+  }));
+}
+
+/**
+ * Etiquetas solo de módulos con acceso efectivo (retrocompat).
  */
 function etiquetasAccesoResumen(empleado) {
-  const m = empleado.modulos_portal;
-  return MODULOS_PORTAL.filter((mod) => {
-    if (!rolPuedeModuloBase(empleado.rol_nombre, mod.id, empleado.email)) return false;
-    if (m == null || typeof m !== 'object') return true;
-    return m[mod.id] !== false;
-  }).map((mod) => mod.etiqueta);
+  return accesoPortalDetalleCompleto(empleado)
+    .filter((x) => x.activo)
+    .map((x) => x.etiqueta);
 }
 
 module.exports = {
   rolPuedeModuloBase,
+  tieneAccesoEfectivoModulo,
+  accesoPortalDetalleCompleto,
   etiquetasAccesoResumen,
   EMAILS_REPORTE_ASISTENCIA
 };

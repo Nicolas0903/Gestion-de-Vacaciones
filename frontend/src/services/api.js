@@ -182,6 +182,8 @@ export const adminPortalUsuariosService = {
     api.get('/admin-portal-usuarios/empleados', { params }),
   obtener: (id) => api.get(`/admin-portal-usuarios/empleados/${id}`),
   crear: (body) => api.post('/admin-portal-usuarios/empleados', body),
+  actualizarCuenta: (id, body) =>
+    api.put(`/admin-portal-usuarios/empleados/${id}/cuenta`, body),
   actualizarModulos: (id, modulos_portal) =>
     api.put(`/admin-portal-usuarios/empleados/${id}/modulos-portal`, { modulos_portal }),
   bloquear: (id) => api.put(`/admin-portal-usuarios/empleados/${id}/bloquear`),

@@ -12,6 +12,7 @@ router.get('/roles', ctrl.listarRoles);
 router.get('/empleados', ctrl.listarEmpleados);
 router.post('/empleados', ctrl.crearEmpleado);
 router.get('/empleados/:id', ctrl.obtenerEmpleado);
+router.put('/empleados/:id/cuenta', ctrl.actualizarCuenta);
 router.put('/empleados/:id/modulos-portal', ctrl.actualizarModulosPortal);
 router.put('/empleados/:id/bloquear', ctrl.bloquearEmpleado);
 router.post('/empleados/:id/restablecer-password', ctrl.restablecerPassword);
