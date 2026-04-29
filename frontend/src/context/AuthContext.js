@@ -114,30 +114,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Acceso a módulos del portal según rol y flags en modulos_portal (false = denegado explícito).
+   * Si hay mapa modulos_portal guardado, solo módulos con true. Si no, lógica histórica por rol/correo.
    */
   const puedeAccederModuloPortal = (moduloId) => {
     if (!usuario) return false;
     const m = usuario.modulos_portal;
-
-    const denegadoExplicito = m && typeof m === 'object' && m[moduloId] === false;
-
-    const baseColaborador = ['vacaciones', 'boletas', 'permisos', 'reembolsos'];
-    if (baseColaborador.includes(moduloId)) {
-      if (denegadoExplicito) return false;
-      return true;
+    const tieneMapa = m && typeof m === 'object' && Object.keys(m).length > 0;
+    if (tieneMapa) {
+      return m[moduloId] === true;
     }
 
+    const baseColaborador = ['vacaciones', 'boletas', 'permisos', 'reembolsos'];
+    if (baseColaborador.includes(moduloId)) return true;
+
     if (moduloId === 'asistencia') {
-      if (!puedeVerReporteAsistencia()) return false;
-      if (denegadoExplicito) return false;
-      return true;
+      return puedeVerReporteAsistencia();
     }
 
     if (moduloId === 'caja-chica' || moduloId === 'solicitudes-registro') {
-      if (!esAdmin() && !esContadora()) return false;
-      if (denegadoExplicito) return false;
-      return true;
+      return esAdmin() || esContadora();
     }
 
     return true;

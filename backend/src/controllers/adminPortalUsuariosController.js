@@ -2,11 +2,7 @@ const bcrypt = require('bcryptjs');
 const { Empleado, PeriodoVacaciones } = require('../models');
 const { pool } = require('../config/database');
 const { MODULOS_PORTAL, MODULO_IDS } = require('../constants/portalModulos');
-const {
-  rolPuedeModuloBase,
-  tieneAccesoEfectivoModulo,
-  accesoPortalDetalleCompleto
-} = require('../utils/portalAcceso');
+const { tieneAccesoEfectivoModulo, accesoPortalDetalleCompleto } = require('../utils/portalAcceso');
 
 function sinPassword(empleado) {
   if (!empleado) return null;
@@ -18,7 +14,6 @@ function construirModulosPortalDesdeBody(empleado, incoming) {
   const body = incoming && typeof incoming === 'object' ? incoming : {};
   const out = {};
   for (const mod of MODULOS_PORTAL) {
-    if (!rolPuedeModuloBase(empleado.rol_nombre, mod.id, empleado.email)) continue;
     out[mod.id] = body[mod.id] === undefined ? true : !!body[mod.id];
   }
   return out;
@@ -71,7 +66,6 @@ const obtenerEmpleado = async (req, res) => {
       id: mod.id,
       etiqueta: mod.etiqueta,
       descripcion: mod.descripcion,
-      permitido_por_rol: rolPuedeModuloBase(empleado.rol_nombre, mod.id, empleado.email),
       asignado: tieneAccesoEfectivoModulo(empleado, mod.id)
     }));
 
@@ -194,6 +188,29 @@ const actualizarModulosPortal = async (req, res) => {
   } catch (error) {
     console.error('actualizarModulosPortal:', error);
     res.status(500).json({ success: false, mensaje: 'Error interno del servidor' });
+  }
+};
+
+const eliminarPermanentemente = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (id === req.usuario.id) {
+      return res.status(400).json({ success: false, mensaje: 'No puedes eliminar tu propia cuenta' });
+    }
+    const ok = await Empleado.eliminarPermanentemente(id);
+    if (!ok) {
+      return res.status(404).json({ success: false, mensaje: 'Empleado no encontrado' });
+    }
+    res.json({ success: true, mensaje: 'Usuario eliminado definitivamente' });
+  } catch (error) {
+    console.error('eliminarPermanentemente:', error);
+    const ref = error.code === 'ER_ROW_IS_REFERENCED_2' || error.errno === 1451;
+    res.status(400).json({
+      success: false,
+      mensaje: ref
+        ? 'No se pudo eliminar: existen registros vinculados que no se pudieron borrar automáticamente.'
+        : error.message || 'Error al eliminar usuario'
+    });
   }
 };
 
@@ -322,6 +339,7 @@ module.exports = {
   crearEmpleado,
   actualizarCuenta,
   actualizarModulosPortal,
+  eliminarPermanentemente,
   bloquearEmpleado,
   restablecerPassword
 };

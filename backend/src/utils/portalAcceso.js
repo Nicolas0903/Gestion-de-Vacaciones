@@ -22,14 +22,21 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
   return false;
 }
 
+function tieneMapaPortalExplicito(empleado) {
+  const m = empleado.modulos_portal;
+  return m != null && typeof m === 'object' && Object.keys(m).length > 0;
+}
+
 /**
- * Acceso efectivo (rol + correo + modulos_portal).
+ * Acceso al módulo: si hay mapa JSON guardado, solo entran los que están en true.
+ * Si no hay mapa (null / vacío), se usa la lógica histórica por rol y correo.
  */
 function tieneAccesoEfectivoModulo(empleado, moduloId) {
+  if (tieneMapaPortalExplicito(empleado)) {
+    return empleado.modulos_portal[moduloId] === true;
+  }
   if (!rolPuedeModuloBase(empleado.rol_nombre, moduloId, empleado.email)) return false;
-  const m = empleado.modulos_portal;
-  if (m == null || typeof m !== 'object') return true;
-  return m[moduloId] !== false;
+  return true;
 }
 
 /** Todos los módulos del catálogo con flag activo (para tabla y resúmenes). */
@@ -52,6 +59,7 @@ function etiquetasAccesoResumen(empleado) {
 
 module.exports = {
   rolPuedeModuloBase,
+  tieneMapaPortalExplicito,
   tieneAccesoEfectivoModulo,
   accesoPortalDetalleCompleto,
   etiquetasAccesoResumen,

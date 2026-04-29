@@ -16,6 +16,22 @@ import { useAuth } from '../context/AuthContext';
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 
+function mapaModulosDesdeAccesoDetalle(detalle) {
+  const m = {};
+  (detalle || []).forEach((x) => {
+    m[x.id] = !!x.activo;
+  });
+  return m;
+}
+
+function aplicarModulosEditorADraft(modulos_editor) {
+  const draft = {};
+  (modulos_editor || []).forEach((mod) => {
+    draft[mod.id] = !!mod.asignado;
+  });
+  return draft;
+}
+
 function iniciales(nombres, apellidos) {
   const a = (nombres || '').trim().charAt(0) || '';
   const b = (apellidos || '').trim().charAt(0) || '';
@@ -36,6 +52,7 @@ export default function AdministracionUsuarios() {
   const [modulosDraft, setModulosDraft] = useState({});
   const [guardandoModulos, setGuardandoModulos] = useState(false);
   const [accesoExpandido, setAccesoExpandido] = useState(true);
+  const [moduloTagBusy, setModuloTagBusy] = useState(null);
 
   const [modalAlta, setModalAlta] = useState(false);
   const [guardandoCuenta, setGuardandoCuenta] = useState(false);
@@ -101,11 +118,7 @@ export default function AdministracionUsuarios() {
       const res = await adminPortalUsuariosService.obtener(id);
       const { empleado, modulos_editor } = res.data.data;
       setDetalle({ empleado, modulos_editor });
-      const draft = {};
-      (modulos_editor || []).forEach((m) => {
-        draft[m.id] = m.permitido_por_rol ? !!m.asignado : false;
-      });
-      setModulosDraft(draft);
+      setModulosDraft(aplicarModulosEditorADraft(modulos_editor));
       setFormCuenta({
         nombres: empleado.nombres || '',
         apellidos: empleado.apellidos || '',
@@ -150,24 +163,28 @@ export default function AdministracionUsuarios() {
       toast.error('Selecciona al menos un usuario');
       return;
     }
+    const targets = idsSeleccionados.filter((id) => id !== usuario?.id);
+    if (!targets.length) {
+      toast.error('No puedes eliminar tu propia cuenta');
+      return;
+    }
     if (
       !window.confirm(
-        `¿Desactivar ${idsSeleccionados.length} usuario(s)? No podrán iniciar sesión.`
+        `¿Eliminar DEFINITIVAMENTE ${targets.length} usuario(s) de la base de datos?\n\nEsta acción no se puede deshacer. Se borrarán los datos vinculados que el sistema permita eliminar automáticamente.`
       )
     ) {
       return;
     }
     try {
-      for (const id of idsSeleccionados) {
-        if (id === usuario?.id) continue;
-        await adminPortalUsuariosService.bloquear(id);
+      for (const id of targets) {
+        await adminPortalUsuariosService.eliminarPermanente(id);
       }
-      toast.success('Usuario(s) desactivado(s)');
+      toast.success('Usuario(s) eliminado(s)');
       setSeleccion(new Set());
       cerrarDrawer();
       cargarLista();
     } catch (e) {
-      toast.error(e.response?.data?.mensaje || 'Error al desactivar');
+      toast.error(e.response?.data?.mensaje || 'Error al eliminar');
     }
   };
 
@@ -228,14 +245,21 @@ export default function AdministracionUsuarios() {
       toast.error('No puedes eliminar tu propia cuenta');
       return;
     }
-    if (!window.confirm('¿Desactivar este usuario?')) return;
+    const nombre = `${detalle.empleado.nombres || ''} ${detalle.empleado.apellidos || ''}`.trim();
+    if (
+      !window.confirm(
+        `¿Eliminar DEFINITIVAMENTE a ${nombre || 'este usuario'} de la base de datos?\n\nEsta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
     try {
-      await adminPortalUsuariosService.bloquear(detalle.empleado.id);
-      toast.success('Usuario desactivado');
+      await adminPortalUsuariosService.eliminarPermanente(detalle.empleado.id);
+      toast.success('Usuario eliminado');
       cerrarDrawer();
       cargarLista();
     } catch (e) {
-      toast.error(e.response?.data?.mensaje || 'Error');
+      toast.error(e.response?.data?.mensaje || 'Error al eliminar');
     }
   };
 
@@ -248,11 +272,7 @@ export default function AdministracionUsuarios() {
       const res = await adminPortalUsuariosService.obtener(detalle.empleado.id);
       const payload = res.data.data;
       setDetalle(payload);
-      const d2 = {};
-      (payload.modulos_editor || []).forEach((m) => {
-        d2[m.id] = m.permitido_por_rol ? !!m.asignado : false;
-      });
-      setModulosDraft(d2);
+      setModulosDraft(aplicarModulosEditorADraft(payload.modulos_editor));
       cargarLista();
     } catch (e) {
       toast.error(e.response?.data?.mensaje || 'No se pudo guardar');
@@ -291,11 +311,7 @@ export default function AdministracionUsuarios() {
         codigo_empleado: em.codigo_empleado || '',
         rol_id: em.rol_id != null ? String(em.rol_id) : ''
       });
-      const d2 = {};
-      (payload.modulos_editor || []).forEach((m) => {
-        d2[m.id] = m.permitido_por_rol ? !!m.asignado : false;
-      });
-      setModulosDraft(d2);
+      setModulosDraft(aplicarModulosEditorADraft(payload.modulos_editor));
       cargarLista();
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'No se pudo guardar la cuenta');
@@ -333,9 +349,31 @@ export default function AdministracionUsuarios() {
   };
 
   const cuentaActivos = useMemo(() => {
-    if (!detalle?.modulos_editor?.length) return 0;
-    return detalle.modulos_editor.filter((m) => m.permitido_por_rol && modulosDraft[m.id]).length;
-  }, [detalle?.modulos_editor, modulosDraft]);
+    return Object.values(modulosDraft).filter(Boolean).length;
+  }, [modulosDraft]);
+
+  const toggleModuloEnFila = async (row, moduloId, e) => {
+    e.stopPropagation();
+    const busyKey = `${row.id}-${moduloId}`;
+    setModuloTagBusy(busyKey);
+    try {
+      const map = { ...mapaModulosDesdeAccesoDetalle(row.acceso_portal_detalle) };
+      map[moduloId] = !map[moduloId];
+      await adminPortalUsuariosService.actualizarModulos(row.id, map);
+      toast.success('Acceso actualizado');
+      await cargarLista();
+      if (drawerId === row.id && detalle?.empleado?.id === row.id) {
+        const res = await adminPortalUsuariosService.obtener(row.id);
+        const payload = res.data.data;
+        setDetalle(payload);
+        setModulosDraft(aplicarModulosEditorADraft(payload.modulos_editor));
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo actualizar el acceso');
+    } finally {
+      setModuloTagBusy(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#1c1b1a] text-gray-100">
@@ -446,19 +484,28 @@ export default function AdministracionUsuarios() {
                       <td className="px-3 py-3 text-gray-300">{row.email}</td>
                       <td className="px-3 py-3 text-gray-300 max-w-xl">
                         <div className="flex flex-wrap gap-1">
-                          {(row.acceso_portal_detalle || []).map((x) => (
-                            <span
-                              key={x.id}
-                              className={cx(
-                                'text-xs px-2 py-0.5 rounded border',
-                                x.activo
-                                  ? 'bg-violet-500/20 text-violet-200 border-violet-500/35'
-                                  : 'bg-white/[0.04] text-gray-500 border-white/5'
-                              )}
-                            >
-                              {x.etiqueta}
-                            </span>
-                          ))}
+                          {(row.acceso_portal_detalle || []).map((x) => {
+                            const busy = moduloTagBusy === `${row.id}-${x.id}`;
+                            return (
+                              <button
+                                key={x.id}
+                                type="button"
+                                disabled={busy}
+                                title={x.activo ? 'Quitar acceso (clic)' : 'Dar acceso (clic)'}
+                                onClick={(e) => toggleModuloEnFila(row, x.id, e)}
+                                className={cx(
+                                  'text-xs px-2 py-0.5 rounded border text-left transition-opacity',
+                                  busy && 'opacity-50 cursor-wait',
+                                  !busy && 'hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-violet-500/60',
+                                  x.activo
+                                    ? 'bg-violet-500/20 text-violet-200 border-violet-500/35'
+                                    : 'bg-white/[0.04] text-gray-500 border-white/5'
+                                )}
+                              >
+                                {x.etiqueta}
+                              </button>
+                            );
+                          })}
                         </div>
                       </td>
                       <td className="px-3 py-3">
@@ -695,33 +742,26 @@ export default function AdministracionUsuarios() {
                   {accesoExpandido && (
                     <ul className="mt-2 space-y-3">
                       {(detalle.modulos_editor || []).map((m) => {
-                        const editable = m.permitido_por_rol;
-                        const on = editable && !!modulosDraft[m.id];
+                        const on = !!modulosDraft[m.id];
                         return (
                           <li
                             key={m.id}
                             className={cx(
                               'flex gap-3 items-start p-3 rounded-lg border transition-colors',
-                              !editable && 'opacity-50 border-white/5 bg-[#1a1918]',
-                              editable && on && 'bg-violet-500/15 border-violet-500/40',
-                              editable && !on && 'border-white/10 bg-[#1c1b1a]'
+                              on && 'bg-violet-500/15 border-violet-500/40',
+                              !on && 'border-white/10 bg-[#1c1b1a]'
                             )}
                           >
                             <input
                               type="checkbox"
                               id={`mod-${m.id}`}
-                              disabled={!editable}
-                              checked={editable ? !!modulosDraft[m.id] : false}
+                              checked={on}
                               onChange={(e) =>
-                                editable &&
                                 setModulosDraft((d) => ({ ...d, [m.id]: e.target.checked }))
                               }
-                              className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500 text-violet-600 focus:ring-violet-500 disabled:cursor-not-allowed"
+                              className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500 text-violet-600 focus:ring-violet-500"
                             />
-                            <label
-                              htmlFor={`mod-${m.id}`}
-                              className={cx('flex-1', editable && 'cursor-pointer')}
-                            >
+                            <label htmlFor={`mod-${m.id}`} className="flex-1 cursor-pointer">
                               <span
                                 className={cx(
                                   'font-medium block',
@@ -733,11 +773,6 @@ export default function AdministracionUsuarios() {
                               <span className="text-xs text-gray-400 block mt-0.5">
                                 {m.descripcion}
                               </span>
-                              {!editable && (
-                                <span className="text-[11px] text-gray-500 block mt-1">
-                                  No aplica con el rol actual (cambia el rol en Cuenta para habilitarlo)
-                                </span>
-                              )}
                             </label>
                           </li>
                         );

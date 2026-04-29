@@ -258,6 +258,78 @@ class Empleado {
     );
     return result.affectedRows > 0;
   }
+
+  /**
+   * Borrado físico y sus datos directos (vacaciones, reintegros propios, etc.).
+   * No usar si el empleado debe conservarse por auditoría.
+   */
+  static async eliminarPermanentemente(id) {
+    const conn = await pool.getConnection();
+    const safeExec = async (sql, params = []) => {
+      try {
+        await conn.execute(sql, params);
+      } catch (e) {
+        if (e.code === 'ER_NO_SUCH_TABLE') return;
+        throw e;
+      }
+    };
+
+    try {
+      await conn.beginTransaction();
+
+      const [ex] = await conn.execute('SELECT id FROM empleados WHERE id = ?', [id]);
+      if (!ex.length) {
+        await conn.rollback();
+        return false;
+      }
+
+      await conn.execute('UPDATE empleados SET jefe_id = NULL WHERE jefe_id = ?', [id]);
+
+      await conn.execute('DELETE FROM tokens_aprobacion WHERE aprobador_id = ?', [id]);
+      await conn.execute(
+        'DELETE FROM tokens_aprobacion WHERE solicitud_id IN (SELECT id FROM solicitudes_vacaciones WHERE empleado_id = ?)',
+        [id]
+      );
+
+      await conn.execute(
+        'DELETE FROM aprobaciones WHERE solicitud_id IN (SELECT id FROM solicitudes_vacaciones WHERE empleado_id = ?)',
+        [id]
+      );
+      await conn.execute('DELETE FROM aprobaciones WHERE aprobador_id = ?', [id]);
+
+      await conn.execute(
+        `DELETE FROM historial_vacaciones WHERE empleado_id = ? OR solicitud_id IN (SELECT id FROM solicitudes_vacaciones WHERE empleado_id = ?)`,
+        [id, id]
+      );
+
+      await conn.execute('DELETE FROM solicitudes_vacaciones WHERE empleado_id = ?', [id]);
+      await conn.execute('DELETE FROM periodos_vacaciones WHERE empleado_id = ?', [id]);
+      await conn.execute('DELETE FROM notificaciones WHERE empleado_id = ?', [id]);
+      await conn.execute('DELETE FROM tokens_recuperacion WHERE empleado_id = ?', [id]);
+
+      await safeExec('DELETE FROM boletas_pago WHERE empleado_id = ?', [id]);
+      await safeExec('DELETE FROM permisos_descansos WHERE empleado_id = ?', [id]);
+
+      await conn.execute(
+        'DELETE FROM tokens_reembolso WHERE reembolso_id IN (SELECT id FROM solicitudes_reembolso WHERE empleado_id = ?)',
+        [id]
+      );
+      await conn.execute('DELETE FROM tokens_reembolso WHERE aprobador_id = ?', [id]);
+      await conn.execute('UPDATE solicitudes_reembolso SET aprobado_por = NULL WHERE aprobado_por = ?', [id]);
+      await conn.execute('DELETE FROM solicitudes_reembolso WHERE empleado_id = ?', [id]);
+
+      await conn.execute('UPDATE solicitudes_registro SET revisado_por = NULL WHERE revisado_por = ?', [id]);
+
+      const [del] = await conn.execute('DELETE FROM empleados WHERE id = ?', [id]);
+      await conn.commit();
+      return del.affectedRows > 0;
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+  }
 }
 
 module.exports = Empleado;

@@ -196,7 +196,7 @@ function AppRoutes() {
       } />
 
       <Route path="/caja-chica" element={
-        <ProtectedRoute roles={['admin', 'contadora']}>
+        <ProtectedRoute>
           <ModuloPortalRoute moduloId="caja-chica">
             <PageWrapper><CajaChica /></PageWrapper>
           </ModuloPortalRoute>
@@ -205,7 +205,7 @@ function AppRoutes() {
 
       {/* Gestión de Solicitudes de Registro */}
       <Route path="/admin/solicitudes-registro" element={
-        <ProtectedRoute roles={['admin', 'contadora']}>
+        <ProtectedRoute>
           <ModuloPortalRoute moduloId="solicitudes-registro">
             <PageWrapper><SolicitudesRegistro /></PageWrapper>
           </ModuloPortalRoute>

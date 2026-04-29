@@ -187,6 +187,7 @@ export const adminPortalUsuariosService = {
   actualizarModulos: (id, modulos_portal) =>
     api.put(`/admin-portal-usuarios/empleados/${id}/modulos-portal`, { modulos_portal }),
   bloquear: (id) => api.put(`/admin-portal-usuarios/empleados/${id}/bloquear`),
+  eliminarPermanente: (id) => api.delete(`/admin-portal-usuarios/empleados/${id}`),
   restablecerPassword: (id, password_nueva) =>
     api.post(`/admin-portal-usuarios/empleados/${id}/restablecer-password`, {
       password_nueva

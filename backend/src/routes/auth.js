@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { autenticar, verificarRol } = require('../middleware/auth');
+const { verificarAccesoModuloPortal } = require('../middleware/moduloPortal');
 
 // Rutas públicas
 router.post('/login', authController.login);
@@ -19,11 +20,11 @@ router.get('/perfil', autenticar, authController.perfil);
 router.put('/cambiar-password', autenticar, authController.cambiarPassword);
 router.post('/refrescar-token', autenticar, authController.refrescarToken);
 
-// Gestión de solicitudes de registro (solo admin/contadora)
-router.get('/solicitudes-registro', autenticar, verificarRol('admin', 'contadora'), authController.listarSolicitudesRegistro);
-router.get('/solicitudes-registro/pendientes/count', autenticar, verificarRol('admin', 'contadora'), authController.contarSolicitudesPendientes);
-router.put('/solicitudes-registro/:id/aprobar', autenticar, verificarRol('admin', 'contadora'), authController.aprobarSolicitudRegistro);
-router.put('/solicitudes-registro/:id/rechazar', autenticar, verificarRol('admin', 'contadora'), authController.rechazarSolicitudRegistro);
+// Gestión de solicitudes de registro (mapa portal solicitudes-registro o rol legacy admin/contadora)
+router.get('/solicitudes-registro', autenticar, verificarAccesoModuloPortal('solicitudes-registro'), authController.listarSolicitudesRegistro);
+router.get('/solicitudes-registro/pendientes/count', autenticar, verificarAccesoModuloPortal('solicitudes-registro'), authController.contarSolicitudesPendientes);
+router.put('/solicitudes-registro/:id/aprobar', autenticar, verificarAccesoModuloPortal('solicitudes-registro'), authController.aprobarSolicitudRegistro);
+router.put('/solicitudes-registro/:id/rechazar', autenticar, verificarAccesoModuloPortal('solicitudes-registro'), authController.rechazarSolicitudRegistro);
 
 module.exports = router;
 

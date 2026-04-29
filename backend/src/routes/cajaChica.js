@@ -1,10 +1,11 @@
 const express = require('express');
-const { autenticar, verificarRol } = require('../middleware/auth');
+const { autenticar } = require('../middleware/auth');
+const { verificarAccesoModuloPortal } = require('../middleware/moduloPortal');
 const cajaChicaController = require('../controllers/cajaChicaController');
 
 const router = express.Router();
 
-router.use(autenticar, verificarRol('admin', 'contadora'));
+router.use(autenticar, verificarAccesoModuloPortal('caja-chica'));
 
 router.get('/periodos', cajaChicaController.listarPeriodos);
 router.post('/periodos', cajaChicaController.crearPeriodo);
