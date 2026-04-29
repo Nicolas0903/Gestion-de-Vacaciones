@@ -412,10 +412,14 @@ class PDFService {
 
         doc.fontSize(11).font('Helvetica-Bold').fillColor('#0d9488').text('Ingresos del período', margin, y);
         y += 14;
+        const ingPad = 6;
+        const ingColMontoW = 102;
+        const ingXMonto = margin + contentW - ingPad - ingColMontoW;
+        const ingColMotivoW = ingXMonto - ingPad - (margin + ingPad);
         doc.rect(margin, y, contentW, 15).fillAndStroke('#f1f5f9', '#cbd5e1');
         doc.fontSize(9).font('Helvetica-Bold').fillColor('#475569')
-          .text('Motivo / transferencia', margin + 5, y + 4, { width: 360 })
-          .text('Monto (S/)', margin + 410, y + 4, { width: 120, align: 'right' });
+          .text('Motivo / transferencia', margin + ingPad, y + 4, { width: ingColMotivoW })
+          .text('Monto (S/)', ingXMonto, y + 4, { width: ingColMontoW, align: 'right' });
         y += 16;
         for (const row of ingresos || []) {
           if (y > 730) {
@@ -424,15 +428,15 @@ class PDFService {
           }
           doc.rect(margin, y, contentW, 14).stroke('#e2e8f0');
           doc.fontSize(9).font('Helvetica').fillColor('#0f172a')
-            .text(String(row.motivo_label || '—'), margin + 5, y + 3, { width: 360 })
-            .text(Number(row.monto).toFixed(2), margin + 410, y + 3, { width: 120, align: 'right' });
+            .text(String(row.motivo_label || '—'), margin + ingPad, y + 3, { width: ingColMotivoW })
+            .text(Number(row.monto).toFixed(2), ingXMonto, y + 3, { width: ingColMontoW, align: 'right' });
           y += 14;
         }
         const ti = Number(totales?.total_ingreso) || 0;
         doc.rect(margin, y, contentW, 16).fillAndStroke('#fef3c7', '#fbbf24');
         doc.fontSize(9).font('Helvetica-Bold').fillColor('#78350f')
-          .text('Total ingresos', margin + 5, y + 4, { width: 360 })
-          .text(ti.toFixed(2), margin + 410, y + 4, { width: 120, align: 'right' });
+          .text('Total ingresos', margin + ingPad, y + 4, { width: ingColMotivoW })
+          .text(ti.toFixed(2), ingXMonto, y + 4, { width: ingColMontoW, align: 'right' });
         y += 26;
 
         doc.fontSize(11).font('Helvetica-Bold').fillColor('#0d9488').text('Egresos (reintegros aprobados)', margin, y);
