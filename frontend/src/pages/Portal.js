@@ -11,11 +11,19 @@ import {
   Cog6ToothIcon,
   UserPlusIcon,
   BanknotesIcon,
-  WalletIcon
+  WalletIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
-  const { usuario, puedeVerReporteAsistencia, esAdmin, esContadora, esAprobadorReembolsos } = useAuth();
+  const {
+    usuario,
+    puedeAccederModuloPortal,
+    esAdmin,
+    esContadora,
+    esAprobadorReembolsos,
+    esAdminPortalUsuarios
+  } = useAuth();
 
   const modulos = [
     {
@@ -71,8 +79,7 @@ const Portal = () => {
     }
   ];
 
-  // Módulo de reporte solo visible para usuarios autorizados
-  if (puedeVerReporteAsistencia()) {
+  if (puedeAccederModuloPortal('asistencia')) {
     modulos.push({
       id: 'asistencia',
       titulo: 'Reporte de Asistencia',
@@ -88,8 +95,7 @@ const Portal = () => {
     });
   }
 
-  // Caja chica (solo admin / contadora)
-  if (esAdmin() || esContadora()) {
+  if (puedeAccederModuloPortal('caja-chica')) {
     modulos.push({
       id: 'caja-chica',
       titulo: 'Caja chica',
@@ -105,8 +111,7 @@ const Portal = () => {
     });
   }
 
-  // Módulo de gestión de solicitudes de registro (solo admin/contadora)
-  if (esAdmin() || esContadora()) {
+  if (puedeAccederModuloPortal('solicitudes-registro')) {
     modulos.push({
       id: 'solicitudes-registro',
       titulo: 'Solicitudes de Registro',
@@ -121,6 +126,27 @@ const Portal = () => {
       restringido: true
     });
   }
+
+  if (esAdminPortalUsuarios()) {
+    modulos.push({
+      id: 'admin-portal-usuarios',
+      titulo: 'Administración de Usuarios',
+      descripcion: 'Activa usuarios, restablece contraseñas y define acceso a módulos del portal',
+      icono: UsersIcon,
+      color: 'from-slate-600 to-slate-800',
+      shadowColor: 'shadow-slate-500/30',
+      bgLight: 'bg-slate-100',
+      textColor: 'text-slate-700',
+      link: '/admin-portal/usuarios',
+      activo: true,
+      restringido: true,
+      soloAdminPersonal: true
+    });
+  }
+
+  const modulosVisibles = modulos.filter((m) =>
+    m.soloAdminPersonal ? true : puedeAccederModuloPortal(m.id)
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30">
@@ -152,7 +178,7 @@ const Portal = () => {
       {/* Módulos */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          {modulos.map((modulo) => {
+          {modulosVisibles.map((modulo) => {
             const Icono = modulo.icono;
             
             if (modulo.proximamente) {

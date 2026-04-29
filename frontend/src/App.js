@@ -28,6 +28,7 @@ import SolicitudesRegistro from './pages/admin/SolicitudesRegistro';
 import Reembolsos from './pages/Reembolsos';
 import GestionReembolsos from './pages/GestionReembolsos';
 import CajaChica from './pages/CajaChica';
+import AdministracionUsuarios from './pages/AdministracionUsuarios';
 
 // Components
 import Layout from './components/Layout';
@@ -36,7 +37,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 
 // Ruta protegida
 const ProtectedRoute = ({ children, roles = [] }) => {
-  const { isAuthenticated, loading, usuario, tieneRol } = useAuth();
+  const { isAuthenticated, loading, tieneRol } = useAuth();
 
   if (loading) {
     return <LoadingSpinner />;
@@ -53,8 +54,33 @@ const ProtectedRoute = ({ children, roles = [] }) => {
   return children;
 };
 
+function ModuloPortalRoute({ moduloId, children }) {
+  const { loading, puedeAccederModuloPortal } = useAuth();
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+  if (!puedeAccederModuloPortal(moduloId)) {
+    return <Navigate to="/portal" replace />;
+  }
+  return children;
+}
+
+function AdminPortalUsuariosRoute({ children }) {
+  const { loading, esAdminPortalUsuarios } = useAuth();
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+  if (!esAdminPortalUsuarios()) {
+    return <Navigate to="/portal" replace />;
+  }
+  return children;
+}
+
 function ReembolsosGestionGate() {
-  const { esAdmin, esAprobadorReembolsos } = useAuth();
+  const { esAdmin, esAprobadorReembolsos, puedeAccederModuloPortal } = useAuth();
+  if (!puedeAccederModuloPortal('reembolsos')) {
+    return <Navigate to="/portal" replace />;
+  }
   // Admin puede entrar aunque no sea el aprobador designado (p. ej. para eliminar registros).
   if (!esAdmin() && !esAprobadorReembolsos()) {
     return <Navigate to="/portal" replace />;
@@ -101,43 +127,66 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      <Route
+        path="/admin-portal/usuarios"
+        element={
+          <ProtectedRoute>
+            <AdminPortalUsuariosRoute>
+              <AdministracionUsuarios />
+            </AdminPortalUsuariosRoute>
+          </ProtectedRoute>
+        }
+      />
+
       {/* Reporte de Asistencia (fuera del layout de vacaciones) */}
       <Route path="/reporte-asistencia" element={
         <ProtectedRoute>
-          <ReporteAsistencia />
+          <ModuloPortalRoute moduloId="asistencia">
+            <ReporteAsistencia />
+          </ModuloPortalRoute>
         </ProtectedRoute>
       } />
 
       {/* Módulo de Boletas de Pago */}
       <Route path="/boletas" element={
         <ProtectedRoute>
-          <PageWrapper><MisBoletas /></PageWrapper>
+          <ModuloPortalRoute moduloId="boletas">
+            <PageWrapper><MisBoletas /></PageWrapper>
+          </ModuloPortalRoute>
         </ProtectedRoute>
       } />
       
       <Route path="/boletas/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
-          <PageWrapper><GestionBoletas /></PageWrapper>
+          <ModuloPortalRoute moduloId="boletas">
+            <PageWrapper><GestionBoletas /></PageWrapper>
+          </ModuloPortalRoute>
         </ProtectedRoute>
       } />
 
       {/* Módulo de Permisos y Descansos */}
       <Route path="/permisos" element={
         <ProtectedRoute>
-          <PageWrapper><MisPermisos /></PageWrapper>
+          <ModuloPortalRoute moduloId="permisos">
+            <PageWrapper><MisPermisos /></PageWrapper>
+          </ModuloPortalRoute>
         </ProtectedRoute>
       } />
       
       <Route path="/permisos/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
-          <PageWrapper><GestionPermisos /></PageWrapper>
+          <ModuloPortalRoute moduloId="permisos">
+            <PageWrapper><GestionPermisos /></PageWrapper>
+          </ModuloPortalRoute>
         </ProtectedRoute>
       } />
 
       {/* Gestión de reembolsos */}
       <Route path="/reembolsos" element={
         <ProtectedRoute>
-          <PageWrapper><Reembolsos /></PageWrapper>
+          <ModuloPortalRoute moduloId="reembolsos">
+            <PageWrapper><Reembolsos /></PageWrapper>
+          </ModuloPortalRoute>
         </ProtectedRoute>
       } />
       <Route path="/reembolsos/gestion" element={
@@ -148,21 +197,27 @@ function AppRoutes() {
 
       <Route path="/caja-chica" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
-          <PageWrapper><CajaChica /></PageWrapper>
+          <ModuloPortalRoute moduloId="caja-chica">
+            <PageWrapper><CajaChica /></PageWrapper>
+          </ModuloPortalRoute>
         </ProtectedRoute>
       } />
 
       {/* Gestión de Solicitudes de Registro */}
       <Route path="/admin/solicitudes-registro" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
-          <PageWrapper><SolicitudesRegistro /></PageWrapper>
+          <ModuloPortalRoute moduloId="solicitudes-registro">
+            <PageWrapper><SolicitudesRegistro /></PageWrapper>
+          </ModuloPortalRoute>
         </ProtectedRoute>
       } />
 
       {/* Módulo de Vacaciones */}
       <Route path="/vacaciones" element={
         <ProtectedRoute>
-          <Layout />
+          <ModuloPortalRoute moduloId="vacaciones">
+            <Layout />
+          </ModuloPortalRoute>
         </ProtectedRoute>
       }>
         <Route index element={<Navigate to="/vacaciones/dashboard" replace />} />

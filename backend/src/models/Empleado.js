@@ -2,20 +2,51 @@ const { pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
 class Empleado {
+  static normalizarModulosPortal(empleado) {
+    if (!empleado) return empleado;
+    let m = empleado.modulos_portal;
+    if (m == null) return empleado;
+    if (Buffer.isBuffer(m)) m = m.toString('utf8');
+    if (typeof m === 'string') {
+      try {
+        m = JSON.parse(m);
+      } catch {
+        m = null;
+      }
+    }
+    return { ...empleado, modulos_portal: m };
+  }
+
   // Crear nuevo empleado
   static async crear(datos) {
     const {
       codigo_empleado, nombres, apellidos, dni, email, password,
-      cargo, fecha_ingreso, rol_id, jefe_id
+      cargo, fecha_ingreso, rol_id, jefe_id, modulos_portal
     } = datos;
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const modulosJson =
+      modulos_portal != null && typeof modulos_portal === 'object'
+        ? JSON.stringify(modulos_portal)
+        : null;
 
     const [result] = await pool.execute(
       `INSERT INTO empleados 
-       (codigo_empleado, nombres, apellidos, dni, email, password, cargo, fecha_ingreso, rol_id, jefe_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [codigo_empleado, nombres, apellidos, dni, email, hashedPassword, cargo, fecha_ingreso, rol_id, jefe_id || null]
+       (codigo_empleado, nombres, apellidos, dni, email, password, cargo, fecha_ingreso, rol_id, jefe_id, modulos_portal)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        codigo_empleado,
+        nombres,
+        apellidos,
+        dni,
+        email,
+        hashedPassword,
+        cargo,
+        fecha_ingreso,
+        rol_id,
+        jefe_id || null,
+        modulosJson
+      ]
     );
 
     return result.insertId;
@@ -32,7 +63,7 @@ class Empleado {
        WHERE e.id = ?`,
       [id]
     );
-    return rows[0];
+    return rows[0] ? this.normalizarModulosPortal(rows[0]) : null;
   }
 
   // Buscar por email
@@ -44,7 +75,7 @@ class Empleado {
        WHERE e.email = ?`,
       [email]
     );
-    return rows[0];
+    return rows[0] ? this.normalizarModulosPortal(rows[0]) : null;
   }
 
   // Buscar por código de empleado
@@ -56,7 +87,7 @@ class Empleado {
        WHERE e.codigo_empleado = ?`,
       [codigo]
     );
-    return rows[0];
+    return rows[0] ? this.normalizarModulosPortal(rows[0]) : null;
   }
 
   static async buscarPorDni(dni) {
@@ -67,7 +98,7 @@ class Empleado {
        WHERE e.dni = ?`,
       [dni]
     );
-    return rows[0];
+    return rows[0] ? this.normalizarModulosPortal(rows[0]) : null;
   }
 
   /**
@@ -109,7 +140,7 @@ class Empleado {
   static async listarTodos(filtros = {}) {
     let query = `
       SELECT e.id, e.codigo_empleado, e.nombres, e.apellidos, e.dni, e.email,
-             e.cargo, e.fecha_ingreso, e.activo, e.avatar_url,
+             e.cargo, e.fecha_ingreso, e.activo, e.avatar_url, e.modulos_portal,
              r.nombre as rol_nombre, r.id as rol_id,
              j.nombres as jefe_nombres, j.apellidos as jefe_apellidos
       FROM empleados e
@@ -130,15 +161,16 @@ class Empleado {
     }
 
     if (filtros.busqueda) {
-      query += ' AND (e.nombres LIKE ? OR e.apellidos LIKE ? OR e.dni LIKE ? OR e.codigo_empleado LIKE ?)';
+      query +=
+        ' AND (e.nombres LIKE ? OR e.apellidos LIKE ? OR e.dni LIKE ? OR e.codigo_empleado LIKE ? OR e.email LIKE ?)';
       const busqueda = `%${filtros.busqueda}%`;
-      params.push(busqueda, busqueda, busqueda, busqueda);
+      params.push(busqueda, busqueda, busqueda, busqueda, busqueda);
     }
 
     query += ' ORDER BY e.apellidos, e.nombres';
 
     const [rows] = await pool.execute(query, params);
-    return rows;
+    return rows.map((row) => this.normalizarModulosPortal(row));
   }
 
   // Actualizar empleado
@@ -149,7 +181,11 @@ class Empleado {
     Object.keys(datos).forEach(key => {
       if (datos[key] !== undefined && key !== 'id' && key !== 'password') {
         campos.push(`${key} = ?`);
-        valores.push(datos[key]);
+        let val = datos[key];
+        if (key === 'modulos_portal' && val !== null && typeof val === 'object') {
+          val = JSON.stringify(val);
+        }
+        valores.push(val);
       }
     });
 

@@ -94,12 +94,53 @@ export const AuthProvider = ({ children }) => {
     'nicolas.valdivia@prayaga.biz'
   ];
 
+  const ADMIN_PORTAL_USUARIOS_EMAILS = (
+    process.env.REACT_APP_ADMIN_PORTAL_USUARIOS_EMAILS ||
+    'enrique.agapito@prayaga.biz,nicolas.valdivia@prayaga.biz'
+  )
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  const esAdminPortalUsuarios = () => {
+    if (!usuario?.email) return false;
+    return ADMIN_PORTAL_USUARIOS_EMAILS.includes(usuario.email.toLowerCase().trim());
+  };
+
   const puedeVerReporteAsistencia = () => {
     if (!usuario) return false;
-    // Admin siempre puede ver
     if (tieneRol('admin')) return true;
-    // Verificar si el email está en la lista autorizada
     return USUARIOS_REPORTE_ASISTENCIA.includes(usuario.email?.toLowerCase());
+  };
+
+  /**
+   * Acceso a módulos del portal según rol y flags en modulos_portal (false = denegado explícito).
+   */
+  const puedeAccederModuloPortal = (moduloId) => {
+    if (!usuario) return false;
+    const m = usuario.modulos_portal;
+
+    const denegadoExplicito = m && typeof m === 'object' && m[moduloId] === false;
+
+    const baseColaborador = ['vacaciones', 'boletas', 'permisos', 'reembolsos'];
+    if (baseColaborador.includes(moduloId)) {
+      if (denegadoExplicito) return false;
+      return true;
+    }
+
+    if (moduloId === 'asistencia') {
+      if (!puedeVerReporteAsistencia()) return false;
+      if (denegadoExplicito) return false;
+      return true;
+    }
+
+    if (moduloId === 'caja-chica' || moduloId === 'solicitudes-registro') {
+      if (!esAdmin() && !esContadora()) return false;
+      if (denegadoExplicito) return false;
+      return true;
+    }
+
+    return true;
   };
 
   const esAprobadorReembolsos = () =>
@@ -123,6 +164,8 @@ export const AuthProvider = ({ children }) => {
     esContadora,
     puedeVerReporteAsistencia,
     esAprobadorReembolsos,
+    esAdminPortalUsuarios,
+    puedeAccederModuloPortal,
     isAuthenticated: !!usuario
   };
 

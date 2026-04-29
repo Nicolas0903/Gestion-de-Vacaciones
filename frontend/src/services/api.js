@@ -176,6 +176,22 @@ export const reembolsoService = {
     }),
 };
 
+// Administración de usuarios del portal (solo correos autorizados)
+export const adminPortalUsuariosService = {
+  listarEmpleados: (params = {}) =>
+    api.get('/admin-portal-usuarios/empleados', { params }),
+  obtener: (id) => api.get(`/admin-portal-usuarios/empleados/${id}`),
+  crear: (body) => api.post('/admin-portal-usuarios/empleados', body),
+  actualizarModulos: (id, modulos_portal) =>
+    api.put(`/admin-portal-usuarios/empleados/${id}/modulos-portal`, { modulos_portal }),
+  bloquear: (id) => api.put(`/admin-portal-usuarios/empleados/${id}/bloquear`),
+  restablecerPassword: (id, password_nueva) =>
+    api.post(`/admin-portal-usuarios/empleados/${id}/restablecer-password`, {
+      password_nueva
+    }),
+  roles: () => api.get('/admin-portal-usuarios/roles')
+};
+
 // Caja chica (admin / contadora)
 export const cajaChicaService = {
   listarPeriodos: () => api.get('/caja-chica/periodos'),
