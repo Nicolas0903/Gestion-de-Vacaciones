@@ -15,7 +15,6 @@ import NuevaSolicitud from './pages/NuevaSolicitud';
 import DetalleSolicitud from './pages/DetalleSolicitud';
 import Aprobaciones from './pages/Aprobaciones';
 import Calendario from './pages/Calendario';
-import Empleados from './pages/Empleados';
 import EstadoVacaciones from './pages/EstadoVacaciones';
 import VacacionesGanadas from './pages/VacacionesGanadas';
 import MiPerfil from './pages/MiPerfil';
@@ -232,11 +231,10 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="calendario" element={<Calendario />} />
-        <Route path="empleados" element={
-          <ProtectedRoute roles={['admin', 'contadora']}>
-            <Empleados />
-          </ProtectedRoute>
-        } />
+        <Route
+          path="empleados"
+          element={<Navigate to="/vacaciones/dashboard" replace />}
+        />
         <Route path="estado-vacaciones" element={
           <ProtectedRoute roles={['admin', 'contadora']}>
             <EstadoVacaciones />

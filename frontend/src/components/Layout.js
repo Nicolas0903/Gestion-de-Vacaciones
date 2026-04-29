@@ -9,7 +9,6 @@ import {
   PlusCircleIcon,
   CheckBadgeIcon,
   CalendarDaysIcon,
-  UsersIcon,
   UserCircleIcon,
   BellIcon,
   ArrowRightOnRectangleIcon,
@@ -58,7 +57,6 @@ const Layout = () => {
   }
 
   if (esAdmin() || esContadora()) {
-    menuItems.push({ to: '/vacaciones/empleados', icon: UsersIcon, label: 'Empleados' });
     menuItems.push({ to: '/vacaciones/estado-vacaciones', icon: ChartBarIcon, label: 'Estado de Vacaciones' });
   }
 
