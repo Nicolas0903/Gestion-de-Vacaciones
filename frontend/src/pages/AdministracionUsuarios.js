@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -36,6 +36,32 @@ function iniciales(nombres, apellidos) {
   const a = (nombres || '').trim().charAt(0) || '';
   const b = (apellidos || '').trim().charAt(0) || '';
   return (a + b).toUpperCase() || '?';
+}
+
+/** Prefijo de código según nombre de rol en BD (ampliable). */
+function prefijoCodigoPorNombreRol(nombreRol) {
+  const n = (nombreRol || '').toLowerCase().trim();
+  if (n === 'admin' || n.includes('administr')) return 'ADM';
+  if (n.includes('contador')) return 'CON';
+  if (n.includes('jefe')) return 'JOP';
+  if (n.includes('practic')) return 'PRA';
+  if (n.includes('empleado')) return 'EMP';
+  const slug = n.replace(/[^a-z0-9]/gi, '').slice(0, 3);
+  return slug.toUpperCase() || 'EMP';
+}
+
+function siguienteCodigoConPrefijo(prefijo, codigosExistentes) {
+  const p = (prefijo || 'EMP').toUpperCase().slice(0, 8);
+  const re = new RegExp(`^${p}(\\d+)$`, 'i');
+  let max = 0;
+  for (const raw of codigosExistentes || []) {
+    const c = (raw || '').trim();
+    const m = c.match(re);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  const n = max + 1;
+  const suf = n < 10000 ? String(n).padStart(3, '0') : String(n);
+  return `${p}${suf}`.slice(0, 20);
 }
 
 export default function AdministracionUsuarios() {
@@ -78,6 +104,9 @@ export default function AdministracionUsuarios() {
     fecha_ingreso: '',
     rol_id: ''
   });
+  const [codigosCatalogoAlta, setCodigosCatalogoAlta] = useState([]);
+  const ultimoCodigoSugeridoAltaRef = useRef('');
+  const prevRolAltaRef = useRef('');
 
   useEffect(() => {
     const t = setTimeout(() => setBusquedaDeb(busqueda.trim()), 320);
@@ -108,6 +137,43 @@ export default function AdministracionUsuarios() {
       .then((r) => setRoles(r.data.data || []))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!modalAlta) return;
+    adminPortalUsuariosService
+      .listarEmpleados({})
+      .then((r) => setCodigosCatalogoAlta((r.data.data || []).map((e) => e.codigo_empleado)))
+      .catch(() => setCodigosCatalogoAlta([]));
+  }, [modalAlta]);
+
+  const sugerirCodigoParaRolAlta = useCallback(
+    (rolIdStr) => {
+      const r = roles.find((x) => String(x.id) === String(rolIdStr));
+      const pref = prefijoCodigoPorNombreRol(r?.nombre);
+      return siguienteCodigoConPrefijo(pref, codigosCatalogoAlta);
+    },
+    [roles, codigosCatalogoAlta]
+  );
+
+  useEffect(() => {
+    if (!modalAlta || !formAlta.rol_id) return;
+    const sugerido = sugerirCodigoParaRolAlta(formAlta.rol_id);
+    if (prevRolAltaRef.current !== formAlta.rol_id) {
+      prevRolAltaRef.current = formAlta.rol_id;
+      ultimoCodigoSugeridoAltaRef.current = sugerido;
+      setFormAlta((f) =>
+        f.codigo_empleado === sugerido ? f : { ...f, codigo_empleado: sugerido }
+      );
+      return;
+    }
+    const cod = (formAlta.codigo_empleado || '').trim();
+    if (!cod || cod === ultimoCodigoSugeridoAltaRef.current) {
+      ultimoCodigoSugeridoAltaRef.current = sugerido;
+      setFormAlta((f) =>
+        f.codigo_empleado === sugerido ? f : { ...f, codigo_empleado: sugerido }
+      );
+    }
+  }, [modalAlta, formAlta.rol_id, formAlta.codigo_empleado, codigosCatalogoAlta, sugerirCodigoParaRolAlta]);
 
   const abrirDetalle = async (id) => {
     setDrawerId(id);
@@ -331,6 +397,8 @@ export default function AdministracionUsuarios() {
       await adminPortalUsuariosService.crear(body);
       toast.success('Usuario creado');
       setModalAlta(false);
+      prevRolAltaRef.current = '';
+      ultimoCodigoSugeridoAltaRef.current = '';
       setFormAlta({
         codigo_empleado: '',
         nombres: '',
@@ -351,6 +419,38 @@ export default function AdministracionUsuarios() {
   const cuentaActivos = useMemo(() => {
     return Object.values(modulosDraft).filter(Boolean).length;
   }, [modulosDraft]);
+
+  const codigoSugeridoAltaVista = useMemo(() => {
+    if (!formAlta.rol_id) return '';
+    return sugerirCodigoParaRolAlta(formAlta.rol_id);
+  }, [formAlta.rol_id, sugerirCodigoParaRolAlta]);
+
+  const abrirModalAlta = () => {
+    prevRolAltaRef.current = '';
+    ultimoCodigoSugeridoAltaRef.current = '';
+    setFormAlta({
+      codigo_empleado: '',
+      nombres: '',
+      apellidos: '',
+      dni: '',
+      email: '',
+      password: '',
+      cargo: '',
+      fecha_ingreso: '',
+      rol_id: ''
+    });
+    setModalAlta(true);
+  };
+
+  const aplicarSugerenciaCodigoAlta = () => {
+    if (!formAlta.rol_id) {
+      toast.error('Elige un rol primero');
+      return;
+    }
+    const sugerido = sugerirCodigoParaRolAlta(formAlta.rol_id);
+    ultimoCodigoSugeridoAltaRef.current = sugerido;
+    setFormAlta((f) => ({ ...f, codigo_empleado: sugerido }));
+  };
 
   const toggleModuloEnFila = async (row, moduloId, e) => {
     e.stopPropagation();
@@ -396,7 +496,7 @@ export default function AdministracionUsuarios() {
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <button
             type="button"
-            onClick={() => setModalAlta(true)}
+            onClick={abrirModalAlta}
             className="inline-flex items-center gap-2 px-3 py-2 rounded border border-white/20 bg-white/5 hover:bg-white/10 text-sm"
           >
             <UserPlusIcon className="w-4 h-4" />
@@ -799,13 +899,34 @@ export default function AdministracionUsuarios() {
           <div className="bg-[#252423] border border-white/10 rounded-xl max-w-lg w-full p-6 shadow-2xl">
             <h3 className="text-lg font-semibold text-white mb-4">Agregar usuario</h3>
             <form onSubmit={crearUsuario} className="space-y-3 text-sm">
-              <input
-                required
-                placeholder="Código empleado"
-                className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
-                value={formAlta.codigo_empleado}
-                onChange={(e) => setFormAlta((f) => ({ ...f, codigo_empleado: e.target.value }))}
-              />
+              <div>
+                <input
+                  required
+                  placeholder="Código empleado"
+                  className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                  value={formAlta.codigo_empleado}
+                  onChange={(e) => setFormAlta((f) => ({ ...f, codigo_empleado: e.target.value }))}
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Al elegir el rol se propone un código con prefijo según el rol y el siguiente número libre
+                  (p. ej. EMP001, CON004). Puedes cambiarlo.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  {formAlta.rol_id ? (
+                    <span className="text-[11px] text-gray-400">
+                      Sugerido ahora:{' '}
+                      <span className="text-violet-300 font-mono">{codigoSugeridoAltaVista}</span>
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={aplicarSugerenciaCodigoAlta}
+                    className="text-[11px] text-blue-400 hover:underline"
+                  >
+                    Aplicar sugerencia
+                  </button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   required
@@ -863,6 +984,7 @@ export default function AdministracionUsuarios() {
                 className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
                 value={formAlta.rol_id}
                 onChange={(e) => setFormAlta((f) => ({ ...f, rol_id: e.target.value }))}
+                title="Al cambiar el rol se actualiza el código propuesto"
               >
                 <option value="">Rol…</option>
                 {roles.map((r) => (
@@ -874,7 +996,11 @@ export default function AdministracionUsuarios() {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalAlta(false)}
+                  onClick={() => {
+                    setModalAlta(false);
+                    prevRolAltaRef.current = '';
+                    ultimoCodigoSugeridoAltaRef.current = '';
+                  }}
                   className="px-4 py-2 rounded border border-white/20 text-gray-300"
                 >
                   Cancelar
