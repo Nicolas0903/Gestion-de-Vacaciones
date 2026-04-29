@@ -1054,7 +1054,8 @@ const enviarCajaChicaResumenRocio = async ({
   egresos,
   totales,
   enviadoPorNombre,
-  reembolsosOrdenados = []
+  reembolsosOrdenados = [],
+  pdfCompletoBufferPrebuilt = null
 }) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     return { ok: false, mensaje: 'Email no configurado.' };
@@ -1091,26 +1092,28 @@ const enviarCajaChicaResumenRocio = async ({
   const sal = Number(totales?.saldo) || 0;
 
   const safeFile = String(periodoEtiqueta).replace(/[^\w\-]+/g, '_');
-  let pdfCompletoBuffer;
-  try {
-    const resumenPdf = await PDFService.generarResumenCajaChicaFormal({
-      periodoEtiqueta,
-      estadoPeriodo,
-      saldoCierreGuardado,
-      rangoDesde,
-      rangoHasta,
-      ingresos,
-      egresos,
-      totales,
-      enviadoPorNombre
-    });
-    pdfCompletoBuffer = await PDFService.generarPdfCajaChicaCompletoUnArchivo(
-      resumenPdf,
-      reembolsosOrdenados
-    );
-  } catch (errPdf) {
-    console.error('PDF caja chica Rocío:', errPdf);
-    return { ok: false, mensaje: errPdf.message || 'Error al generar el PDF adjunto.' };
+  let pdfCompletoBuffer = pdfCompletoBufferPrebuilt;
+  if (!pdfCompletoBuffer) {
+    try {
+      const resumenPdf = await PDFService.generarResumenCajaChicaFormal({
+        periodoEtiqueta,
+        estadoPeriodo,
+        saldoCierreGuardado,
+        rangoDesde,
+        rangoHasta,
+        ingresos,
+        egresos,
+        totales,
+        enviadoPorNombre
+      });
+      pdfCompletoBuffer = await PDFService.generarPdfCajaChicaCompletoUnArchivo(
+        resumenPdf,
+        reembolsosOrdenados
+      );
+    } catch (errPdf) {
+      console.error('PDF caja chica Rocío:', errPdf);
+      return { ok: false, mensaje: errPdf.message || 'Error al generar el PDF adjunto.' };
+    }
   }
 
   const bufAdjunto = Buffer.isBuffer(pdfCompletoBuffer)
@@ -1127,7 +1130,7 @@ const enviarCajaChicaResumenRocio = async ({
   const contenido = `
     <p>Hola <strong>Rocío</strong>,</p>
     <p>Se envía el resumen de <strong>caja chica</strong> solicitado desde el portal.</p>
-    <p style="font-size:13px;line-height:1.5;"><strong>Adjunto:</strong> un solo archivo PDF que incluye primero el <strong>resumen formal</strong> (ingresos, egresos y saldos) y, a continuación, la <strong>fusión de todos los comprobantes y recibos Prayaga</strong> del período, en <strong>orden por fecha de documento</strong>. Los archivos que no son PDF ni imagen aparecen indicados en una hoja aparte.</p>
+    <p style="font-size:13px;line-height:1.5;"><strong>Adjunto:</strong> un solo archivo PDF que incluye primero el <strong>resumen formal</strong> (ingresos, egresos y saldos) y, a continuación, la <strong>fusión de comprobantes (facturas) y recibos Prayaga</strong>: primero todas las <strong>facturas</strong> ordenadas por fecha de documento, luego todos los <strong>recibos Prayaga</strong> en orden de fecha. Los archivos que no son PDF ni imagen aparecen indicados en una hoja aparte.</p>
     <div class="info-box">
       <div class="info-row"><span class="info-label">Período</span><span class="info-value">${escapeHtml(periodoEtiqueta)}</span></div>
       <div class="info-row"><span class="info-label">Estado</span><span class="info-value">${escapeHtml(estadoPeriodo)}</span></div>
@@ -1166,7 +1169,7 @@ const enviarCajaChicaResumenRocio = async ({
       from: `"Portal RRHH - Caja chica" <${process.env.SMTP_USER}>`,
       to: toField,
       subject: `Caja chica · ${periodoEtiqueta} (${estadoPeriodo})`,
-      text: `Resumen de caja chica (${periodoEtiqueta}). Documento PDF adjunto: resumen formal y fusión de comprobantes/recibos Prayaga por fecha de documento.`,
+      text: `Resumen de caja chica (${periodoEtiqueta}). PDF: resumen formal y fusión de comprobantes (facturas primero por fecha, luego recibos Prayaga por fecha).`,
       html: plantillaBase(contenido, 'Resumen enviado desde el portal', MARCA_ENCABEZADO_CAJA_CHICA, PIE_EMAIL_CAJA_CHICA),
       attachments: [
         {

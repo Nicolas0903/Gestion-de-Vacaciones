@@ -1,5 +1,6 @@
 const { Reembolso, CajaChica } = require('../models');
 const emailService = require('../services/emailService');
+const PDFService = require('../services/pdfService');
 
 const MESES_NOMBRE = [
   '',
@@ -37,7 +38,7 @@ function rangoMes(anio, mes) {
 
 function mapEgresoRow(r) {
   const codigo = Reembolso.codigoTicket(r);
-  const tiene = !!r.tiene_comprobante;
+  const tiene = !!(r.tiene_comprobante === 1 || r.tiene_comprobante === true);
   const ruc = String(r.ruc_proveedor || '').trim();
   const nroDoc = String(r.numero_documento || '').trim();
   return {
@@ -50,6 +51,44 @@ function mapEgresoRow(r) {
     codigo_ticket: codigo,
     tiene_comprobante: tiene
   };
+}
+
+/** Facturas (con comprobante) primero; luego recibos Prayaga. Dentro de cada grupo, por fecha de documento. */
+function ordenarReembolsosFacturaLuegoRecibo(rows) {
+  const esFactura = (r) => r.tiene_comprobante === 1 || r.tiene_comprobante === true;
+  return [...rows].sort((a, b) => {
+    const ta = esFactura(a) ? 0 : 1;
+    const tb = esFactura(b) ? 0 : 1;
+    if (ta !== tb) return ta - tb;
+    const da = String(a.fecha_solicitud_usuario || '');
+    const db = String(b.fecha_solicitud_usuario || '');
+    if (da !== db) return da.localeCompare(db);
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
+  });
+}
+
+async function generarPdfCompletoCajaChicaBuffer(periodo, enviadoPorNombre) {
+  const data = await construirDetallePeriodo(periodo);
+  const { desde, hasta } = rangoMes(periodo.anio, periodo.mes);
+  const reembolsosOrdenados = ordenarReembolsosFacturaLuegoRecibo(
+    await Reembolso.listarAprobadosPorRangoFechaDocumento(desde, hasta)
+  );
+  const periodoEtiqueta = `${MESES_NOMBRE[periodo.mes] || periodo.mes} ${periodo.anio}`;
+  const estadoLabel = periodo.estado === 'cerrado' ? 'Cerrado' : 'Borrador';
+  const resumenPdf = await PDFService.generarResumenCajaChicaFormal({
+    periodoEtiqueta,
+    estadoPeriodo: estadoLabel,
+    saldoCierreGuardado: periodo.estado === 'cerrado' ? periodo.saldo_cierre : null,
+    rangoDesde: data.rango_fecha_documento.desde,
+    rangoHasta: data.rango_fecha_documento.hasta,
+    ingresos: data.ingresos,
+    egresos: data.egresos,
+    totales: data.totales,
+    enviadoPorNombre: enviadoPorNombre || '—'
+  });
+  const buffer = await PDFService.generarPdfCajaChicaCompletoUnArchivo(resumenPdf, reembolsosOrdenados);
+  const safeFile = String(periodoEtiqueta).replace(/[^\w\-]+/g, '_');
+  return { buffer, safeFile, periodoEtiqueta, estadoLabel, data };
 }
 
 const listarPeriodos = async (req, res) => {
@@ -85,7 +124,7 @@ const crearPeriodo = async (req, res) => {
 async function construirDetallePeriodo(periodo) {
   const id = periodo.id;
   const { desde, hasta } = rangoMes(periodo.anio, periodo.mes);
-  const [ingresosRows, reembolsos] = await Promise.all([
+  const [ingresosRows, reembolsosRaw] = await Promise.all([
     CajaChica.listarIngresos(id),
     Reembolso.listarAprobadosPorRangoFechaDocumento(desde, hasta)
   ]);
@@ -99,6 +138,7 @@ async function construirDetallePeriodo(periodo) {
   }));
 
   const totalIngreso = ingresos.reduce((s, x) => s + x.monto, 0);
+  const reembolsos = ordenarReembolsosFacturaLuegoRecibo(reembolsosRaw);
   const egresos = reembolsos.map(mapEgresoRow);
   const totalEgreso = egresos.reduce((s, x) => s + x.monto, 0);
   const saldoCalculado = totalIngreso - totalEgreso;
@@ -231,6 +271,29 @@ const reabrirPeriodo = async (req, res) => {
   }
 };
 
+const descargarResumenPdf = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const periodo = await CajaChica.buscarPeriodoPorId(id);
+    if (!periodo) {
+      return res.status(404).json({ success: false, mensaje: 'Período no encontrado.' });
+    }
+    const u = req.usuario;
+    const enviadoPorNombre = `${u.nombres || ''} ${u.apellidos || ''}`.trim() || u.email || '—';
+    const { buffer, safeFile } = await generarPdfCompletoCajaChicaBuffer(periodo, enviadoPorNombre);
+    const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
+    if (!buf.length || buf.length < 200) {
+      return res.status(500).json({ success: false, mensaje: 'No se pudo generar el PDF.' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Caja-chica-${safeFile}-completo.pdf"`);
+    res.send(buf);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: e.message || 'Error al generar PDF.' });
+  }
+};
+
 const enviarResumenRocio = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -238,13 +301,12 @@ const enviarResumenRocio = async (req, res) => {
     if (!periodo) {
       return res.status(404).json({ success: false, mensaje: 'Período no encontrado.' });
     }
-    const data = await construirDetallePeriodo(periodo);
-    const { desde, hasta } = rangoMes(periodo.anio, periodo.mes);
-    const reembolsosOrdenados = await Reembolso.listarAprobadosPorRangoFechaDocumento(desde, hasta);
-    const periodoEtiqueta = `${MESES_NOMBRE[periodo.mes] || periodo.mes} ${periodo.anio}`;
-    const estadoLabel = periodo.estado === 'cerrado' ? 'Cerrado' : 'Borrador';
     const u = req.usuario;
     const enviadoPorNombre = `${u.nombres || ''} ${u.apellidos || ''}`.trim() || u.email || '—';
+    const { buffer, periodoEtiqueta, estadoLabel, data } = await generarPdfCompletoCajaChicaBuffer(
+      periodo,
+      enviadoPorNombre
+    );
 
     const resultado = await emailService.enviarCajaChicaResumenRocio({
       periodoEtiqueta,
@@ -256,7 +318,7 @@ const enviarResumenRocio = async (req, res) => {
       egresos: data.egresos,
       totales: data.totales,
       enviadoPorNombre,
-      reembolsosOrdenados
+      pdfCompletoBufferPrebuilt: buffer
     });
 
     if (!resultado.ok) {
@@ -282,5 +344,6 @@ module.exports = {
   guardarIngresos,
   cerrarPeriodo,
   reabrirPeriodo,
+  descargarResumenPdf,
   enviarResumenRocio
 };

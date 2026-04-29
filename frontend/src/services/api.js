@@ -203,6 +203,8 @@ export const cajaChicaService = {
   cerrar: (id) => api.post(`/caja-chica/periodos/${id}/cerrar`),
   reabrir: (id) => api.post(`/caja-chica/periodos/${id}/reabrir`),
   enviarResumenRocio: (id) => api.post(`/caja-chica/periodos/${id}/enviar-resumen-rocio`),
+  descargarResumenPdf: (id) =>
+    api.get(`/caja-chica/periodos/${id}/resumen-pdf`, { responseType: 'blob' }),
 };
 
 export default api;

@@ -10,7 +10,8 @@ import {
   LockClosedIcon,
   LockOpenIcon,
   EnvelopeIcon,
-  PaperClipIcon
+  PaperClipIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { cajaChicaService, reembolsoService } from '../services/api';
 
@@ -53,6 +54,7 @@ const CajaChica = () => {
   const [guardando, setGuardando] = useState(false);
   const [reabriendo, setReabriendo] = useState(false);
   const [enviandoCorreo, setEnviandoCorreo] = useState(false);
+  const [descargandoPdf, setDescargandoPdf] = useState(false);
 
   const [nuevoAnio, setNuevoAnio] = useState(new Date().getFullYear());
   const [nuevoMes, setNuevoMes] = useState(new Date().getMonth() + 1);
@@ -187,6 +189,29 @@ const CajaChica = () => {
     }
   };
 
+  const descargarResumenPdf = async () => {
+    if (!selId || !detalle) return;
+    setDescargandoPdf(true);
+    try {
+      const res = await cajaChicaService.descargarResumenPdf(selId);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const nombre =
+        detalle.periodo &&
+        `Caja-chica-${detalle.periodo.anio}-${String(detalle.periodo.mes).padStart(2, '0')}-completo.pdf`;
+      a.download = nombre || 'caja-chica-resumen.pdf';
+      a.click();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+      toast.success('PDF descargado.');
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo descargar el PDF.');
+    } finally {
+      setDescargandoPdf(false);
+    }
+  };
+
   const abrirComprobanteEgreso = async (e) => {
     try {
       const res = e.tiene_comprobante
@@ -206,7 +231,7 @@ const CajaChica = () => {
   const esBorrador = detalle?.periodo?.estado === 'borrador';
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-[min(96rem,calc(100vw-2rem))] mx-auto px-2 sm:px-4">
       <Link
         to="/portal"
         className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-emerald-600 mb-6 transition-colors"
@@ -227,8 +252,8 @@ const CajaChica = () => {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-6">
+      <div className="grid lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-3 space-y-6">
           <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
             <h2 className="text-sm font-semibold text-slate-800 mb-3">Nuevo período</h2>
             <form onSubmit={crearPeriodo} className="space-y-3">
@@ -322,7 +347,7 @@ const CajaChica = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-9 space-y-6">
           {!selId && (
             <p className="text-sm text-slate-500 rounded-2xl border border-dashed border-slate-200 p-8 text-center">
               Selecciona o crea un período para ver ingresos, egresos y totales.
@@ -368,7 +393,7 @@ const CajaChica = () => {
                     <thead>
                       <tr className="text-left text-slate-600 border-b border-slate-100">
                         <th className="pb-2 pr-4 font-medium">Motivo / transferencia</th>
-                        <th className="pb-2 font-medium w-36">Monto</th>
+                        <th className="pb-2 font-medium w-44 min-w-[11rem] text-right">Monto</th>
                         {esBorrador && <th className="pb-2 w-10" />}
                       </tr>
                     </thead>
@@ -397,12 +422,12 @@ const CajaChica = () => {
                               <span>{TIPOS.find((t) => t.value === row.tipo_motivo)?.label}</span>
                             )}
                           </td>
-                          <td className="py-2">
+                          <td className="py-2 w-44 min-w-[11rem] text-right">
                             {esBorrador ? (
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm tabular-nums"
+                                className="w-full min-w-[10rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm tabular-nums text-right"
                                 placeholder={
                                   row.tipo_motivo === 'saldo_anterior' ? 'Ej. -139.85 (negativo)' : ''
                                 }
@@ -415,7 +440,7 @@ const CajaChica = () => {
                                 }}
                               />
                             ) : (
-                              fmt(row.monto)
+                              <span className="tabular-nums whitespace-nowrap">{fmt(row.monto)}</span>
                             )}
                           </td>
                           {esBorrador && (
@@ -439,7 +464,9 @@ const CajaChica = () => {
                     <tfoot>
                       <tr className="font-semibold text-slate-800 bg-amber-50/80">
                         <td className="py-2 pr-4">Total ingreso</td>
-                        <td className="py-2 tabular-nums">{fmt(totalesVista?.total_ingreso)}</td>
+                        <td className="py-2 tabular-nums text-right whitespace-nowrap">
+                          {fmt(totalesVista?.total_ingreso)}
+                        </td>
                         {esBorrador && <td />}
                       </tr>
                     </tfoot>
@@ -451,22 +478,24 @@ const CajaChica = () => {
                 <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
                   <h2 className="text-sm font-semibold text-slate-800">Egresos (reintegros aprobados)</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Fecha documento: {detalle.rango_fecha_documento?.desde} al {detalle.rango_fecha_documento?.hasta}
+                    Fecha documento: {detalle.rango_fecha_documento?.desde} al {detalle.rango_fecha_documento?.hasta}.
+                    Listado: <strong>facturas</strong> primero y luego <strong>recibos Prayaga</strong> (en cada grupo por
+                    fecha).
                   </p>
                 </div>
                 <div className="p-4 overflow-x-auto">
                   {detalle.egresos.length === 0 ? (
                     <p className="text-sm text-slate-500">No hay egresos en este mes.</p>
                   ) : (
-                    <table className="min-w-full text-sm">
+                    <table className="min-w-[56rem] w-full text-sm table-fixed">
                       <thead>
                         <tr className="text-left text-slate-600 border-b border-slate-100">
-                          <th className="pb-2 pr-3 font-medium whitespace-nowrap">Fecha doc.</th>
-                          <th className="pb-2 pr-3 font-medium">RUC / tipo</th>
-                          <th className="pb-2 pr-3 font-medium">Nº documento</th>
+                          <th className="pb-2 pr-3 font-medium whitespace-nowrap w-[7.5rem]">Fecha doc.</th>
+                          <th className="pb-2 pr-3 font-medium w-[9.5rem]">RUC / tipo</th>
+                          <th className="pb-2 pr-3 font-medium w-[11rem]">Nº documento</th>
                           <th className="pb-2 pr-3 font-medium">Descripción</th>
-                          <th className="pb-2 pr-3 font-medium text-right">Monto</th>
-                          <th className="pb-2 pl-2 font-medium text-center whitespace-nowrap">
+                          <th className="pb-2 pr-3 font-medium text-right w-[8.5rem] whitespace-nowrap">Monto</th>
+                          <th className="pb-2 pl-2 font-medium text-center whitespace-nowrap w-[10.5rem]">
                             Comprobante / recibo
                           </th>
                         </tr>
@@ -480,7 +509,7 @@ const CajaChica = () => {
                             <td className="py-2 pr-3 max-w-xs truncate" title={e.descripcion}>
                               {e.descripcion}
                             </td>
-                            <td className="py-2 pr-3 text-right tabular-nums">{fmt(e.monto)}</td>
+                            <td className="py-2 pr-3 text-right tabular-nums whitespace-nowrap">{fmt(e.monto)}</td>
                             <td className="py-2 pl-2 text-center align-middle whitespace-nowrap">
                               <button
                                 type="button"
@@ -504,14 +533,18 @@ const CajaChica = () => {
                           <td colSpan={4} className="py-2 px-3 rounded-l-lg">
                             Total egresos
                           </td>
-                          <td className="py-2 px-3 text-right tabular-nums">{fmt(totalesVista?.total_egreso)}</td>
+                          <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap">
+                            {fmt(totalesVista?.total_egreso)}
+                          </td>
                           <td className="py-2 px-3 rounded-r-lg" />
                         </tr>
                         <tr className="font-bold text-emerald-900 bg-emerald-50">
                           <td colSpan={4} className="py-2 px-3">
                             Saldo (ingresos − egresos)
                           </td>
-                          <td className="py-2 px-3 text-right tabular-nums">{fmt(totalesVista?.saldo)}</td>
+                          <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap">
+                            {fmt(totalesVista?.saldo)}
+                          </td>
                           <td className="py-2 px-3" />
                         </tr>
                       </tfoot>
@@ -520,7 +553,21 @@ const CajaChica = () => {
                 </div>
               </div>
 
-              <div className="flex flex-wrap justify-end gap-3">
+              <div className="flex flex-col items-end gap-2">
+                <p className="text-xs text-slate-500 max-w-xl text-right">
+                  Si cerraste un período y necesitas corregir algo, usa <strong>Reabrir período</strong>: vuelve a borrador,
+                  podrás editar ingresos y cerrar de nuevo (el saldo de cierre anterior se anula hasta un nuevo cierre).
+                </p>
+                <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={descargandoPdf}
+                  onClick={descargarResumenPdf}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium px-5 py-2.5 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <ArrowDownTrayIcon className="w-4 h-4" />
+                  {descargandoPdf ? 'Generando…' : 'Descargar PDF (mismo del correo)'}
+                </button>
                 <button
                   type="button"
                   disabled={enviandoCorreo}
@@ -551,6 +598,7 @@ const CajaChica = () => {
                     Cerrar período
                   </button>
                 )}
+                </div>
               </div>
             </>
           )}
