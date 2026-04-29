@@ -351,6 +351,229 @@ class PDFService {
       }
     });
   }
+
+  /**
+   * PDF formal del resumen de caja chica (correo a contadora).
+   */
+  static generarResumenCajaChicaFormal({
+    periodoEtiqueta,
+    estadoPeriodo,
+    saldoCierreGuardado,
+    rangoDesde,
+    rangoHasta,
+    ingresos,
+    egresos,
+    totales,
+    enviadoPorNombre
+  }) {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 48, size: 'A4' });
+        const buffers = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => resolve(Buffer.concat(buffers)));
+
+        const pageW = 595.28;
+        const margin = 48;
+        const contentW = pageW - margin * 2;
+        let y = margin;
+
+        const logoPath = path.join(__dirname, '../assets/logo.png');
+        if (fs.existsSync(logoPath)) {
+          doc.image(logoPath, margin, y, { width: 88 });
+        } else {
+          doc.fontSize(13).font('Helvetica-Bold').fillColor('#0d9488').text('PRAYAGA', margin, y + 10);
+        }
+        doc.fontSize(9).font('Helvetica').fillColor('#64748b')
+          .text('Portal RRHH · Módulo Caja chica', margin + 96, y + 18);
+        y += 68;
+
+        doc.fontSize(15).font('Helvetica-Bold').fillColor('#0f172a')
+          .text('RESUMEN DE CAJA CHICA', margin, y, { width: contentW, align: 'center' });
+        y += 22;
+        doc.fontSize(10).font('Helvetica').fillColor('#334155');
+        doc.text(`Período: ${periodoEtiqueta}`, margin, y);
+        doc.text(`Estado: ${estadoPeriodo}`, margin + 220, y);
+        y += 14;
+        doc.text(`Rango fechas documento (egresos): ${rangoDesde} al ${rangoHasta}`, margin, y, { width: contentW });
+        y += 14;
+        if (saldoCierreGuardado != null && saldoCierreGuardado !== '') {
+          doc.text(`Saldo de cierre registrado: S/ ${Number(saldoCierreGuardado).toFixed(2)}`, margin, y);
+          y += 14;
+        }
+        doc.fontSize(9).fillColor('#64748b')
+          .text(
+            `Emitido para uso contable · Generado por: ${enviadoPorNombre || '—'} · ${moment().format('DD/MM/YYYY HH:mm')}`,
+            margin,
+            y,
+            { width: contentW }
+          );
+        y += 22;
+
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#0d9488').text('Ingresos del período', margin, y);
+        y += 14;
+        doc.rect(margin, y, contentW, 15).fillAndStroke('#f1f5f9', '#cbd5e1');
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#475569')
+          .text('Motivo / transferencia', margin + 5, y + 4, { width: 360 })
+          .text('Monto (S/)', margin + 410, y + 4, { width: 120, align: 'right' });
+        y += 16;
+        for (const row of ingresos || []) {
+          if (y > 730) {
+            doc.addPage();
+            y = margin;
+          }
+          doc.rect(margin, y, contentW, 14).stroke('#e2e8f0');
+          doc.fontSize(9).font('Helvetica').fillColor('#0f172a')
+            .text(String(row.motivo_label || '—'), margin + 5, y + 3, { width: 360 })
+            .text(Number(row.monto).toFixed(2), margin + 410, y + 3, { width: 120, align: 'right' });
+          y += 14;
+        }
+        const ti = Number(totales?.total_ingreso) || 0;
+        doc.rect(margin, y, contentW, 16).fillAndStroke('#fef3c7', '#fbbf24');
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#78350f')
+          .text('Total ingresos', margin + 5, y + 4, { width: 360 })
+          .text(ti.toFixed(2), margin + 410, y + 4, { width: 120, align: 'right' });
+        y += 26;
+
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#0d9488').text('Egresos (reintegros aprobados)', margin, y);
+        y += 14;
+        doc.rect(margin, y, contentW, 15).fillAndStroke('#f1f5f9', '#cbd5e1');
+        doc.fontSize(7).font('Helvetica-Bold').fillColor('#475569');
+        const c0 = margin + 4;
+        const c1 = margin + 52;
+        const c2 = margin + 118;
+        const c3 = margin + 248;
+        const c4 = margin + 418;
+        doc.text('Fecha', c0, y + 4, { width: 44 });
+        doc.text('RUC / tipo', c1, y + 4, { width: 58 });
+        doc.text('Nº doc.', c2, y + 4, { width: 120 });
+        doc.text('Descripción', c3, y + 4, { width: 158 });
+        doc.text('Monto', c4, y + 4, { width: 70, align: 'right' });
+        y += 16;
+        doc.font('Helvetica');
+        for (const e of egresos || []) {
+          if (y > 720) {
+            doc.addPage();
+            y = margin;
+          }
+          const desc = String(e.descripcion || '').substring(0, 48);
+          doc.rect(margin, y, contentW, 20).stroke('#e2e8f0');
+          doc.fontSize(7).fillColor('#0f172a')
+            .text(String(e.fecha_documento || ''), c0, y + 5, { width: 44 })
+            .text(String(e.ruc_proveedor || '').substring(0, 14), c1, y + 5, { width: 58 })
+            .text(String(e.numero_documento || '').substring(0, 18), c2, y + 5, { width: 120 })
+            .text(desc, c3, y + 5, { width: 158 })
+            .text(Number(e.monto).toFixed(2), c4, y + 5, { width: 70, align: 'right' });
+          y += 20;
+        }
+        const te = Number(totales?.total_egreso) || 0;
+        const sal = Number(totales?.saldo) || 0;
+        if (y > 700) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.rect(margin, y, contentW, 17).fillAndStroke('#7f1d1d', '#7f1d1d');
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
+          .text('Total egresos', margin + 6, y + 5, { width: 380 })
+          .text(`S/ ${te.toFixed(2)}`, c4, y + 5, { width: 70, align: 'right' });
+        y += 21;
+        doc.rect(margin, y, contentW, 17).fillAndStroke('#14532d', '#14532d');
+        doc.text('Saldo del período (ingresos − egresos)', margin + 6, y + 5, { width: 380 })
+          .text(`S/ ${sal.toFixed(2)}`, c4, y + 5, { width: 70, align: 'right' });
+        y += 28;
+        doc.fontSize(8).font('Helvetica').fillColor('#64748b')
+          .text(
+            'Los comprobantes y recibos originales se adjuntan en un segundo archivo PDF (fusión ordenada por fecha de documento).',
+            margin,
+            y,
+            { width: contentW, align: 'center' }
+          );
+
+        doc.end();
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  /**
+   * Une PDFs e imágenes de comprobantes/recibos Prayaga en orden (misma que reembolsosRows).
+   */
+  static async fusionarComprobantesReintegros(reembolsosRows) {
+    const { PDFDocument, StandardFonts } = require('pdf-lib');
+    const Reembolso = require('../models/Reembolso');
+    const merged = await PDFDocument.create();
+    let any = false;
+
+    const drawImageFit = (page, img) => {
+      const pw = 495;
+      const ph = 700;
+      const { width, height } = img.scale(1);
+      const scale = Math.min(pw / width, ph / height, 1);
+      const w = width * scale;
+      const h = height * scale;
+      const pageH = page.getHeight();
+      page.drawImage(img, { x: 50, y: pageH - 50 - h, width: w, height: h });
+    };
+
+    for (const r of reembolsosRows || []) {
+      const codigo = Reembolso.codigoTicket(r);
+      const filePath = r.tiene_comprobante ? r.archivo_comprobante_path : r.archivo_recibo_generado_path;
+      if (!filePath || !fs.existsSync(filePath)) {
+        continue;
+      }
+      const ext = path.extname(filePath).toLowerCase();
+      const bytes = fs.readFileSync(filePath);
+      try {
+        if (ext === '.pdf') {
+          const src = await PDFDocument.load(bytes);
+          const copied = await merged.copyPages(src, src.getPageIndices());
+          copied.forEach((p) => merged.addPage(p));
+          any = true;
+        } else if (ext === '.png') {
+          const page = merged.addPage([595.28, 841.89]);
+          const img = await merged.embedPng(bytes);
+          drawImageFit(page, img);
+          any = true;
+        } else if (ext === '.jpg' || ext === '.jpeg') {
+          const page = merged.addPage([595.28, 841.89]);
+          const img = await merged.embedJpg(bytes);
+          drawImageFit(page, img);
+          any = true;
+        } else {
+          const page = merged.addPage([595.28, 841.89]);
+          const font = await merged.embedFont(StandardFonts.Helvetica);
+          const orig = path.basename(filePath);
+          page.drawText(`No fusionado (formato ${ext}): ${orig} — ${codigo}`, {
+            x: 50,
+            y: 780,
+            size: 10,
+            font
+          });
+          any = true;
+        }
+      } catch (err) {
+        console.warn('fusionarComprobantesReintegros:', codigo, err.message);
+        const page = merged.addPage([595.28, 841.89]);
+        const font = await merged.embedFont(StandardFonts.Helvetica);
+        page.drawText(`Error al incluir ${codigo}: ${err.message}`, { x: 50, y: 780, size: 9, font });
+        any = true;
+      }
+    }
+
+    if (!any) {
+      const page = merged.addPage([595.28, 841.89]);
+      const font = await merged.embedFont(StandardFonts.Helvetica);
+      page.drawText('No hay archivos PDF o imagen disponibles para fusionar en este período.', {
+        x: 50,
+        y: 780,
+        size: 11,
+        font
+      });
+    }
+
+    return Buffer.from(await merged.save());
+  }
 }
 
 module.exports = PDFService;

@@ -52,6 +52,11 @@ class CajaChica {
         if (!tipos.includes(linea.tipo_motivo)) {
           throw new Error('tipo_motivo no válido');
         }
+        if (linea.tipo_motivo === 'saldo_anterior' && monto > 0) {
+          throw new Error(
+            'El saldo a favor de la caja chica anterior debe ser negativo o cero (use signo −, ej. −139.85).'
+          );
+        }
         await conn.execute(
           `INSERT INTO caja_chica_ingresos (periodo_id, tipo_motivo, monto, orden) VALUES (?, ?, ?, ?)`,
           [periodoId, linea.tipo_motivo, monto, orden++]

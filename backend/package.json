@@ -8,7 +8,11 @@
     "dev": "nodemon src/index.js",
     "test": "jest"
   },
-  "keywords": ["vacaciones", "rrhh", "gestion"],
+  "keywords": [
+    "vacaciones",
+    "rrhh",
+    "gestion"
+  ],
   "author": "Prayaga",
   "license": "ISC",
   "dependencies": {
@@ -21,9 +25,10 @@
     "moment": "^2.29.4",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.6.5",
-    "pg": "^8.11.3",
     "nodemailer": "^6.9.7",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.14.0",
+    "pg": "^8.11.3",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

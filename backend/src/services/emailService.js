@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
+const PDFService = require('./pdfService');
 const TokenAprobacion = require('../models/TokenAprobacion');
 const { calcularFechaEfectivaRegreso } = require('../utils/calcularDiasVacaciones');
 
@@ -1038,7 +1039,8 @@ const enviarCajaChicaResumenRocio = async ({
   ingresos,
   egresos,
   totales,
-  enviadoPorNombre
+  enviadoPorNombre,
+  reembolsosOrdenados = []
 }) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     return { ok: false, mensaje: 'Email no configurado.' };
@@ -1073,9 +1075,31 @@ const enviarCajaChicaResumenRocio = async ({
   const te = Number(totales?.total_egreso) || 0;
   const sal = Number(totales?.saldo) || 0;
 
+  const safeFile = String(periodoEtiqueta).replace(/[^\w\-]+/g, '_');
+  let resumenPdf;
+  let fusionPdf;
+  try {
+    resumenPdf = await PDFService.generarResumenCajaChicaFormal({
+      periodoEtiqueta,
+      estadoPeriodo,
+      saldoCierreGuardado,
+      rangoDesde,
+      rangoHasta,
+      ingresos,
+      egresos,
+      totales,
+      enviadoPorNombre
+    });
+    fusionPdf = await PDFService.fusionarComprobantesReintegros(reembolsosOrdenados);
+  } catch (errPdf) {
+    console.error('PDF caja chica Rocío:', errPdf);
+    return { ok: false, mensaje: errPdf.message || 'Error al generar los PDF adjuntos.' };
+  }
+
   const contenido = `
     <p>Hola <strong>Rocío</strong>,</p>
     <p>Se envía el resumen de <strong>caja chica</strong> solicitado desde el portal.</p>
+    <p style="font-size:13px;line-height:1.5;">Adjuntos: <strong>(1)</strong> PDF con el resumen formal (ingresos, egresos y saldos) y <strong>(2)</strong> PDF con la <strong>fusión de comprobantes y recibos Prayaga</strong> del período, en <strong>orden por fecha de documento</strong>. Los formatos que no son PDF ni imagen aparecen indicados en una hoja dentro del segundo archivo.</p>
     <div class="info-box">
       <div class="info-row"><span class="info-label">Período</span><span class="info-value">${escapeHtml(periodoEtiqueta)}</span></div>
       <div class="info-row"><span class="info-label">Estado</span><span class="info-value">${escapeHtml(estadoPeriodo)}</span></div>
@@ -1112,7 +1136,11 @@ const enviarCajaChicaResumenRocio = async ({
       from: `"Portal RRHH - Caja chica" <${process.env.SMTP_USER}>`,
       to: destino,
       subject: `Caja chica · ${periodoEtiqueta} (${estadoPeriodo})`,
-      html: plantillaBase(contenido, 'Resumen enviado desde el portal', MARCA_ENCABEZADO_CAJA_CHICA, PIE_EMAIL_CAJA_CHICA)
+      html: plantillaBase(contenido, 'Resumen enviado desde el portal', MARCA_ENCABEZADO_CAJA_CHICA, PIE_EMAIL_CAJA_CHICA),
+      attachments: [
+        { filename: `Resumen-caja-chica-${safeFile}.pdf`, content: resumenPdf },
+        { filename: `Comprobantes-reintegros-${safeFile}.pdf`, content: fusionPdf }
+      ]
     });
     return { ok: true };
   } catch (error) {

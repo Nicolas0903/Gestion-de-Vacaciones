@@ -31,6 +31,12 @@ async function puedeGestionarReembolsosComoStaff(usuario) {
   return aprobId != null && usuario.id === aprobId;
 }
 
+/** Admin, contadora (caja chica) o aprobador de reembolsos: ver/descargar adjuntos. */
+async function puedeVerAdjuntosReembolso(usuario) {
+  if (usuario.rol_nombre === 'admin' || usuario.rol_nombre === 'contadora') return true;
+  return puedeGestionarReembolsosComoStaff(usuario);
+}
+
 const crear = async (req, res) => {
   try {
     const {
@@ -240,8 +246,8 @@ const descargarReciboPdf = async (req, res) => {
     if (!r || !r.archivo_recibo_generado_path) {
       return res.status(404).json({ success: false, mensaje: 'Recibo no disponible.' });
     }
-    const esStaff = await puedeGestionarReembolsosComoStaff(req.usuario);
-    if (r.empleado_id !== req.usuario.id && !esStaff) {
+    const puedeArchivo = await puedeVerAdjuntosReembolso(req.usuario);
+    if (r.empleado_id !== req.usuario.id && !puedeArchivo) {
       return res.status(403).json({ success: false, mensaje: 'Sin permiso.' });
     }
     if (!fs.existsSync(r.archivo_recibo_generado_path)) {
@@ -262,8 +268,8 @@ const descargarComprobante = async (req, res) => {
     if (!r || !r.archivo_comprobante_path) {
       return res.status(404).json({ success: false, mensaje: 'Sin comprobante.' });
     }
-    const esStaff = await puedeGestionarReembolsosComoStaff(req.usuario);
-    if (r.empleado_id !== req.usuario.id && !esStaff) {
+    const puedeArchivo = await puedeVerAdjuntosReembolso(req.usuario);
+    if (r.empleado_id !== req.usuario.id && !puedeArchivo) {
       return res.status(403).json({ success: false, mensaje: 'Sin permiso.' });
     }
     if (!fs.existsSync(r.archivo_comprobante_path)) {

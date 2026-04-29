@@ -239,6 +239,8 @@ const enviarResumenRocio = async (req, res) => {
       return res.status(404).json({ success: false, mensaje: 'Período no encontrado.' });
     }
     const data = await construirDetallePeriodo(periodo);
+    const { desde, hasta } = rangoMes(periodo.anio, periodo.mes);
+    const reembolsosOrdenados = await Reembolso.listarAprobadosPorRangoFechaDocumento(desde, hasta);
     const periodoEtiqueta = `${MESES_NOMBRE[periodo.mes] || periodo.mes} ${periodo.anio}`;
     const estadoLabel = periodo.estado === 'cerrado' ? 'Cerrado' : 'Borrador';
     const u = req.usuario;
@@ -253,7 +255,8 @@ const enviarResumenRocio = async (req, res) => {
       ingresos: data.ingresos,
       egresos: data.egresos,
       totales: data.totales,
-      enviadoPorNombre
+      enviadoPorNombre,
+      reembolsosOrdenados
     });
 
     if (!resultado.ok) {

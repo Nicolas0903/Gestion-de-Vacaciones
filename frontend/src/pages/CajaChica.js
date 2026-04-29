@@ -9,9 +9,10 @@ import {
   ArrowPathIcon,
   LockClosedIcon,
   LockOpenIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  PaperClipIcon
 } from '@heroicons/react/24/outline';
-import { cajaChicaService } from '../services/api';
+import { cajaChicaService, reembolsoService } from '../services/api';
 
 const MESES = [
   { v: 1, l: 'Enero' },
@@ -31,7 +32,10 @@ const MESES = [
 const TIPOS = [
   { value: 'caja_chica', label: 'Caja chica' },
   { value: 'deposito_adicional', label: 'Depósito adicional del mes' },
-  { value: 'saldo_anterior', label: 'Saldo a favor de la caja chica anterior' }
+  {
+    value: 'saldo_anterior',
+    label: 'Saldo a favor de la caja chica anterior (siempre negativo o cero)'
+  }
 ];
 
 const fmt = (n) =>
@@ -180,6 +184,21 @@ const CajaChica = () => {
       toast.error(err.response?.data?.mensaje || 'No se pudo enviar el correo.');
     } finally {
       setEnviandoCorreo(false);
+    }
+  };
+
+  const abrirComprobanteEgreso = async (e) => {
+    try {
+      const res = e.tiene_comprobante
+        ? await reembolsoService.descargarComprobante(e.reembolso_id)
+        : await reembolsoService.descargarRecibo(e.reembolso_id);
+      const mime = res.headers['content-type'] || 'application/pdf';
+      const blob = new Blob([res.data], { type: mime });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+    } catch {
+      toast.error('No se pudo abrir el comprobante o recibo.');
     }
   };
 
@@ -384,6 +403,9 @@ const CajaChica = () => {
                                 type="text"
                                 inputMode="decimal"
                                 className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm tabular-nums"
+                                placeholder={
+                                  row.tipo_motivo === 'saldo_anterior' ? 'Ej. -139.85 (negativo)' : ''
+                                }
                                 value={row.monto}
                                 onChange={(e) => {
                                   const v = e.target.value;
@@ -443,7 +465,10 @@ const CajaChica = () => {
                           <th className="pb-2 pr-3 font-medium">RUC / tipo</th>
                           <th className="pb-2 pr-3 font-medium">Nº documento</th>
                           <th className="pb-2 pr-3 font-medium">Descripción</th>
-                          <th className="pb-2 font-medium text-right">Monto</th>
+                          <th className="pb-2 pr-3 font-medium text-right">Monto</th>
+                          <th className="pb-2 pl-2 font-medium text-center whitespace-nowrap">
+                            Comprobante / recibo
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -455,7 +480,22 @@ const CajaChica = () => {
                             <td className="py-2 pr-3 max-w-xs truncate" title={e.descripcion}>
                               {e.descripcion}
                             </td>
-                            <td className="py-2 text-right tabular-nums">{fmt(e.monto)}</td>
+                            <td className="py-2 pr-3 text-right tabular-nums">{fmt(e.monto)}</td>
+                            <td className="py-2 pl-2 text-center align-middle whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => abrirComprobanteEgreso(e)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-xs font-medium"
+                                title={
+                                  e.tiene_comprobante
+                                    ? 'Abrir comprobante adjunto'
+                                    : 'Abrir recibo Prayaga (PDF)'
+                                }
+                              >
+                                <PaperClipIcon className="w-4 h-4 shrink-0" />
+                                {e.tiene_comprobante ? 'Factura' : 'Recibo'}
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -464,15 +504,15 @@ const CajaChica = () => {
                           <td colSpan={4} className="py-2 px-3 rounded-l-lg">
                             Total egresos
                           </td>
-                          <td className="py-2 px-3 text-right tabular-nums rounded-r-lg">
-                            {fmt(totalesVista?.total_egreso)}
-                          </td>
+                          <td className="py-2 px-3 text-right tabular-nums">{fmt(totalesVista?.total_egreso)}</td>
+                          <td className="py-2 px-3 rounded-r-lg" />
                         </tr>
                         <tr className="font-bold text-emerald-900 bg-emerald-50">
                           <td colSpan={4} className="py-2 px-3">
                             Saldo (ingresos − egresos)
                           </td>
                           <td className="py-2 px-3 text-right tabular-nums">{fmt(totalesVista?.saldo)}</td>
+                          <td className="py-2 px-3" />
                         </tr>
                       </tfoot>
                     </table>
