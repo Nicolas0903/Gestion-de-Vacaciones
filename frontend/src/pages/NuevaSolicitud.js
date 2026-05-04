@@ -166,8 +166,7 @@ const NuevaSolicitud = () => {
         <div>
           <p className="text-sm text-blue-800 font-medium">Política de cálculo de días</p>
           <p className="text-sm text-blue-600 mt-1">
-            Si tus vacaciones incluyen un viernes y continúan el lunes siguiente, 
-            el sábado y domingo se contarán como días de vacaciones.
+            Si tus vacaciones incluyen un viernes, el sábado y domingo se contarán como días de vacaciones.
           </p>
         </div>
       </div>
