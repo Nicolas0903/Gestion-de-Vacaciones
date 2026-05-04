@@ -589,17 +589,18 @@ const GestionReembolsos = () => {
       {fichaModal && (
         <div
           role="presentation"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40"
           onClick={() => setFichaModal(null)}
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ficha-reintegro-titulo"
-            className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[min(85vh,640px)] overflow-y-auto p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ficha-reintegro-titulo"
+              className="bg-white rounded-2xl shadow-xl max-w-lg w-full min-h-0 max-h-[min(90dvh,42rem)] flex flex-col overflow-hidden p-0 my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+            <div className="flex items-start justify-between gap-4 p-6 pb-4 shrink-0 border-b border-slate-100">
               <div>
                 <h3 id="ficha-reintegro-titulo" className="text-lg font-bold text-slate-800 font-mono">
                   {fichaModal.codigo_ticket}
@@ -624,7 +625,8 @@ const GestionReembolsos = () => {
               </button>
             </div>
 
-            {fichaModal.comentarios_resolucion ? (
+            <div className="px-6 pt-4 pb-2 overflow-y-auto min-h-0 flex-1 [scrollbar-gutter:stable]">
+              {fichaModal.comentarios_resolucion ? (
               <div className="mb-5 p-4 rounded-xl bg-slate-50 border border-slate-100">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Observaciones</p>
                 <p className="text-sm text-slate-700 whitespace-pre-wrap">{fichaModal.comentarios_resolucion}</p>
@@ -683,8 +685,9 @@ const GestionReembolsos = () => {
                 </p>
               ) : null}
             </div>
+            </div>
 
-            <div className="flex justify-end mt-6">
+            <div className="flex justify-end shrink-0 p-6 pt-4 border-t border-slate-100 bg-white">
               <button
                 type="button"
                 onClick={() => setFichaModal(null)}
@@ -692,6 +695,7 @@ const GestionReembolsos = () => {
               >
                 Cerrar
               </button>
+            </div>
             </div>
           </div>
         </div>
