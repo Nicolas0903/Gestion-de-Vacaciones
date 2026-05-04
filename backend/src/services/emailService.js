@@ -1067,11 +1067,21 @@ const enviarCajaChicaResumenRocio = async ({
   const toField = destinatarios.join(', ');
 
   const filasIng = (ingresos || [])
-    .map(
-      (r) =>
+    .map((r) => {
+      let fdep = '—';
+      if (r.fecha_deposito) {
+        const s = String(r.fecha_deposito).slice(0, 10);
+        const p = s.split('-');
+        if (p.length === 3) fdep = `${p[2]}/${p[1]}/${p[0]}`;
+      }
+      const adj = r.tiene_comprobante || r.comprobante_archivo ? 'Sí' : '—';
+      return (
         `<tr><td style="padding:8px;border:1px solid #e2e8f0;">${escapeHtml(r.motivo_label)}</td>` +
+        `<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;font-size:12px;">${escapeHtml(fdep)}</td>` +
+        `<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;">${escapeHtml(adj)}</td>` +
         `<td style="padding:8px;border:1px solid #e2e8f0;text-align:right;">S/ ${Number(r.monto).toFixed(2)}</td></tr>`
-    )
+      );
+    })
     .join('');
 
   const filasEgr = (egresos || [])
@@ -1140,8 +1150,8 @@ const enviarCajaChicaResumenRocio = async ({
     </div>
     <h3 style="margin:20px 0 8px;font-size:15px;">Ingresos</h3>
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead><tr style="background:#f1f5f9;"><th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Motivo</th><th style="padding:8px;border:1px solid #e2e8f0;">Monto</th></tr></thead>
-      <tbody>${filasIng || '<tr><td colspan="2" style="padding:8px;">Sin líneas de ingreso</td></tr>'}</tbody>
+      <thead><tr style="background:#f1f5f9;"><th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Motivo</th><th style="padding:8px;border:1px solid #e2e8f0;">Fecha depósito</th><th style="padding:8px;border:1px solid #e2e8f0;">Adjunto</th><th style="padding:8px;border:1px solid #e2e8f0;">Monto</th></tr></thead>
+      <tbody>${filasIng || '<tr><td colspan="4" style="padding:8px;">Sin líneas de ingreso</td></tr>'}</tbody>
     </table>
     <h3 style="margin:20px 0 8px;font-size:15px;">Egresos (reintegros aprobados)</h3>
     <table style="width:100%;border-collapse:collapse;font-size:13px;">

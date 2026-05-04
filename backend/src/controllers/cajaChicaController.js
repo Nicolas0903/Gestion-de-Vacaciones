@@ -1,4 +1,6 @@
 const { Reembolso, CajaChica } = require('../models');
+const path = require('path');
+const fs = require('fs');
 const emailService = require('../services/emailService');
 const PDFService = require('../services/pdfService');
 
@@ -23,6 +25,21 @@ const TIPOS_INGRESO_LABEL = {
   deposito_adicional: 'Depósito adicional del mes',
   saldo_anterior: 'Saldo de la caja chica (cierre del período anterior)'
 };
+
+const ADJUNTO_INGRESOS_DIR = path.join(__dirname, '../../uploads/caja-chica-ingresos');
+
+function mapIngresoRowResp(row) {
+  return {
+    id: row.id,
+    tipo_motivo: row.tipo_motivo,
+    motivo_label: TIPOS_INGRESO_LABEL[row.tipo_motivo],
+    monto: Number(row.monto),
+    orden: row.orden,
+    fecha_deposito: row.fecha_deposito ? String(row.fecha_deposito).slice(0, 10) : null,
+    comprobante_archivo: row.comprobante_archivo || null,
+    tiene_comprobante: !!(row.comprobante_archivo && String(row.comprobante_archivo).trim())
+  };
+}
 
 function ultimoDiaMes(anio, mes) {
   return new Date(anio, mes, 0).getDate();
@@ -134,7 +151,12 @@ async function construirDetallePeriodo(periodo) {
     tipo_motivo: row.tipo_motivo,
     motivo_label: TIPOS_INGRESO_LABEL[row.tipo_motivo] || row.tipo_motivo,
     monto: Number(row.monto),
-    orden: row.orden
+    orden: row.orden,
+    fecha_deposito: row.fecha_deposito
+      ? String(row.fecha_deposito).slice(0, 10)
+      : null,
+    comprobante_archivo: row.comprobante_archivo || null,
+    tiene_comprobante: !!(row.comprobante_archivo && String(row.comprobante_archivo).trim())
   }));
 
   const totalIngreso = ingresos.reduce((s, x) => s + x.monto, 0);
@@ -188,17 +210,16 @@ const guardarIngresos = async (req, res) => {
     const ingresos = await CajaChica.listarIngresos(id);
     res.json({
       success: true,
-      data: ingresos.map((row) => ({
-        id: row.id,
-        tipo_motivo: row.tipo_motivo,
-        motivo_label: TIPOS_INGRESO_LABEL[row.tipo_motivo],
-        monto: Number(row.monto),
-        orden: row.orden
-      }))
+      data: ingresos.map(mapIngresoRowResp)
     });
   } catch (e) {
     console.error(e);
-    const msg = e.message === 'Monto inválido' || e.message === 'tipo_motivo no válido' ? e.message : 'Error al guardar ingresos.';
+    const known =
+      e.message === 'Monto inválido' ||
+      e.message === 'tipo_motivo no válido' ||
+      String(e.message || '').startsWith('fecha_deposito') ||
+      e.message === 'Línea de ingreso no encontrada o no pertenece al período';
+    const msg = known ? e.message : 'Error al guardar ingresos.';
     res.status(400).json({ success: false, mensaje: msg });
   }
 };
@@ -337,6 +358,88 @@ const enviarResumenRocio = async (req, res) => {
   }
 };
 
+const subirAdjuntoIngreso = async (req, res) => {
+  try {
+    const periodoId = parseInt(req.params.id, 10);
+    const ingresoId = parseInt(req.params.ingresoId, 10);
+    if (!req.file?.filename) {
+      return res.status(400).json({ success: false, mensaje: 'Archivo requerido.' });
+    }
+    const periodo = await CajaChica.buscarPeriodoPorId(periodoId);
+    if (!periodo) {
+      CajaChica.eliminarArchivoComprobante(req.file.filename);
+      return res.status(404).json({ success: false, mensaje: 'Período no encontrado.' });
+    }
+    if (periodo.estado !== 'borrador') {
+      CajaChica.eliminarArchivoComprobante(req.file.filename);
+      return res.status(400).json({ success: false, mensaje: 'Solo se adjuntan archivos en período borrador.' });
+    }
+    const ing = await CajaChica.obtenerIngresoPorIdEnPeriodo(ingresoId, periodoId);
+    if (!ing) {
+      CajaChica.eliminarArchivoComprobante(req.file.filename);
+      return res.status(404).json({ success: false, mensaje: 'Línea de ingreso no encontrada.' });
+    }
+    const prev = ing.comprobante_archivo;
+    const ok = await CajaChica.actualizarComprobanteIngreso(ingresoId, periodoId, req.file.filename);
+    if (!ok) {
+      CajaChica.eliminarArchivoComprobante(req.file.filename);
+      return res.status(400).json({ success: false, mensaje: 'No se pudo guardar el adjunto.' });
+    }
+    if (prev && prev !== req.file.filename) {
+      CajaChica.eliminarArchivoComprobante(prev);
+    }
+    res.json({
+      success: true,
+      data: { comprobante_archivo: req.file.filename, tiene_comprobante: true }
+    });
+  } catch (e) {
+    console.error(e);
+    if (req.file?.filename) CajaChica.eliminarArchivoComprobante(req.file.filename);
+    res.status(500).json({ success: false, mensaje: 'Error al subir archivo.' });
+  }
+};
+
+const descargarAdjuntoIngreso = async (req, res) => {
+  try {
+    const periodoId = parseInt(req.params.id, 10);
+    const ingresoId = parseInt(req.params.ingresoId, 10);
+    const ing = await CajaChica.obtenerIngresoPorIdEnPeriodo(ingresoId, periodoId);
+    if (!ing?.comprobante_archivo) {
+      return res.status(404).json({ success: false, mensaje: 'No hay archivo adjunto.' });
+    }
+    const full = path.join(ADJUNTO_INGRESOS_DIR, ing.comprobante_archivo);
+    if (!fs.existsSync(full)) {
+      return res.status(404).json({ success: false, mensaje: 'Archivo no encontrado en servidor.' });
+    }
+    res.download(full, ing.comprobante_archivo);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al descargar.' });
+  }
+};
+
+const eliminarAdjuntoIngreso = async (req, res) => {
+  try {
+    const periodoId = parseInt(req.params.id, 10);
+    const ingresoId = parseInt(req.params.ingresoId, 10);
+    const periodo = await CajaChica.buscarPeriodoPorId(periodoId);
+    if (!periodo) {
+      return res.status(404).json({ success: false, mensaje: 'Período no encontrado.' });
+    }
+    if (periodo.estado !== 'borrador') {
+      return res.status(400).json({ success: false, mensaje: 'Solo en borrador se puede quitar el adjunto.' });
+    }
+    const ok = await CajaChica.limpiarComprobanteIngreso(ingresoId, periodoId);
+    if (!ok) {
+      return res.status(404).json({ success: false, mensaje: 'Línea no encontrada.' });
+    }
+    res.json({ success: true, mensaje: 'Adjunto eliminado.' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al eliminar adjunto.' });
+  }
+};
+
 module.exports = {
   listarPeriodos,
   crearPeriodo,
@@ -345,5 +448,8 @@ module.exports = {
   cerrarPeriodo,
   reabrirPeriodo,
   descargarResumenPdf,
-  enviarResumenRocio
+  enviarResumenRocio,
+  subirAdjuntoIngreso,
+  descargarAdjuntoIngreso,
+  eliminarAdjuntoIngreso
 };

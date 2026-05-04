@@ -42,7 +42,14 @@ const TIPOS = [
 const fmt = (n) =>
   `S/ ${Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const filaVacia = () => ({ tipo_motivo: 'caja_chica', monto: '' });
+const filaVacia = () => ({
+  id: undefined,
+  tipo_motivo: 'caja_chica',
+  monto: '',
+  fecha_deposito: '',
+  tiene_comprobante: false,
+  archivoPendiente: null
+});
 
 const CajaChica = () => {
   const [periodos, setPeriodos] = useState([]);
@@ -54,7 +61,7 @@ const CajaChica = () => {
   const [guardando, setGuardando] = useState(false);
   const [reabriendo, setReabriendo] = useState(false);
   const [enviandoCorreo, setEnviandoCorreo] = useState(false);
-  const [descargandoPdf, setDescargandoPdf] = useState(false);
+  const [adjuntoSubiendoIdx, setAdjuntoSubiendoIdx] = useState(null);
 
   const [nuevoAnio, setNuevoAnio] = useState(new Date().getFullYear());
   const [nuevoMes, setNuevoMes] = useState(new Date().getMonth() + 1);
@@ -80,7 +87,14 @@ const CajaChica = () => {
       const ing = data.data.ingresos || [];
       setIngresosEdit(
         ing.length
-          ? ing.map((r) => ({ tipo_motivo: r.tipo_motivo, monto: String(r.monto) }))
+          ? ing.map((r) => ({
+              id: r.id,
+              tipo_motivo: r.tipo_motivo,
+              monto: String(r.monto),
+              fecha_deposito: r.fecha_deposito ? String(r.fecha_deposito).slice(0, 10) : '',
+              tiene_comprobante: !!(r.tiene_comprobante || r.comprobante_archivo),
+              archivoPendiente: null
+            }))
           : [filaVacia()]
       );
     } catch {
@@ -118,21 +132,105 @@ const CajaChica = () => {
   const guardarIngresos = async () => {
     if (!selId || detalle?.periodo?.estado !== 'borrador') return;
     const lineas = ingresosEdit
-      .map((r) => ({
-        tipo_motivo: r.tipo_motivo,
-        monto: parseFloat(String(r.monto).replace(',', '.'), 10)
-      }))
+      .map((r) => {
+        const montoVal = parseFloat(String(r.monto).replace(',', '.'), 10);
+        const linea = {
+          tipo_motivo: r.tipo_motivo,
+          monto: montoVal,
+          fecha_deposito: r.fecha_deposito && String(r.fecha_deposito).trim() ? String(r.fecha_deposito).trim() : null
+        };
+        if (r.id != null && r.id !== '') linea.id = Number(r.id);
+        return linea;
+      })
       .filter((r) => !Number.isNaN(r.monto));
     setGuardando(true);
     try {
-      await cajaChicaService.guardarIngresos(selId, lineas);
+      const resp = await cajaChicaService.guardarIngresos(selId, lineas);
+      const guardados = resp.data?.data || [];
+      for (let i = 0; i < Math.min(guardados.length, ingresosEdit.length); i++) {
+        const pend = ingresosEdit[i]?.archivoPendiente;
+        if (pend && guardados[i]?.id) {
+          try {
+            setAdjuntoSubiendoIdx(i);
+            await cajaChicaService.subirAdjuntoIngreso(selId, guardados[i].id, pend);
+          } catch (uploadErr) {
+            toast.error(uploadErr.response?.data?.mensaje || 'No se pudo subir un comprobante.');
+          }
+        }
+      }
       toast.success('Ingresos guardados.');
       await cargarDetalle(selId);
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al guardar.');
     } finally {
+      setAdjuntoSubiendoIdx(null);
       setGuardando(false);
     }
+  };
+
+  const descargarAdjuntoIngreso = async (ingresoId) => {
+    if (!selId || !ingresoId) return;
+    try {
+      const res = await cajaChicaService.descargarAdjuntoIngreso(selId, ingresoId);
+      const mime = res.headers['content-type'] || 'application/octet-stream';
+      const blob = new Blob([res.data], { type: mime });
+      const cd = res.headers['content-disposition'];
+      let nombre = `comprobante-ingreso-${ingresoId}`;
+      if (cd) {
+        const m = cd.match(/filename="?([^";\n]+)"?/i);
+        if (m) nombre = m[1];
+      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombre;
+      a.click();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+    } catch {
+      toast.error('No se pudo descargar el comprobante.');
+    }
+  };
+
+  const subirAdjuntoFila = async (idx, ingresoId, files) => {
+    const file = Array.isArray(files) ? files[0] : files?.[0];
+    if (!file || !selId || !ingresoId) return;
+    setAdjuntoSubiendoIdx(idx);
+    try {
+      await cajaChicaService.subirAdjuntoIngreso(selId, ingresoId, file);
+      toast.success('Comprobante actualizado.');
+      await cargarDetalle(selId);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al subir el archivo.');
+    } finally {
+      setAdjuntoSubiendoIdx(null);
+    }
+  };
+
+  const quitarAdjuntoFila = async (ingresoId) => {
+    if (!selId || !ingresoId || !detalle?.periodo) return;
+    if (detalle.periodo.estado !== 'borrador') return;
+    if (!window.confirm('¿Quitar el comprobante adjunto de esta línea?')) return;
+    try {
+      await cajaChicaService.eliminarAdjuntoIngreso(selId, ingresoId);
+      toast.success('Comprobante eliminado.');
+      await cargarDetalle(selId);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo eliminar.');
+    }
+  };
+
+  const onArchivoSeleccionadoFila = (idx, ingresoId, e) => {
+    const file = e.target?.files?.[0];
+    if (e.target) e.target.value = '';
+    if (!file) return;
+    if (!ingresoId) {
+      setIngresosEdit((rows) =>
+        rows.map((r, i) => (i === idx ? { ...r, archivoPendiente: file, tiene_comprobante: true } : r))
+      );
+      toast('Archivo listo: se subirá al pulsar Guardar ingresos.', { icon: 'ℹ️' });
+      return;
+    }
+    subirAdjuntoFila(idx, ingresoId, [file]);
   };
 
   const cerrarPeriodo = async () => {
@@ -389,19 +487,25 @@ const CajaChica = () => {
                     </div>
                   )}
                 </div>
+                <p className="text-xs text-slate-500 mt-2 px-1">
+                  Fecha de depósito opcional por línea. Comprobantes: PDF, imagen o Word (máx. 12&nbsp;MB). En filas nuevas,
+                  guarda ingresos antes de adjuntar o elige archivo y se subirá al guardar.
+                </p>
                 <div className="p-4 overflow-x-auto">
-                  <table className="min-w-full text-sm">
+                  <table className="min-w-[48rem] w-full text-sm">
                     <thead>
                       <tr className="text-left text-slate-600 border-b border-slate-100">
-                        <th className="pb-2 pr-4 font-medium">Motivo / transferencia</th>
-                        <th className="pb-2 font-medium w-44 min-w-[11rem] text-right">Monto</th>
+                        <th className="pb-2 pr-3 font-medium min-w-[14rem]">Motivo / transferencia</th>
+                        <th className="pb-2 pr-3 font-medium whitespace-nowrap w-[9.5rem]">Fecha depósito</th>
+                        <th className="pb-2 font-medium w-40 min-w-[10rem] text-right">Monto</th>
+                        <th className="pb-2 pr-2 font-medium min-w-[13rem]">Comprobante</th>
                         {esBorrador && <th className="pb-2 w-10" />}
                       </tr>
                     </thead>
                     <tbody>
                       {ingresosEdit.map((row, idx) => (
-                        <tr key={idx} className="border-b border-slate-50">
-                          <td className="py-2 pr-4">
+                        <tr key={row.id ?? `n-${idx}`} className="border-b border-slate-50">
+                          <td className="py-2 pr-3 align-top">
                             {esBorrador ? (
                               <select
                                 className="w-full max-w-md rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
@@ -423,12 +527,33 @@ const CajaChica = () => {
                               <span>{TIPOS.find((t) => t.value === row.tipo_motivo)?.label}</span>
                             )}
                           </td>
-                          <td className="py-2 w-44 min-w-[11rem] text-right">
+                          <td className="py-2 pr-3 align-top whitespace-nowrap">
+                            {esBorrador ? (
+                              <input
+                                type="date"
+                                className="w-full min-w-[9rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                                value={row.fecha_deposito || ''}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setIngresosEdit((rows) =>
+                                    rows.map((r, i) => (i === idx ? { ...r, fecha_deposito: v } : r))
+                                  );
+                                }}
+                              />
+                            ) : (
+                              <span className="text-slate-600">
+                                {row.fecha_deposito
+                                  ? new Date(row.fecha_deposito + 'T12:00:00').toLocaleDateString('es-PE')
+                                  : '—'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 align-top text-right">
                             {esBorrador ? (
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                className="w-full min-w-[10rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm tabular-nums text-right"
+                                className="w-full min-w-[8rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm tabular-nums text-right"
                                 placeholder={
                                   row.tipo_motivo === 'saldo_anterior'
                                     ? 'Positivo o negativo según el cierre'
@@ -446,8 +571,68 @@ const CajaChica = () => {
                               <span className="tabular-nums whitespace-nowrap">{fmt(row.monto)}</span>
                             )}
                           </td>
+                          <td className="py-2 pr-2 align-top">
+                            <div className="flex flex-col gap-1.5">
+                              {row.archivoPendiente ? (
+                                <span className="text-xs text-amber-700 truncate" title={row.archivoPendiente.name}>
+                                  Pendiente: {row.archivoPendiente.name}
+                                </span>
+                              ) : null}
+                              {adjuntoSubiendoIdx === idx ? (
+                                <span className="text-xs text-slate-500">Subiendo…</span>
+                              ) : esBorrador ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <input
+                                    id={`adj-cchica-${idx}`}
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,application/pdf,image/*"
+                                    onChange={(e) => onArchivoSeleccionadoFila(idx, row.id, e)}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => document.getElementById(`adj-cchica-${idx}`)?.click()}
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                                  >
+                                    <PaperClipIcon className="w-3.5 h-3.5" />
+                                    {row.tiene_comprobante && row.id ? 'Cambiar' : 'Adjuntar'}
+                                  </button>
+                                  {row.id && row.tiene_comprobante ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => descargarAdjuntoIngreso(row.id)}
+                                        className="inline-flex items-center gap-1 text-xs text-slate-600 hover:underline"
+                                      >
+                                        <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                                        Ver
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => quitarAdjuntoFila(row.id)}
+                                        className="text-xs text-rose-600 hover:underline"
+                                      >
+                                        Quitar
+                                      </button>
+                                    </>
+                                  ) : null}
+                                </div>
+                              ) : row.tiene_comprobante ? (
+                                <button
+                                  type="button"
+                                  onClick={() => descargarAdjuntoIngreso(row.id)}
+                                  className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                                >
+                                  <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                                  Descargar
+                                </button>
+                              ) : (
+                                <span className="text-xs text-slate-400">—</span>
+                              )}
+                            </div>
+                          </td>
                           {esBorrador && (
-                            <td className="py-2">
+                            <td className="py-2 align-top">
                               <button
                                 type="button"
                                 className="p-1 text-slate-400 hover:text-rose-600"
@@ -466,10 +651,13 @@ const CajaChica = () => {
                     </tbody>
                     <tfoot>
                       <tr className="font-semibold text-slate-800 bg-amber-50/80">
-                        <td className="py-2 pr-4">Total ingreso</td>
+                        <td className="py-2 pr-3" colSpan={2}>
+                          Total ingreso
+                        </td>
                         <td className="py-2 tabular-nums text-right whitespace-nowrap">
                           {fmt(totalesVista?.total_ingreso)}
                         </td>
+                        <td />
                         {esBorrador && <td />}
                       </tr>
                     </tfoot>

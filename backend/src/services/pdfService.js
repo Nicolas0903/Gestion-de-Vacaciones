@@ -412,30 +412,45 @@ class PDFService {
 
         doc.fontSize(11).font('Helvetica-Bold').fillColor('#0d9488').text('Ingresos del período', margin, y);
         y += 14;
-        const ingPad = 6;
-        const ingColMontoW = 102;
+        const ingPad = 4;
+        const ingColMontoW = 72;
+        const ingColAdjW = 36;
+        const ingColFechaW = 70;
         const ingXMonto = margin + contentW - ingPad - ingColMontoW;
-        const ingColMotivoW = ingXMonto - ingPad - (margin + ingPad);
+        const ingXAdj = ingXMonto - ingPad - ingColAdjW;
+        const ingXFecha = ingXAdj - ingPad - ingColFechaW;
+        const ingColMotivoW = ingXFecha - ingPad - (margin + ingPad);
         doc.rect(margin, y, contentW, 15).fillAndStroke('#f1f5f9', '#cbd5e1');
-        doc.fontSize(9).font('Helvetica-Bold').fillColor('#475569')
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#475569')
           .text('Motivo / transferencia', margin + ingPad, y + 4, { width: ingColMotivoW })
-          .text('Monto (S/)', ingXMonto, y + 4, { width: ingColMontoW, align: 'right' });
+          .text('Fecha dep.', ingXFecha, y + 4, { width: ingColFechaW, align: 'center' })
+          .text('Adj.', ingXAdj, y + 4, { width: ingColAdjW, align: 'center' })
+          .text('Monto', ingXMonto, y + 4, { width: ingColMontoW, align: 'right' });
         y += 16;
         for (const row of ingresos || []) {
           if (y > 730) {
             doc.addPage();
             y = margin;
           }
+          const fechaTxt =
+            row.fecha_deposito && moment(row.fecha_deposito, 'YYYY-MM-DD', true).isValid()
+              ? moment(row.fecha_deposito, 'YYYY-MM-DD').format('DD/MM/YYYY')
+              : '—';
+          const adjTxt = row.tiene_comprobante || row.comprobante_archivo ? 'Sí' : '—';
           doc.rect(margin, y, contentW, 14).stroke('#e2e8f0');
-          doc.fontSize(9).font('Helvetica').fillColor('#0f172a')
+          doc.fontSize(8).font('Helvetica').fillColor('#0f172a')
             .text(String(row.motivo_label || '—'), margin + ingPad, y + 3, { width: ingColMotivoW })
+            .text(fechaTxt, ingXFecha, y + 3, { width: ingColFechaW, align: 'center' })
+            .text(adjTxt, ingXAdj, y + 3, { width: ingColAdjW, align: 'center' })
             .text(Number(row.monto).toFixed(2), ingXMonto, y + 3, { width: ingColMontoW, align: 'right' });
           y += 14;
         }
         const ti = Number(totales?.total_ingreso) || 0;
         doc.rect(margin, y, contentW, 16).fillAndStroke('#fef3c7', '#fbbf24');
-        doc.fontSize(9).font('Helvetica-Bold').fillColor('#78350f')
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#78350f')
           .text('Total ingresos', margin + ingPad, y + 4, { width: ingColMotivoW })
+          .text('—', ingXFecha, y + 4, { width: ingColFechaW, align: 'center' })
+          .text('—', ingXAdj, y + 4, { width: ingColAdjW, align: 'center' })
           .text(ti.toFixed(2), ingXMonto, y + 4, { width: ingColMontoW, align: 'right' });
         y += 26;
 

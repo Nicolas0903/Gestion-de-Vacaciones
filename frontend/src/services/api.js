@@ -201,6 +201,15 @@ export const cajaChicaService = {
   crearPeriodo: (anio, mes) => api.post('/caja-chica/periodos', { anio, mes }),
   detalle: (id) => api.get(`/caja-chica/periodos/${id}`),
   guardarIngresos: (id, ingresos) => api.put(`/caja-chica/periodos/${id}/ingresos`, { ingresos }),
+  subirAdjuntoIngreso: (periodoId, ingresoId, file) => {
+    const fd = new FormData();
+    fd.append('archivo', file);
+    return api.post(`/caja-chica/periodos/${periodoId}/ingresos/${ingresoId}/adjunto`, fd);
+  },
+  descargarAdjuntoIngreso: (periodoId, ingresoId) =>
+    api.get(`/caja-chica/periodos/${periodoId}/ingresos/${ingresoId}/adjunto`, { responseType: 'blob' }),
+  eliminarAdjuntoIngreso: (periodoId, ingresoId) =>
+    api.delete(`/caja-chica/periodos/${periodoId}/ingresos/${ingresoId}/adjunto`),
   cerrar: (id) => api.post(`/caja-chica/periodos/${id}/cerrar`),
   reabrir: (id) => api.post(`/caja-chica/periodos/${id}/reabrir`),
   enviarResumenRocio: (id) => api.post(`/caja-chica/periodos/${id}/enviar-resumen-rocio`),

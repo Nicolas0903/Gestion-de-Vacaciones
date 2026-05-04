@@ -1,4 +1,27 @@
 const { pool } = require('../config/database');
+const fs = require('fs');
+const path = require('path');
+
+const ADJUNTO_DIR = path.join(__dirname, '../../uploads/caja-chica-ingresos');
+
+function parseFechaDeposito(v) {
+  if (v == null || v === '') return null;
+  const s = String(v).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    throw new Error('fecha_deposito debe ser YYYY-MM-DD o estar vacío');
+  }
+  return s;
+}
+
+function unlinkComprobanteSeguro(basename) {
+  if (!basename || basename.includes('/') || basename.includes('\\')) return;
+  const full = path.join(ADJUNTO_DIR, basename);
+  try {
+    if (fs.existsSync(full)) fs.unlinkSync(full);
+  } catch (_) {
+    /* ignore */
+  }
+}
 
 class CajaChica {
   static async crearPeriodo(anio, mes) {
@@ -89,10 +112,45 @@ class CajaChica {
   }
 
   static async reemplazarIngresos(periodoId, lineas) {
+    return this.sincronizarIngresos(periodoId, lineas);
+  }
+
+  /** Sincroniza filas conservando ids y adjuntos; elimina filas quitadas y sus archivos. */
+  static async sincronizarIngresos(periodoId, lineas) {
+    if (!Array.isArray(lineas)) {
+      throw new Error('ingresos debe ser un arreglo');
+    }
+    if (!fs.existsSync(ADJUNTO_DIR)) {
+      fs.mkdirSync(ADJUNTO_DIR, { recursive: true });
+    }
+
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      await conn.execute(`DELETE FROM caja_chica_ingresos WHERE periodo_id = ?`, [periodoId]);
+
+      const [existingRows] = await conn.execute(
+        `SELECT id, comprobante_archivo FROM caja_chica_ingresos WHERE periodo_id = ?`,
+        [periodoId]
+      );
+
+      const incomingIds = new Set(
+        lineas.filter((l) => l.id != null && l.id !== '').map((l) => Number(l.id))
+      );
+
+      const toRemove = existingRows.filter((r) => !incomingIds.has(Number(r.id)));
+      for (const r of toRemove) {
+        unlinkComprobanteSeguro(r.comprobante_archivo);
+      }
+
+      if (toRemove.length > 0) {
+        const ids = toRemove.map((r) => r.id);
+        const ph = ids.map(() => '?').join(',');
+        await conn.execute(`DELETE FROM caja_chica_ingresos WHERE periodo_id = ? AND id IN (${ph})`, [
+          periodoId,
+          ...ids
+        ]);
+      }
+
       let orden = 0;
       for (const linea of lineas) {
         const monto = linea.monto != null ? parseFloat(linea.monto, 10) : 0;
@@ -103,11 +161,27 @@ class CajaChica {
         if (!tipos.includes(linea.tipo_motivo)) {
           throw new Error('tipo_motivo no válido');
         }
-        await conn.execute(
-          `INSERT INTO caja_chica_ingresos (periodo_id, tipo_motivo, monto, orden) VALUES (?, ?, ?, ?)`,
-          [periodoId, linea.tipo_motivo, monto, orden++]
-        );
+        const fechaDep = parseFechaDeposito(linea.fecha_deposito);
+
+        if (linea.id != null && linea.id !== '') {
+          const idNum = Number(linea.id);
+          const [upd] = await conn.execute(
+            `UPDATE caja_chica_ingresos SET tipo_motivo = ?, monto = ?, fecha_deposito = ?, orden = ?
+             WHERE id = ? AND periodo_id = ?`,
+            [linea.tipo_motivo, monto, fechaDep, orden++, idNum, periodoId]
+          );
+          if (upd.affectedRows === 0) {
+            throw new Error('Línea de ingreso no encontrada o no pertenece al período');
+          }
+        } else {
+          await conn.execute(
+            `INSERT INTO caja_chica_ingresos (periodo_id, tipo_motivo, monto, fecha_deposito, orden)
+             VALUES (?, ?, ?, ?, ?)`,
+            [periodoId, linea.tipo_motivo, monto, fechaDep, orden++]
+          );
+        }
       }
+
       await conn.commit();
       return true;
     } catch (e) {
@@ -116,6 +190,23 @@ class CajaChica {
     } finally {
       conn.release();
     }
+  }
+
+  static async obtenerIngresoPorIdEnPeriodo(ingresoId, periodoId) {
+    const [rows] = await pool.execute(
+      `SELECT * FROM caja_chica_ingresos WHERE id = ? AND periodo_id = ?`,
+      [ingresoId, periodoId]
+    );
+    return rows[0];
+  }
+
+  static async actualizarComprobanteIngreso(ingresoId, periodoId, nombreArchivo) {
+    const [r] = await pool.execute(
+      `UPDATE caja_chica_ingresos SET comprobante_archivo = ?
+       WHERE id = ? AND periodo_id = ?`,
+      [nombreArchivo, ingresoId, periodoId]
+    );
+    return r.affectedRows > 0;
   }
 
   static async cerrarPeriodo(periodoId, saldoCierre) {
@@ -157,6 +248,21 @@ class CajaChica {
       return Number(rows[0].saldo_cierre);
     }
     return null;
+  }
+
+  static eliminarArchivoComprobante(basename) {
+    unlinkComprobanteSeguro(basename);
+  }
+
+  static async limpiarComprobanteIngreso(ingresoId, periodoId) {
+    const ing = await this.obtenerIngresoPorIdEnPeriodo(ingresoId, periodoId);
+    if (!ing) return false;
+    unlinkComprobanteSeguro(ing.comprobante_archivo);
+    const [r] = await pool.execute(
+      `UPDATE caja_chica_ingresos SET comprobante_archivo = NULL WHERE id = ? AND periodo_id = ?`,
+      [ingresoId, periodoId]
+    );
+    return r.affectedRows > 0;
   }
 }
 
