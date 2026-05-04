@@ -6,7 +6,8 @@ import {
   CheckBadgeIcon,
   Cog6ToothIcon,
   PencilSquareIcon,
-  TrashIcon
+  TrashIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { reembolsoService } from '../services/api';
@@ -74,6 +75,7 @@ const GestionReembolsos = () => {
   const [archivoReemplazo, setArchivoReemplazo] = useState(null);
   const [mesFiltro, setMesFiltro] = useState('');
   const [solicitanteFiltro, setSolicitanteFiltro] = useState('');
+  const [fichaModal, setFichaModal] = useState(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -484,53 +486,13 @@ const GestionReembolsos = () => {
                       ) : (
                         '—'
                       )}
-                      <details className="mt-2 text-xs">
-                        <summary className="cursor-pointer text-sky-600 font-medium select-none">Ver ficha</summary>
-                        <div className="mt-2 space-y-1 text-slate-600 border border-slate-100 rounded-lg p-2 bg-slate-50/90 max-w-xs">
-                          <p>
-                            <span className="text-slate-500">Fecha gasto:</span>{' '}
-                            {formatoFechaDMY(r.fecha_solicitud_usuario)}
-                          </p>
-                          <p>
-                            <span className="text-slate-500">DNI:</span> <span className="font-mono">{r.dni}</span>
-                          </p>
-                          <p>
-                            <span className="text-slate-500">Comprobante:</span>{' '}
-                            {r.tiene_comprobante ? 'Sí' : 'No (recibo)'}
-                          </p>
-                          {r.tiene_comprobante && (
-                            <>
-                              <p>
-                                <span className="text-slate-500">RUC:</span>{' '}
-                                <span className="font-mono break-all">
-                                  {String(r.ruc_proveedor || '').trim() || '—'}
-                                </span>
-                              </p>
-                              <p>
-                                <span className="text-slate-500">N° doc.:</span>{' '}
-                                <span className="font-mono break-all">
-                                  {String(r.numero_documento || '').trim() || '—'}
-                                </span>
-                              </p>
-                              <p className="break-all">
-                                <span className="text-slate-500">Archivo:</span> {r.archivo_comprobante_nombre || '—'}
-                              </p>
-                            </>
-                          )}
-                          <p>
-                            <span className="text-slate-500">Celular:</span>{' '}
-                            <span className="font-mono">{r.celular || '—'}</span>
-                          </p>
-                          <p>
-                            <span className="text-slate-500">Nombre método:</span> {r.nombre_en_metodo || '—'}
-                          </p>
-                          {r.metodo_reembolso === 'transferencia' && (
-                            <p className="break-all whitespace-pre-wrap">
-                              <span className="text-slate-500">Cuenta/CCI:</span> {r.numero_cuenta || '—'}
-                            </p>
-                          )}
-                        </div>
-                      </details>
+                      <button
+                        type="button"
+                        className="mt-2 inline-flex items-center gap-1 text-sky-600 font-medium hover:text-sky-800 hover:underline"
+                        onClick={() => setFichaModal(r)}
+                      >
+                        Ver ficha
+                      </button>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2 items-center">
@@ -623,6 +585,117 @@ const GestionReembolsos = () => {
           </div>
         )}
       </div>
+
+      {fichaModal && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setFichaModal(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ficha-reintegro-titulo"
+            className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[min(85vh,640px)] overflow-y-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 id="ficha-reintegro-titulo" className="text-lg font-bold text-slate-800 font-mono">
+                  {fichaModal.codigo_ticket}
+                </h3>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {fichaModal.empleado_nombres} {fichaModal.empleado_apellidos}
+                </p>
+                <p className="text-xs text-slate-500 mt-2">
+                  <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium text-slate-700 bg-slate-100 border border-slate-200">
+                    {estadoLabel(fichaModal.estado)}
+                  </span>{' '}
+                  · Monto {formatoMonto(fichaModal.monto)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFichaModal(null)}
+                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 shrink-0"
+                aria-label="Cerrar"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {fichaModal.comentarios_resolucion ? (
+              <div className="mb-5 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Observaciones</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap">{fichaModal.comentarios_resolucion}</p>
+              </div>
+            ) : null}
+
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Datos de la solicitud</p>
+            <div className="space-y-2.5 text-sm text-slate-700 border border-slate-100 rounded-xl p-4 bg-slate-50/70">
+              <p>
+                <span className="text-slate-500">Concepto:</span>{' '}
+                <span className="font-medium">{fichaModal.concepto}</span>
+              </p>
+              <p>
+                <span className="text-slate-500">Fecha del gasto:</span>{' '}
+                {formatoFechaDMY(fichaModal.fecha_solicitud_usuario)}
+              </p>
+              <p>
+                <span className="text-slate-500">Método:</span> {metodoLabel(fichaModal.metodo_reembolso)}
+              </p>
+              <p>
+                <span className="text-slate-500">DNI:</span> <span className="font-mono">{fichaModal.dni}</span>
+              </p>
+              <p>
+                <span className="text-slate-500">Comprobante:</span>{' '}
+                {fichaModal.tiene_comprobante ? 'Sí' : 'No (recibo Prayaga)'}
+              </p>
+              {fichaModal.tiene_comprobante ? (
+                <>
+                  <p>
+                    <span className="text-slate-500">RUC:</span>{' '}
+                    <span className="font-mono break-all">
+                      {String(fichaModal.ruc_proveedor || '').trim() || '—'}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-slate-500">N° doc.:</span>{' '}
+                    <span className="font-mono break-all">
+                      {String(fichaModal.numero_documento || '').trim() || '—'}
+                    </span>
+                  </p>
+                  <p className="break-all">
+                    <span className="text-slate-500">Archivo adjunto:</span>{' '}
+                    {fichaModal.archivo_comprobante_nombre || '—'}
+                  </p>
+                </>
+              ) : null}
+              <p>
+                <span className="text-slate-500">Celular:</span> <span className="font-mono">{fichaModal.celular || '—'}</span>
+              </p>
+              <p>
+                <span className="text-slate-500">Nombre en método:</span> {fichaModal.nombre_en_metodo || '—'}
+              </p>
+              {fichaModal.metodo_reembolso === 'transferencia' ? (
+                <p className="break-all whitespace-pre-wrap">
+                  <span className="text-slate-500">Cuenta / CCI:</span> {fichaModal.numero_cuenta || '—'}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                type="button"
+                onClick={() => setFichaModal(null)}
+                className="px-5 py-2.5 rounded-xl text-sm font-medium bg-slate-800 text-white hover:bg-slate-900"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {aprobarId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
