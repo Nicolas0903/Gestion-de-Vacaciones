@@ -96,7 +96,7 @@ const MisBoletas = () => {
     }
   };
 
- = boletas.filter(b => !b.firmada).length;
+  const boletasPendientes = boletas.filter((b) => !b.firmada).length;
   const boletasFirmadas = boletas.filter(b => b.firmada).length;
 
   return (
