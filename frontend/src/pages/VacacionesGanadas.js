@@ -259,8 +259,9 @@ const VacacionesGanadas = () => {
       {/* Nota informativa */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
         <p className="text-sm text-blue-700">
-          <strong>Nota:</strong> Esta tabla muestra todos los períodos de vacaciones que has ganado a lo largo de tu tiempo en la empresa. 
-          Los días mostrados son los que te corresponden por ley (generalmente 30 días por año trabajado).
+          <strong>Nota:</strong> Aquí ves solo tu <strong>período vigente</strong>: el año de trabajo en curso (según tus fechas de inicio y fin de período). 
+          Tus resúmenes y solicitudes también se basan en esos días disponibles actualmente.
+          Los días mostrados son los que te corresponden por ley (generalmente 15 o 30 días según régimen por año trabajado).
           Haz clic en el ícono de ojo para ver el detalle de las salidas gozadas.
         </p>
       </div>

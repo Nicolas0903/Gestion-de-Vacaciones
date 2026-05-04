@@ -56,10 +56,10 @@ const listarPorEmpleado = async (req, res) => {
   }
 };
 
-// Listar mis períodos
+// Listar mis períodos (sólo período vigente: lo que puede usar “ahora”, sin años pasados ni futuros)
 const listarMios = async (req, res) => {
   try {
-    const periodos = await PeriodoVacaciones.listarPorEmpleado(req.usuario.id);
+    const periodos = await PeriodoVacaciones.listarPorEmpleado(req.usuario.id, { soloVigente: true });
 
     res.json({
       success: true,
@@ -78,7 +78,8 @@ const listarMios = async (req, res) => {
 const obtenerPendientes = async (req, res) => {
   try {
     const empleadoId = req.params.empleadoId ? parseInt(req.params.empleadoId) : req.usuario.id;
-    const periodos = await PeriodoVacaciones.obtenerPendientes(empleadoId);
+    const soloVigente = !req.params.empleadoId;
+    const periodos = await PeriodoVacaciones.obtenerPendientes(empleadoId, { soloVigente });
 
     res.json({
       success: true,
@@ -93,11 +94,12 @@ const obtenerPendientes = async (req, res) => {
   }
 };
 
-// Obtener resumen de vacaciones
+// Obtener resumen de vacaciones (empleado: sólo período vigente; admin por empleado: todo el historial)
 const obtenerResumen = async (req, res) => {
   try {
     const empleadoId = req.params.empleadoId ? parseInt(req.params.empleadoId) : req.usuario.id;
-    const resumen = await PeriodoVacaciones.obtenerResumen(empleadoId);
+    const soloVigente = !req.params.empleadoId;
+    const resumen = await PeriodoVacaciones.obtenerResumen(empleadoId, { soloVigente });
 
     res.json({
       success: true,
