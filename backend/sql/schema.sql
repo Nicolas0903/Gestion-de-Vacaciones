@@ -49,6 +49,7 @@ CREATE TABLE periodos_vacaciones (
     tiempo_trabajado VARCHAR(50), -- Ej: "12 meses"
     estado ENUM('pendiente', 'parcial', 'gozadas') DEFAULT 'pendiente',
     observaciones TEXT,
+    renovacion_automatica TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'No visible portal empleado hasta nuevo período de RH',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (empleado_id) REFERENCES empleados(id)

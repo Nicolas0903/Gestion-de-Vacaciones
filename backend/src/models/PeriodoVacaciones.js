@@ -5,14 +5,23 @@ class PeriodoVacaciones {
   static async crear(datos) {
     const {
       empleado_id, fecha_inicio_periodo, fecha_fin_periodo,
-      dias_correspondientes = 30, tiempo_trabajado, observaciones
+      dias_correspondientes = 30, tiempo_trabajado, observaciones,
+      renovacion_automatica = 0
     } = datos;
 
     const [result] = await pool.execute(
       `INSERT INTO periodos_vacaciones 
-       (empleado_id, fecha_inicio_periodo, fecha_fin_periodo, dias_correspondientes, tiempo_trabajado, observaciones)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [empleado_id, fecha_inicio_periodo, fecha_fin_periodo, dias_correspondientes, tiempo_trabajado || '12 meses', observaciones || null]
+       (empleado_id, fecha_inicio_periodo, fecha_fin_periodo, dias_correspondientes, tiempo_trabajado, observaciones, renovacion_automatica)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        empleado_id,
+        fecha_inicio_periodo,
+        fecha_fin_periodo,
+        dias_correspondientes,
+        tiempo_trabajado || '12 meses',
+        observaciones || null,
+        renovacion_automatica ? 1 : 0
+      ]
     );
 
     return result.insertId;
@@ -98,7 +107,8 @@ class PeriodoVacaciones {
           fecha_fin_periodo: fechaFinNuevo,
           dias_correspondientes: diasCorrespondientes,
           tiempo_trabajado: '12 meses',
-          observaciones: `Período ${yIni}-${yFin} (renovación automática)`
+          observaciones: `Período ${yIni}-${yFin} (renovación automática)`,
+          renovacion_automatica: 1
         });
       }
     } catch (err) {
@@ -107,16 +117,48 @@ class PeriodoVacaciones {
   }
 
   /**
-   * Vista empleado: incluye lo ya ganado (períodos cerrados o parciales) y el vigente.
-   * Sólo se excluyen períodos cuyo inicio es futuro (CURDATE() antes de fecha_inicio).
-   * Admin sigue viendo todo sin este filtro.
+   * Fecha máxima de fin que el portal del empleado debe mostrar:
+   * GREATER(período activo que NO viene de renovación automática del sistema,
+   *          último período ya cerrado).
+   * Los bloques creados solo por backend (campo renovacion_automatica) siguen guardados
+   * para RRHH, pero no se cuentan en la vista hasta que exista período cargado como empresa (flag 0).
    */
-  static _filtroVistaEmpleadoSQL() {
-    return ' AND fecha_inicio_periodo <= CURDATE()';
+  static async _fechaTopeVistaEmpleado(empleadoId) {
+    const [rows] = await pool.execute(
+      `SELECT GREATEST(
+          COALESCE(
+            (SELECT MAX(p.fecha_fin_periodo)
+             FROM periodos_vacaciones p
+             WHERE p.empleado_id = ?
+               AND p.fecha_inicio_periodo <= CURDATE()
+               AND p.fecha_fin_periodo >= CURDATE()
+               AND COALESCE(p.renovacion_automatica, 0) = 0),
+            '1000-01-01'),
+          COALESCE(
+            (SELECT MAX(p2.fecha_fin_periodo)
+             FROM periodos_vacaciones p2
+             WHERE p2.empleado_id = ?
+                 AND p2.fecha_fin_periodo < CURDATE()),
+            '1000-01-01')
+       ) AS fecha_tope`,
+      [empleadoId, empleadoId]
+    );
+    const raw = rows[0]?.fecha_tope;
+    if (raw == null) return null;
+    const s = typeof raw === 'string' ? raw.slice(0, 10) : String(raw).slice(0, 10);
+    if (!s || s.startsWith('1000')) return null;
+    return s;
+  }
+
+  static async _whereVistaEmpleado(empleadoId) {
+    const tope = await this._fechaTopeVistaEmpleado(empleadoId);
+    const base = ' AND fecha_inicio_periodo <= CURDATE()';
+    if (!tope) return { clause: base, params: [] };
+    return { clause: `${base} AND fecha_fin_periodo <= ?`, params: [tope] };
   }
 
   // Listar períodos de un empleado (con renovación automática y estado calculado)
-  // options.vistaEmpleado: true desde portal del empleado (histórico iniciado + período actual).
+  // options.vistaEmpleado: true desde portal del empleado (histórico + hasta el tope operativo empresa).
   static async listarPorEmpleado(empleadoId, options = {}) {
     const vistaEmpleado = options.vistaEmpleado === true;
     try {
@@ -127,10 +169,15 @@ class PeriodoVacaciones {
 
     let sql = `SELECT * FROM periodos_vacaciones
        WHERE empleado_id = ?`;
-    if (vistaEmpleado) sql += this._filtroVistaEmpleadoSQL();
+    const execParams = [empleadoId];
+    if (vistaEmpleado) {
+      const { clause, params } = await this._whereVistaEmpleado(empleadoId);
+      sql += clause;
+      execParams.push(...params);
+    }
     sql += ` ORDER BY fecha_inicio_periodo DESC`;
 
-    const [rows] = await pool.execute(sql, [empleadoId]);
+    const [rows] = await pool.execute(sql, execParams);
 
     return rows.map(p => ({
       ...p,
@@ -149,10 +196,15 @@ class PeriodoVacaciones {
 
     let sql = `SELECT * FROM periodos_vacaciones
        WHERE empleado_id = ? AND dias_pendientes > 0`;
-    if (vistaEmpleado) sql += this._filtroVistaEmpleadoSQL();
+    const execParams = [empleadoId];
+    if (vistaEmpleado) {
+      const { clause, params } = await this._whereVistaEmpleado(empleadoId);
+      sql += clause;
+      execParams.push(...params);
+    }
     sql += ` ORDER BY fecha_inicio_periodo ASC`;
 
-    const [rows] = await pool.execute(sql, [empleadoId]);
+    const [rows] = await pool.execute(sql, execParams);
     return rows.map(p => ({
       ...p,
       estado: this._calcularEstado(Number(p.dias_gozados || 0), Number(p.dias_correspondientes || 0))
@@ -174,9 +226,14 @@ class PeriodoVacaciones {
          SUM(dias_pendientes) as total_pendientes
        FROM periodos_vacaciones
        WHERE empleado_id = ?`;
-    if (vistaEmpleado) sql += this._filtroVistaEmpleadoSQL();
+    const execParams = [empleadoId];
+    if (vistaEmpleado) {
+      const { clause, params } = await this._whereVistaEmpleado(empleadoId);
+      sql += clause;
+      execParams.push(...params);
+    }
 
-    const [rows] = await pool.execute(sql, [empleadoId]);
+    const [rows] = await pool.execute(sql, execParams);
     return rows[0];
   }
 

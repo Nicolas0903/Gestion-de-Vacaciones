@@ -259,10 +259,10 @@ const VacacionesGanadas = () => {
       {/* Nota informativa */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
         <p className="text-sm text-blue-700">
-          <strong>Nota:</strong> Aquí ves tus períodos ya iniciados: el que corresponde por ley a lo <strong>ganado</strong> (por ejemplo 2024‑2025 si aplica) y los posteriores hasta el <strong>período en curso</strong>. 
-          No se muestran bloques cuya fecha de inicio aún no ha llegado (nada “adelantado”). 
-          Las tarjetas de resumen suman esos mismos períodos. Los días mostrados siguen el régimen de la empresa (p. ej. 15 o 30 días por año).
-          Haz clic en el ícono de ojo para ver las salidas gozadas de cada período.
+          <strong>Nota:</strong> Ves el histórico y el período operativo hasta el <strong>cierre oficial</strong> que la empresa lleva cargado en el sistema 
+          (p. ej. 2024‑2025 y 2025‑2026 cuando esas son las vigencias reconocidas). 
+          Una fila de período nueva generada automáticamente por el servidor queda registrada pero <strong>no</strong> se muestra hasta que administración cargue ese mismo ejercicio como período oficial (manual). 
+          Los totales siguen ese mismo alcance.
         </p>
       </div>
 

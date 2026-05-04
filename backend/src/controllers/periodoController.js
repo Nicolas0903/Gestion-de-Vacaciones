@@ -3,7 +3,7 @@ const { PeriodoVacaciones } = require('../models');
 // Crear período
 const crear = async (req, res) => {
   try {
-    const { empleado_id, fecha_inicio_periodo, fecha_fin_periodo, dias_correspondientes, tiempo_trabajado, observaciones } = req.body;
+    const { empleado_id, fecha_inicio_periodo, fecha_fin_periodo, dias_correspondientes, tiempo_trabajado, observaciones, renovacion_automatica } = req.body;
 
     if (!empleado_id || !fecha_inicio_periodo || !fecha_fin_periodo) {
       return res.status(400).json({
@@ -18,7 +18,8 @@ const crear = async (req, res) => {
       fecha_fin_periodo,
       dias_correspondientes,
       tiempo_trabajado,
-      observaciones
+      observaciones,
+      renovacion_automatica: renovacion_automatica ? 1 : 0
     });
 
     const periodo = await PeriodoVacaciones.buscarPorId(id);
