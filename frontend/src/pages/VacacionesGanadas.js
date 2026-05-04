@@ -259,10 +259,10 @@ const VacacionesGanadas = () => {
       {/* Nota informativa */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
         <p className="text-sm text-blue-700">
-          <strong>Nota:</strong> Aquí ves solo tu <strong>período vigente</strong>: el año de trabajo en curso (según tus fechas de inicio y fin de período). 
-          Tus resúmenes y solicitudes también se basan en esos días disponibles actualmente.
-          Los días mostrados son los que te corresponden por ley (generalmente 15 o 30 días según régimen por año trabajado).
-          Haz clic en el ícono de ojo para ver el detalle de las salidas gozadas.
+          <strong>Nota:</strong> Aquí ves tus períodos ya iniciados: el que corresponde por ley a lo <strong>ganado</strong> (por ejemplo 2024‑2025 si aplica) y los posteriores hasta el <strong>período en curso</strong>. 
+          No se muestran bloques cuya fecha de inicio aún no ha llegado (nada “adelantado”). 
+          Las tarjetas de resumen suman esos mismos períodos. Los días mostrados siguen el régimen de la empresa (p. ej. 15 o 30 días por año).
+          Haz clic en el ícono de ojo para ver las salidas gozadas de cada período.
         </p>
       </div>
 

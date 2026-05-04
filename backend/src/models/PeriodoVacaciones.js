@@ -106,15 +106,19 @@ class PeriodoVacaciones {
     }
   }
 
-  /** Período vigente: hoy cae entre inicio y fin (inclusive), alineado con CURDATE() MySQL. */
-  static _filtroSoloVigenteSQL() {
-    return ' AND fecha_inicio_periodo <= CURDATE() AND fecha_fin_periodo >= CURDATE()';
+  /**
+   * Vista empleado: incluye lo ya ganado (períodos cerrados o parciales) y el vigente.
+   * Sólo se excluyen períodos cuyo inicio es futuro (CURDATE() antes de fecha_inicio).
+   * Admin sigue viendo todo sin este filtro.
+   */
+  static _filtroVistaEmpleadoSQL() {
+    return ' AND fecha_inicio_periodo <= CURDATE()';
   }
 
   // Listar períodos de un empleado (con renovación automática y estado calculado)
-  // options.soloVigente: empleado sólo ve el período “en curso”; admin ve historial completo.
+  // options.vistaEmpleado: true desde portal del empleado (histórico iniciado + período actual).
   static async listarPorEmpleado(empleadoId, options = {}) {
-    const soloVigente = options.soloVigente === true;
+    const vistaEmpleado = options.vistaEmpleado === true;
     try {
       await this.renovarSiVencido(empleadoId);
     } catch (e) {
@@ -123,7 +127,7 @@ class PeriodoVacaciones {
 
     let sql = `SELECT * FROM periodos_vacaciones
        WHERE empleado_id = ?`;
-    if (soloVigente) sql += this._filtroSoloVigenteSQL();
+    if (vistaEmpleado) sql += this._filtroVistaEmpleadoSQL();
     sql += ` ORDER BY fecha_inicio_periodo DESC`;
 
     const [rows] = await pool.execute(sql, [empleadoId]);
@@ -136,7 +140,7 @@ class PeriodoVacaciones {
 
   // Obtener períodos con días pendientes
   static async obtenerPendientes(empleadoId, options = {}) {
-    const soloVigente = options.soloVigente === true;
+    const vistaEmpleado = options.vistaEmpleado === true;
     try {
       await this.renovarSiVencido(empleadoId);
     } catch (e) {
@@ -145,7 +149,7 @@ class PeriodoVacaciones {
 
     let sql = `SELECT * FROM periodos_vacaciones
        WHERE empleado_id = ? AND dias_pendientes > 0`;
-    if (soloVigente) sql += this._filtroSoloVigenteSQL();
+    if (vistaEmpleado) sql += this._filtroVistaEmpleadoSQL();
     sql += ` ORDER BY fecha_inicio_periodo ASC`;
 
     const [rows] = await pool.execute(sql, [empleadoId]);
@@ -157,7 +161,7 @@ class PeriodoVacaciones {
 
   // Obtener resumen de vacaciones de un empleado
   static async obtenerResumen(empleadoId, options = {}) {
-    const soloVigente = options.soloVigente === true;
+    const vistaEmpleado = options.vistaEmpleado === true;
     try {
       await this.renovarSiVencido(empleadoId);
     } catch (e) {
@@ -170,7 +174,7 @@ class PeriodoVacaciones {
          SUM(dias_pendientes) as total_pendientes
        FROM periodos_vacaciones
        WHERE empleado_id = ?`;
-    if (soloVigente) sql += this._filtroSoloVigenteSQL();
+    if (vistaEmpleado) sql += this._filtroVistaEmpleadoSQL();
 
     const [rows] = await pool.execute(sql, [empleadoId]);
     return rows[0];
