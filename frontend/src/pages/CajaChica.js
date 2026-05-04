@@ -61,6 +61,7 @@ const CajaChica = () => {
   const [guardando, setGuardando] = useState(false);
   const [reabriendo, setReabriendo] = useState(false);
   const [enviandoCorreo, setEnviandoCorreo] = useState(false);
+  const [descargandoPdf, setDescargandoPdf] = useState(false);
   const [adjuntoSubiendoIdx, setAdjuntoSubiendoIdx] = useState(null);
 
   const [nuevoAnio, setNuevoAnio] = useState(new Date().getFullYear());
