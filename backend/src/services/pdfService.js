@@ -496,8 +496,11 @@ class PDFService {
           .text('Total egresos', margin + 6, y + 5, { width: 380 })
           .text(`S/ ${te.toFixed(2)}`, c4, y + 5, { width: 70, align: 'right' });
         y += 21;
-        doc.rect(margin, y, contentW, 17).fillAndStroke('#14532d', '#14532d');
-        doc.text('Saldo del período (ingresos − egresos)', margin + 6, y + 5, { width: 380 })
+        // Fondo claro + texto oscuro (como Total ingresos): evita texto invisible si el estado
+        // de PDFKit/pdf-lib deja fillColor igual al verde tras fillAndStroke.
+        doc.rect(margin, y, contentW, 17).fillAndStroke('#d1fae5', '#059669');
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#065f46')
+          .text('Saldo del período (ingresos - egresos)', margin + 6, y + 5, { width: 380 })
           .text(`S/ ${sal.toFixed(2)}`, c4, y + 5, { width: 70, align: 'right' });
         y += 28;
         doc.fontSize(8).font('Helvetica').fillColor('#64748b')
