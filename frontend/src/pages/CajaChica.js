@@ -92,7 +92,7 @@ const CajaChica = () => {
               id: r.id,
               tipo_motivo: r.tipo_motivo,
               monto: String(r.monto),
-              fecha_deposito: r.fecha_deposito ? String(r.fecha_deposito).slice(0, 10) : '',
+              fecha_deposito: r.fecha_deposito ? String(r.fecha_deposito).trim().slice(0, 10) : '',
               tiene_comprobante: !!(r.tiene_comprobante || r.comprobante_archivo),
               archivoPendiente: null
             }))
@@ -134,7 +134,14 @@ const CajaChica = () => {
     if (!selId || detalle?.periodo?.estado !== 'borrador') return;
     const lineas = ingresosEdit
       .map((r) => {
-        const montoVal = parseFloat(String(r.monto).replace(',', '.'), 10);
+        const rawMonto = String(r.monto ?? '').replace(',', '.').trim();
+        let montoVal;
+        if (rawMonto === '') {
+          /* Fila ya guardada: mandar 0 en vez de omitirla (evita DELETE involuntario). */
+          montoVal = r.id != null && r.id !== '' ? 0 : NaN;
+        } else {
+          montoVal = parseFloat(rawMonto, 10);
+        }
         const linea = {
           tipo_motivo: r.tipo_motivo,
           monto: montoVal,

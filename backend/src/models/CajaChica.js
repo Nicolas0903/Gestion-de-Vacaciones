@@ -4,13 +4,35 @@ const path = require('path');
 
 const ADJUNTO_DIR = path.join(__dirname, '../../uploads/caja-chica-ingresos');
 
-function parseFechaDeposito(v) {
+/** Devuelve YYYY-MM-DD o null (acepta ISO, DD/MM/AAAA, fechas MySQL/JS). */
+function normalizarFechaDeposito(v) {
   if (v == null || v === '') return null;
-  const s = String(v).trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    throw new Error('fecha_deposito debe ser YYYY-MM-DD o estar vacío');
+  if (v instanceof Date && !isNaN(v.getTime())) {
+    const y = v.getUTCFullYear();
+    const m = String(v.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(v.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
-  return s;
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const pe = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (pe) {
+    const d = pe[1].padStart(2, '0');
+    const mo = pe[2].padStart(2, '0');
+    return `${pe[3]}-${mo}-${d}`;
+  }
+  return null;
+}
+
+function parseFechaDeposito(v) {
+  if (v == null || String(v).trim() === '') return null;
+  const n = normalizarFechaDeposito(v);
+  if (n == null) {
+    throw new Error('fecha_deposito debe ser YYYY-MM-DD, DD/MM/AAAA o estar vacío');
+  }
+  return n;
 }
 
 function unlinkComprobanteSeguro(basename) {
@@ -24,6 +46,11 @@ function unlinkComprobanteSeguro(basename) {
 }
 
 class CajaChica {
+  /** Para respuestas API (evita slice(0,10) sobre Date o strings raros de meses viejos). */
+  static normalizarFechaDepositoApi(v) {
+    return normalizarFechaDeposito(v);
+  }
+
   static async crearPeriodo(anio, mes) {
     const [r] = await pool.execute(
       `INSERT INTO caja_chica_periodos (anio, mes, estado) VALUES (?, ?, 'borrador')`,

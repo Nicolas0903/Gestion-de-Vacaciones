@@ -35,7 +35,7 @@ function mapIngresoRowResp(row) {
     motivo_label: TIPOS_INGRESO_LABEL[row.tipo_motivo],
     monto: Number(row.monto),
     orden: row.orden,
-    fecha_deposito: row.fecha_deposito ? String(row.fecha_deposito).slice(0, 10) : null,
+    fecha_deposito: CajaChica.normalizarFechaDepositoApi(row.fecha_deposito),
     comprobante_archivo: row.comprobante_archivo || null,
     tiene_comprobante: !!(row.comprobante_archivo && String(row.comprobante_archivo).trim())
   };
@@ -152,9 +152,7 @@ async function construirDetallePeriodo(periodo) {
     motivo_label: TIPOS_INGRESO_LABEL[row.tipo_motivo] || row.tipo_motivo,
     monto: Number(row.monto),
     orden: row.orden,
-    fecha_deposito: row.fecha_deposito
-      ? String(row.fecha_deposito).slice(0, 10)
-      : null,
+    fecha_deposito: CajaChica.normalizarFechaDepositoApi(row.fecha_deposito),
     comprobante_archivo: row.comprobante_archivo || null,
     tiene_comprobante: !!(row.comprobante_archivo && String(row.comprobante_archivo).trim())
   }));
@@ -214,12 +212,26 @@ const guardarIngresos = async (req, res) => {
     });
   } catch (e) {
     console.error(e);
+    const sqlMsg =
+      typeof e.sqlMessage === 'string' ? e.sqlMessage : typeof e.message === 'string' ? e.message : '';
+    if (
+      sqlMsg.includes("Unknown column 'fecha_deposito'") ||
+      sqlMsg.includes("Unknown column 'comprobante_archivo'") ||
+      e.errno === 1054
+    ) {
+      return res.status(500).json({
+        success: false,
+        mensaje:
+          'Falta ejecutar la migración SQL en la base de datos (p. ej. backend/sql/caja_chica_ingresos_fecha_adjunto.sql) sobre la BD donde están las tablas caja_chica_*. Mensaje técnico: ' +
+          sqlMsg
+      });
+    }
     const known =
       e.message === 'Monto inválido' ||
       e.message === 'tipo_motivo no válido' ||
       String(e.message || '').startsWith('fecha_deposito') ||
       e.message === 'Línea de ingreso no encontrada o no pertenece al período';
-    const msg = known ? e.message : 'Error al guardar ingresos.';
+    const msg = known ? e.message : sqlMsg ? `No se pudieron guardar los ingresos: ${sqlMsg}` : 'Error al guardar ingresos.';
     res.status(400).json({ success: false, mensaje: msg });
   }
 };
