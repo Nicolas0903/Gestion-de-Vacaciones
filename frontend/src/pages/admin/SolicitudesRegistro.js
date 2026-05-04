@@ -114,6 +114,7 @@ const SolicitudesRegistro = () => {
     );
   };
 
+  return (
     <div className="space-y-6">
       {/* Volver al Portal */}
       <Link to="/portal" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-teal-600 transition-colors">
