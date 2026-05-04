@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { format, differenceInDays } from 'date-fns';
+import { es } from 'date-fns/locale';
 import {
   UserPlusIcon,
   TrashIcon,
@@ -9,10 +11,46 @@ import {
   XMarkIcon,
   NoSymbolIcon,
   ArrowLeftIcon,
-  ChevronUpIcon
+  ChevronUpIcon,
+  CalendarDaysIcon,
+  EyeIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
-import { adminPortalUsuariosService } from '../services/api';
+import { adminPortalUsuariosService, solicitudService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { parseFechaSegura } from '../utils/dateUtils';
+
+const DETALLE_TABS = [
+  { id: 'cuenta', label: 'Cuenta' },
+  { id: 'acceso', label: 'Acceso a la plataforma' },
+  { id: 'vacaciones', label: 'Vacaciones ganadas' }
+];
+
+function badgeClaseVacacion(estado) {
+  switch (estado) {
+    case 'gozadas':
+      return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+    case 'parcial':
+      return 'bg-amber-500/15 text-amber-200 border-amber-500/30';
+    case 'pendiente':
+      return 'bg-sky-500/15 text-sky-200 border-sky-500/35';
+    default:
+      return 'bg-white/10 text-gray-300 border-white/15';
+  }
+}
+
+function etiquetaVacacionEstado(estado) {
+  switch (estado) {
+    case 'gozadas':
+      return 'Gozadas';
+    case 'parcial':
+      return 'Parcial';
+    case 'pendiente':
+      return 'Pendiente';
+    default:
+      return estado || '—';
+  }
+}
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 
@@ -79,6 +117,16 @@ export default function AdministracionUsuarios() {
   const [guardandoModulos, setGuardandoModulos] = useState(false);
   const [accesoExpandido, setAccesoExpandido] = useState(true);
   const [moduloTagBusy, setModuloTagBusy] = useState(null);
+
+  const [vacResumen, setVacResumen] = useState(null);
+  const [vacPeriodos, setVacPeriodos] = useState([]);
+  const [vacCargando, setVacCargando] = useState(false);
+  const [vacError, setVacError] = useState(null);
+
+  const [modalSalidas, setModalSalidas] = useState(false);
+  const [periodoSalidas, setPeriodoSalidas] = useState(null);
+  const [listaSalidas, setListaSalidas] = useState([]);
+  const [salidasCargando, setSalidasCargando] = useState(false);
 
   const [modalAlta, setModalAlta] = useState(false);
   const [guardandoCuenta, setGuardandoCuenta] = useState(false);
@@ -175,6 +223,34 @@ export default function AdministracionUsuarios() {
     }
   }, [modalAlta, formAlta.rol_id, formAlta.codigo_empleado, codigosCatalogoAlta, sugerirCodigoParaRolAlta]);
 
+  useEffect(() => {
+    if (tabDetalle !== 'vacaciones' || drawerId == null || !detalle?.empleado) return;
+    let cancel = false;
+    (async () => {
+      setVacCargando(true);
+      setVacError(null);
+      try {
+        const res = await adminPortalUsuariosService.vacacionesEmpleado(drawerId);
+        const payload = res.data.data || {};
+        if (!cancel) {
+          setVacPeriodos(Array.isArray(payload.periodos) ? payload.periodos : []);
+          setVacResumen(payload.resumen || null);
+        }
+      } catch (e) {
+        if (!cancel) {
+          setVacError(e.response?.data?.mensaje || 'No se pudieron cargar las vacaciones');
+          setVacPeriodos([]);
+          setVacResumen(null);
+        }
+      } finally {
+        if (!cancel) setVacCargando(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [tabDetalle, drawerId, detalle?.empleado?.id]);
+
   const abrirDetalle = async (id) => {
     setDrawerId(id);
     setTabDetalle('cuenta');
@@ -203,9 +279,36 @@ export default function AdministracionUsuarios() {
     }
   };
 
+  const abrirSalidasVacacion = async (periodo) => {
+    setPeriodoSalidas(periodo);
+    setModalSalidas(true);
+    setSalidasCargando(true);
+    setListaSalidas([]);
+    try {
+      const res = await solicitudService.salidasPorPeriodo(periodo.id);
+      setListaSalidas(res.data.data || []);
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'No se pudieron cargar las salidas');
+      setListaSalidas([]);
+    } finally {
+      setSalidasCargando(false);
+    }
+  };
+
+  const cerrarSalidasVacacion = () => {
+    setModalSalidas(false);
+    setPeriodoSalidas(null);
+    setListaSalidas([]);
+  };
+
   const cerrarDrawer = () => {
     setDrawerId(null);
     setDetalle(null);
+    setVacResumen(null);
+    setVacPeriodos([]);
+    setVacError(null);
+    setVacCargando(false);
+    cerrarSalidasVacacion();
   };
 
   const idsSeleccionados = useMemo(() => [...seleccion], [seleccion]);
@@ -636,7 +739,12 @@ export default function AdministracionUsuarios() {
             aria-label="Cerrar panel"
             onClick={cerrarDrawer}
           />
-          <aside className="relative z-50 w-full max-w-lg h-full bg-[#252423] border-l border-white/10 shadow-2xl flex flex-col overflow-hidden">
+          <aside
+            className={cx(
+              'relative z-50 w-full h-full bg-[#252423] border-l border-white/10 shadow-2xl flex flex-col overflow-hidden',
+              tabDetalle === 'vacaciones' ? 'max-w-2xl' : 'max-w-lg'
+            )}
+          >
             <div className="flex items-start justify-between gap-3 p-5 border-b border-white/10">
               <div className="flex gap-4 min-w-0">
                 <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-semibold shrink-0">
@@ -691,20 +799,20 @@ export default function AdministracionUsuarios() {
               </button>
             </div>
 
-            <div className="flex border-b border-white/10 px-5 gap-6 text-sm">
-              {['cuenta', 'acceso'].map((t) => (
+            <div className="flex border-b border-white/10 px-5 gap-4 sm:gap-6 text-sm overflow-x-auto">
+              {DETALLE_TABS.map(({ id, label }) => (
                 <button
-                  key={t}
+                  key={id}
                   type="button"
-                  onClick={() => setTabDetalle(t)}
+                  onClick={() => setTabDetalle(id)}
                   className={cx(
-                    'py-3 border-b-2 -mb-px capitalize',
-                    tabDetalle === t
+                    'py-3 border-b-2 -mb-px whitespace-nowrap shrink-0',
+                    tabDetalle === id
                       ? 'border-blue-500 text-white'
                       : 'border-transparent text-gray-400 hover:text-gray-200'
                   )}
                 >
-                  {t === 'cuenta' ? 'Cuenta' : 'Acceso a la plataforma'}
+                  {label}
                 </button>
               ))}
             </div>
@@ -825,7 +933,7 @@ export default function AdministracionUsuarios() {
                     {guardandoCuenta ? 'Guardando…' : 'Guardar cambios de cuenta'}
                   </button>
                 </form>
-              ) : (
+              ) : tabDetalle === 'acceso' ? (
                 <div>
                   <button
                     type="button"
@@ -888,9 +996,237 @@ export default function AdministracionUsuarios() {
                     {guardandoModulos ? 'Guardando…' : 'Guardar cambios'}
                   </button>
                 </div>
+              ) : (
+                <div className="space-y-4 text-sm">
+                  <p className="text-xs text-gray-500">
+                    Períodos y totales según los registros de vacaciones del sistema (vista administración).
+                  </p>
+                  {vacError ? <p className="text-sm text-red-400">{vacError}</p> : null}
+                  {vacCargando ? (
+                    <div className="flex justify-center py-16">
+                      <div className="h-9 w-9 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
+                    </div>
+                  ) : (
+                    <>
+                      {vacResumen ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="rounded-lg border border-white/10 bg-[#1c1b1a] p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                              Ganados
+                            </p>
+                            <p className="mt-1 text-xl font-bold text-sky-300">{vacResumen.total_ganados ?? 0}</p>
+                          </div>
+                          <div className="rounded-lg border border-white/10 bg-[#1c1b1a] p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                              Gozados
+                            </p>
+                            <p className="mt-1 text-xl font-bold text-emerald-300">{vacResumen.total_gozados ?? 0}</p>
+                          </div>
+                          <div className="rounded-lg border border-white/10 bg-[#1c1b1a] p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                              Pendientes
+                            </p>
+                            <p className="mt-1 text-xl font-bold text-violet-300">{vacResumen.total_pendientes ?? 0}</p>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {!vacPeriodos.length && !vacError ? (
+                        <div className="flex flex-col items-center py-10 text-gray-500">
+                          <CalendarDaysIcon className="mb-2 h-10 w-10 text-gray-600" />
+                          <p>No hay períodos registrados para este usuario.</p>
+                        </div>
+                      ) : vacPeriodos.length > 0 ? (
+                        <div className="overflow-hidden rounded-lg border border-white/10 bg-[#1c1b1a]">
+                          <div className="max-h-[min(52vh,520px)] overflow-x-auto overflow-y-auto">
+                            <table className="w-full min-w-[640px] text-left text-xs text-gray-300">
+                              <thead className="sticky top-0 z-[1] border-b border-white/10 bg-[#252423]">
+                                <tr className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                                  <th className="px-2 py-2">Estado</th>
+                                  <th className="px-2 py-2 text-center">Inicio</th>
+                                  <th className="px-2 py-2 text-center">Fin</th>
+                                  <th className="px-2 py-2 text-center">Días período</th>
+                                  <th className="px-2 py-2 text-center">Vacaciones</th>
+                                  <th className="px-2 py-2 text-center">Gozados</th>
+                                  <th className="px-2 py-2 text-center">Salidas</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-white/[0.06]">
+                                {vacPeriodos.map((periodo) => {
+                                  let diasCal = '—';
+                                  if (periodo.fecha_inicio_periodo && periodo.fecha_fin_periodo) {
+                                    try {
+                                      diasCal =
+                                        differenceInDays(
+                                          parseFechaSegura(periodo.fecha_fin_periodo),
+                                          parseFechaSegura(periodo.fecha_inicio_periodo)
+                                        );
+                                    } catch {
+                                      diasCal = '—';
+                                    }
+                                  }
+                                  return (
+                                    <tr key={periodo.id} className="hover:bg-white/[0.03]">
+                                      <td className="px-2 py-2">
+                                        <span
+                                          className={cx(
+                                            'inline-block rounded-md border px-2 py-0.5 font-medium',
+                                            badgeClaseVacacion(periodo.estado)
+                                          )}
+                                        >
+                                          {etiquetaVacacionEstado(periodo.estado)}
+                                        </span>
+                                      </td>
+                                      <td className="px-2 py-2 text-center text-gray-200">
+                                        {periodo.fecha_inicio_periodo
+                                          ? format(
+                                              parseFechaSegura(periodo.fecha_inicio_periodo),
+                                              'dd/MM/yyyy',
+                                              { locale: es }
+                                            )
+                                          : '—'}
+                                      </td>
+                                      <td className="px-2 py-2 text-center text-gray-200">
+                                        {periodo.fecha_fin_periodo
+                                          ? format(
+                                              parseFechaSegura(periodo.fecha_fin_periodo),
+                                              'dd/MM/yyyy',
+                                              { locale: es }
+                                            )
+                                          : '—'}
+                                      </td>
+                                      <td className="px-2 py-2 text-center">{diasCal}</td>
+                                      <td className="px-2 py-2 text-center font-semibold text-teal-300">
+                                        {periodo.dias_correspondientes ?? '—'}
+                                      </td>
+                                      <td className="px-2 py-2 text-center">{periodo.dias_gozados ?? '—'}</td>
+                                      <td className="px-2 py-2 text-center">
+                                        <button
+                                          type="button"
+                                          onClick={() => abrirSalidasVacacion(periodo)}
+                                          title="Ver salidas aprobadas"
+                                          className="inline-flex rounded p-1.5 text-gray-400 hover:bg-white/10 hover:text-teal-300"
+                                        >
+                                          <EyeIcon className="h-5 w-5" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
               )}
             </div>
           </aside>
+        </div>
+      )}
+
+      {modalSalidas && periodoSalidas && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/65">
+          <button
+            type="button"
+            className="absolute inset-0"
+            aria-label="Cerrar"
+            onClick={cerrarSalidasVacacion}
+          />
+          <div className="relative z-[71] flex max-h-[min(560px,90vh)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-white/15 bg-[#252423] shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Salidas del período</h3>
+                <p className="mt-1 text-xs text-gray-400">
+                  {periodoSalidas.fecha_inicio_periodo
+                    ? format(
+                        parseFechaSegura(periodoSalidas.fecha_inicio_periodo),
+                        'dd/MM/yyyy',
+                        { locale: es }
+                      )
+                    : '—'}{' '}
+                  –{' '}
+                  {periodoSalidas.fecha_fin_periodo
+                    ? format(
+                        parseFechaSegura(periodoSalidas.fecha_fin_periodo),
+                        'dd/MM/yyyy',
+                        { locale: es }
+                      )
+                    : '—'}
+                  {' · '}
+                  {periodoSalidas.dias_correspondientes ?? '—'} días asignados
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cerrarSalidasVacacion}
+                className="rounded p-1 text-gray-400 hover:bg-white/10"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {salidasCargando ? (
+                <div className="flex justify-center py-14">
+                  <div className="h-9 w-9 animate-spin rounded-full border-2 border-teal-400 border-t-transparent" />
+                </div>
+              ) : listaSalidas.length === 0 ? (
+                <div className="py-12 text-center text-gray-400">
+                  <DocumentTextIcon className="mx-auto mb-2 h-10 w-10 text-gray-600" />
+                  <p>No hay salidas registradas para este período.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs text-gray-300">
+                  <thead>
+                    <tr className="border-b border-white/10 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                      <th className="py-2 pr-2">Salida</th>
+                      <th className="py-2 pr-2">Retorno</th>
+                      <th className="py-2 text-center">Días</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.06]">
+                    {listaSalidas.map((s) => (
+                      <tr key={s.id}>
+                        <td className="py-2 pr-2">
+                          {s.fecha_inicio_vacaciones
+                            ? format(
+                                parseFechaSegura(s.fecha_inicio_vacaciones),
+                                'dd/MM/yyyy',
+                                { locale: es }
+                              )
+                            : '—'}
+                        </td>
+                        <td className="py-2 pr-2">
+                          {s.fecha_fin_vacaciones
+                            ? format(
+                                parseFechaSegura(s.fecha_fin_vacaciones),
+                                'dd/MM/yyyy',
+                                { locale: es }
+                              )
+                            : '—'}
+                        </td>
+                        <td className="py-2 text-center font-semibold text-teal-300">
+                          {s.dias_solicitados ?? '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-white/10 font-semibold text-white">
+                      <td colSpan={2} className="py-2 text-right text-xs">
+                        Total días gozados
+                      </td>
+                      <td className="py-2 text-center text-teal-300">
+                        {listaSalidas.reduce((acc, s) => acc + (Number(s.dias_solicitados) || 0), 0)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

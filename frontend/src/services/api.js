@@ -181,6 +181,7 @@ export const adminPortalUsuariosService = {
   listarEmpleados: (params = {}) =>
     api.get('/admin-portal-usuarios/empleados', { params }),
   obtener: (id) => api.get(`/admin-portal-usuarios/empleados/${id}`),
+  vacacionesEmpleado: (id) => api.get(`/admin-portal-usuarios/empleados/${id}/vacaciones`),
   crear: (body) => api.post('/admin-portal-usuarios/empleados', body),
   actualizarCuenta: (id, body) =>
     api.put(`/admin-portal-usuarios/empleados/${id}/cuenta`, body),

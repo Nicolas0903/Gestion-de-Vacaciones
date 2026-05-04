@@ -308,6 +308,33 @@ const actualizarCuenta = async (req, res) => {
   }
 };
 
+const vacacionesEmpleado = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ success: false, mensaje: 'ID inválido' });
+    }
+    const empleado = await Empleado.buscarPorId(id);
+    if (!empleado) {
+      return res.status(404).json({ success: false, mensaje: 'Empleado no encontrado' });
+    }
+    const periodos = await PeriodoVacaciones.listarPorEmpleado(id);
+    const rawResumen = await PeriodoVacaciones.obtenerResumen(id, { vistaEmpleado: false });
+    const resumen = {
+      total_ganados: Number(rawResumen?.total_ganados) || 0,
+      total_gozados: Number(rawResumen?.total_gozados) || 0,
+      total_pendientes: Number(rawResumen?.total_pendientes) || 0
+    };
+    res.json({
+      success: true,
+      data: { periodos, resumen }
+    });
+  } catch (error) {
+    console.error('vacacionesEmpleado admin portal:', error);
+    res.status(500).json({ success: false, mensaje: 'Error interno del servidor' });
+  }
+};
+
 const restablecerPassword = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -336,6 +363,7 @@ module.exports = {
   listarRoles,
   listarEmpleados,
   obtenerEmpleado,
+  vacacionesEmpleado,
   crearEmpleado,
   actualizarCuenta,
   actualizarModulosPortal,

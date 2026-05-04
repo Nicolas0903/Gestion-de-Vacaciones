@@ -268,7 +268,7 @@ const Portal = () => {
       {/* Footer */}
       <div className="max-w-7xl mx-auto px-6 py-8 text-center">
         <p className="text-slate-400 text-sm">
-          © 2024 PRAYAGA · Portal Prayaga Interno
+          © 2026 PRAYAGA · Portal Prayaga Interno
         </p>
       </div>
     </div>
