@@ -442,9 +442,10 @@ const GestionReembolsos = () => {
         ) : filasFiltradas.length === 0 ? (
           <p className="text-slate-500 text-sm">Ningún registro coincide con los filtros. Prueba otro mes o solicitante.</p>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-slate-100">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-left text-slate-600">
+            <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden flex flex-col shadow-sm">
+            <div className="relative max-h-[min(75vh,36rem)] min-h-[220px] overflow-auto [scrollbar-gutter:stable]">
+              <table className="min-w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-left text-slate-600 shadow-[inset_0_-1px_0_0_rgb(226_232_240)]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Ticket</th>
                   <th className="px-4 py-3 font-medium whitespace-nowrap">Fecha (gasto)</th>
@@ -581,7 +582,8 @@ const GestionReembolsos = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -589,17 +591,16 @@ const GestionReembolsos = () => {
       {fichaModal && (
         <div
           role="presentation"
-          className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40"
+          className="fixed inset-0 z-50 flex items-center justify-center overscroll-none bg-black/40 p-4 sm:p-6"
           onClick={() => setFichaModal(null)}
         >
-          <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="ficha-reintegro-titulo"
-              className="bg-white rounded-2xl shadow-xl max-w-lg w-full min-h-0 max-h-[min(90dvh,42rem)] flex flex-col overflow-hidden p-0 my-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ficha-reintegro-titulo"
+            className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[min(calc(100dvh-2rem),40rem)] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start justify-between gap-4 p-6 pb-4 shrink-0 border-b border-slate-100">
               <div>
                 <h3 id="ficha-reintegro-titulo" className="text-lg font-bold text-slate-800 font-mono">
@@ -625,7 +626,8 @@ const GestionReembolsos = () => {
               </button>
             </div>
 
-            <div className="px-6 pt-4 pb-2 overflow-y-auto min-h-0 flex-1 [scrollbar-gutter:stable]">
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y [scrollbar-gutter:stable]">
+              <div className="px-6 pt-4 pb-2">
               {fichaModal.comentarios_resolucion ? (
               <div className="mb-5 p-4 rounded-xl bg-slate-50 border border-slate-100">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Observaciones</p>
@@ -685,9 +687,10 @@ const GestionReembolsos = () => {
                 </p>
               ) : null}
             </div>
+              </div>
             </div>
 
-            <div className="flex justify-end shrink-0 p-6 pt-4 border-t border-slate-100 bg-white">
+            <div className="flex justify-end shrink-0 p-6 pt-4 border-t border-slate-100 bg-white shadow-[inset_0_1px_0_0_rgb(248_250_252)]">
               <button
                 type="button"
                 onClick={() => setFichaModal(null)}
@@ -695,7 +698,6 @@ const GestionReembolsos = () => {
               >
                 Cerrar
               </button>
-            </div>
             </div>
           </div>
         </div>
