@@ -1019,11 +1019,11 @@ const htmlVistaReciboReembolso = (r, codigoTicket) => {
 /** Encabezado y pie distintos al de vacaciones en plantillaBase */
 const MARCA_ENCABEZADO_EMAIL_REINTEGRO = '💳 Solicitud de reintegro';
 const PIE_EMAIL_REINTEGRO =
-  'Este es un mensaje automático del Portal RRHH - Prayaga (solicitudes de reintegro).';
+  'Este es un mensaje automático del Portal Prayaga Interno - Prayaga (solicitudes de reintegro).';
 
 const MARCA_ENCABEZADO_CAJA_CHICA = '💰 Caja chica';
 const PIE_EMAIL_CAJA_CHICA =
-  'Este es un mensaje automático del Portal RRHH - Prayaga (módulo Caja chica).';
+  'Este es un mensaje automático del Portal Prayaga Interno - Prayaga (módulo Caja chica).';
 
 const emailDestinoCajaChicaRocio = () =>
   (process.env.CAJA_CHICA_EMAIL_ROCIO || 'rocio.picon@prayaga.biz').trim();
@@ -1176,7 +1176,7 @@ const enviarCajaChicaResumenRocio = async ({
     fs.writeFileSync(tmpPdf, bufAdjunto);
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal RRHH - Caja chica" <${process.env.SMTP_USER}>`,
+      from: `"Portal Prayaga Interno - Caja chica" <${process.env.SMTP_USER}>`,
       to: toField,
       subject: `Caja chica · ${periodoEtiqueta} (${estadoPeriodo})`,
       text: `Resumen de caja chica (${periodoEtiqueta}). PDF: resumen formal y fusión de comprobantes (facturas primero por fecha, luego recibos Prayaga por fecha).`,
@@ -1280,7 +1280,7 @@ const notificarNuevaSolicitudReembolsoAprobador = async ({
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal RRHH - Reembolsos" <${process.env.SMTP_USER}>`,
+      from: `"Portal Prayaga Interno - Reembolsos" <${process.env.SMTP_USER}>`,
       to: aprobador.email,
       subject: `Solicitud de reembolso ${codigo} - ${empNombre}`,
       html: plantillaBase(
@@ -1355,7 +1355,7 @@ const notificarReembolsoResueltoEmpleado = async (reembolso, empleado, resultado
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal RRHH - Reintegros" <${process.env.SMTP_USER}>`,
+      from: `"Portal Prayaga Interno - Reintegros" <${process.env.SMTP_USER}>`,
       to: empleado.email,
       subject,
       html: plantillaBase(

@@ -385,7 +385,7 @@ class PDFService {
           doc.fontSize(13).font('Helvetica-Bold').fillColor('#0d9488').text('PRAYAGA', margin, y + 10);
         }
         doc.fontSize(9).font('Helvetica').fillColor('#64748b')
-          .text('Portal RRHH · Módulo Caja chica', margin + 96, y + 18);
+          .text('Portal Prayaga Interno · Módulo Caja chica', margin + 96, y + 18);
         y += 68;
 
         doc.fontSize(15).font('Helvetica-Bold').fillColor('#0f172a')

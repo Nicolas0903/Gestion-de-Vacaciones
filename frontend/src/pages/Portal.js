@@ -162,7 +162,7 @@ const Portal = () => {
             </div>
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
-                Portal RRHH
+                Portal Prayaga Interno
               </h1>
               <p className="text-slate-500 text-lg">PRAYAGA</p>
             </div>
@@ -268,7 +268,7 @@ const Portal = () => {
       {/* Footer */}
       <div className="max-w-7xl mx-auto px-6 py-8 text-center">
         <p className="text-slate-400 text-sm">
-          © 2024 PRAYAGA - Portal de Recursos Humanos
+          © 2024 PRAYAGA · Portal Prayaga Interno
         </p>
       </div>
     </div>
