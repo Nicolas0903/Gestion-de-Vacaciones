@@ -96,7 +96,7 @@ class PeriodoVacaciones {
           empleado_id: empleadoId,
           fecha_inicio_periodo: fechaInicioNuevo,
           fecha_fin_periodo: fechaFinNuevo,
-          dias_correspondientes,
+          dias_correspondientes: diasCorrespondientes,
           tiempo_trabajado: '12 meses',
           observaciones: `Período ${yIni}-${yFin} (renovación automática)`
         });
