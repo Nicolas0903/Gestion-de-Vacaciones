@@ -52,43 +52,42 @@ class PeriodoVacaciones {
   }
 
   /**
-   * Renueva cuando en MySQL fecha_fin_periodo < CURDATE() (misma regla que el día
-   * siguiente al cierre tiene derecho nuevo; el último día del período aún cuenta).
-   * Usar CURDATE() evita cortar la renovación por desajuste TZ entre Node y la BD.
+   * Renueva **solo después** del cierre: el siguiente período se calcula a partir del
+   * último período ya **cerrado** (fecha_fin < CURDATE), no desde el período abierto.
+   * Así, mientras sigas dentro del período vigente (p. ej. hasta el 01/05/2026 incl.),
+   * NO se crea el bloque que termina el año siguiente civil (ej. fecha fin en 2027).
+   *
+   * Repite el loop por si hay varios años de atraso sin abrir la app.
    */
   static async renovarSiVencido(empleadoId) {
     try {
       for (let iter = 0; iter < 20; iter++) {
-        const [rows] = await pool.execute(
-          `SELECT
-             id,
-             empleado_id,
-             fecha_fin_periodo,
-             dias_correspondientes,
-             (fecha_fin_periodo < CURDATE()) AS debe_renovar,
-             DATE_FORMAT(DATE_ADD(fecha_fin_periodo, INTERVAL 1 DAY), '%Y-%m-%d')
-               AS fecha_inicio_nuevo,
-             DATE_FORMAT(
-               DATE_SUB(
-                 DATE_ADD(DATE_ADD(fecha_fin_periodo, INTERVAL 1 DAY), INTERVAL 1 YEAR),
-                 INTERVAL 1 DAY
-               ),
-               '%Y-%m-%d'
-             ) AS fecha_fin_nuevo
+        const [cerrado] = await pool.execute(
+          `SELECT fecha_fin_periodo, dias_correspondientes
            FROM periodos_vacaciones
-           WHERE empleado_id = ?
+           WHERE empleado_id = ? AND fecha_fin_periodo < CURDATE()
            ORDER BY fecha_fin_periodo DESC
            LIMIT 1`,
           [empleadoId]
         );
-        if (rows.length === 0) break;
+        if (!cerrado.length) break;
 
-        const ultimo = rows[0];
-        const debeRenovar = ultimo.debe_renovar == 1;
-        if (!debeRenovar) break;
+        const ref = cerrado[0];
 
-        const fechaInicioNuevo = ultimo.fecha_inicio_nuevo;
-        const fechaFinNuevo = ultimo.fecha_fin_nuevo;
+        const [fechas] = await pool.execute(
+          `SELECT
+             DATE_FORMAT(DATE_ADD(?, INTERVAL 1 DAY), '%Y-%m-%d') AS fecha_inicio_nuevo,
+             DATE_FORMAT(
+               DATE_SUB(
+                 DATE_ADD(DATE_ADD(?, INTERVAL 1 DAY), INTERVAL 1 YEAR),
+                 INTERVAL 1 DAY
+               ),
+               '%Y-%m-%d'
+             ) AS fecha_fin_nuevo`,
+          [ref.fecha_fin_periodo, ref.fecha_fin_periodo]
+        );
+        const fechaInicioNuevo = fechas[0]?.fecha_inicio_nuevo;
+        const fechaFinNuevo = fechas[0]?.fecha_fin_nuevo;
         if (!fechaInicioNuevo || !fechaFinNuevo) break;
 
         const [existe] = await pool.execute(
@@ -98,7 +97,7 @@ class PeriodoVacaciones {
         );
         if (existe.length > 0) break;
 
-        const diasCorrespondientes = Number(ultimo.dias_correspondientes) || 30;
+        const diasCorrespondientes = Number(ref.dias_correspondientes) || 30;
         const yIni = String(fechaInicioNuevo).slice(0, 4);
         const yFin = String(fechaFinNuevo).slice(0, 4);
         await this.crear({

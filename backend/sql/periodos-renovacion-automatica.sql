@@ -1,6 +1,7 @@
 -- Marca períodos generados por el sistema vs carga empresa (RH).
---
--- IMPORTANTE:
+-- Base de datos: las tablas de vacaciones están en `gestor_vacaciones` (con guión bajo).
+--   Ej.: mysql -u vacaciones_user -p gestor_vacaciones < backend/sql/periodos-renovacion-automatica.sql
+-- NO uses `gestorvacaciones` (sin guión): ahí sólo están módulos distintos (p. ej. caja chica).
 -- • Ejecutar UNA SOLA VEZ si la columna aún no existe (si existe, ignorar Duplicate column error).
 -- • Tras ejecutar backend: los INSERT siguientes requieren esta columna.
 --
