@@ -488,29 +488,52 @@ const CajaChica = () => {
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-2 px-1">
-                  Fecha de depósito opcional por línea. Comprobantes: PDF, imagen o Word (máx. 12&nbsp;MB). En filas nuevas,
-                  guarda ingresos antes de adjuntar o elige archivo y se subirá al guardar.
-                </p>
-                <div className="p-4 overflow-x-auto">
-                  <table className="min-w-[48rem] w-full text-sm">
+                <div className="px-5 pb-2">
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Fecha de depósito opcional por línea. Comprobantes: PDF, imagen o Word (máx. 12&nbsp;MB). En filas nuevas,
+                    guarda ingresos antes de adjuntar o elige archivo y se subirá al guardar.
+                  </p>
+                </div>
+                <div className="px-2 sm:px-4 pb-4 overflow-x-auto">
+                  <table className="table-fixed w-full text-sm border-separate border-spacing-0 min-w-[56rem]">
+                    <colgroup>
+                      <col style={{ width: '28%' }} />
+                      <col style={{ width: '11rem' }} />
+                      <col style={{ width: '7.5rem' }} />
+                      <col />
+                      {esBorrador ? <col style={{ width: '3rem' }} /> : null}
+                    </colgroup>
                     <thead>
-                      <tr className="text-left text-slate-600 border-b border-slate-100">
-                        <th className="pb-2 pr-3 font-medium min-w-[14rem]">Motivo / transferencia</th>
-                        <th className="pb-2 pr-3 font-medium whitespace-nowrap w-[9.5rem]">Fecha depósito</th>
-                        <th className="pb-2 font-medium w-40 min-w-[10rem] text-right">Monto</th>
-                        <th className="pb-2 pr-2 font-medium min-w-[13rem]">Comprobante</th>
-                        {esBorrador && <th className="pb-2 w-10" />}
+                      <tr className="text-left text-slate-600 border-b border-slate-200">
+                        <th scope="col" className="pb-3 pr-3 pt-1 font-medium align-bottom">
+                          Motivo / transferencia
+                        </th>
+                        <th scope="col" className="pb-3 pr-3 pt-1 font-medium align-bottom whitespace-nowrap">
+                          Fecha depósito
+                        </th>
+                        <th scope="col" className="pb-3 pr-2 pt-1 font-medium text-right align-bottom whitespace-nowrap">
+                          Monto
+                        </th>
+                        <th scope="col" className="pb-3 pr-2 pt-1 font-medium align-bottom">
+                          Comprobante
+                        </th>
+                        {esBorrador ? (
+                          <th scope="col" className="pb-3 pt-1 w-12 font-normal text-center align-bottom" aria-label="Eliminar fila">
+                            <span className="sr-only">Eliminar</span>
+                          </th>
+                        ) : null}
                       </tr>
                     </thead>
                     <tbody>
                       {ingresosEdit.map((row, idx) => (
-                        <tr key={row.id ?? `n-${idx}`} className="border-b border-slate-50">
-                          <td className="py-2 pr-3 align-top">
+                        <tr key={row.id ?? `n-${idx}`} className="border-b border-slate-100">
+                          <td className="py-2 pr-3 align-middle min-w-0">
                             {esBorrador ? (
                               <select
-                                className="w-full max-w-md rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                                className="w-full min-w-0 max-w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm text-left shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                style={{ paddingRight: '2.25rem' }}
                                 value={row.tipo_motivo}
+                                title={TIPOS.find((t) => t.value === row.tipo_motivo)?.label || ''}
                                 onChange={(e) => {
                                   const v = e.target.value;
                                   setIngresosEdit((rows) =>
@@ -525,14 +548,16 @@ const CajaChica = () => {
                                 ))}
                               </select>
                             ) : (
-                              <span>{TIPOS.find((t) => t.value === row.tipo_motivo)?.label}</span>
+                              <span className="block text-slate-800">
+                                {TIPOS.find((t) => t.value === row.tipo_motivo)?.label}
+                              </span>
                             )}
                           </td>
-                          <td className="py-2 pr-3 align-top whitespace-nowrap">
+                          <td className="py-2 pr-3 align-middle whitespace-nowrap">
                             {esBorrador ? (
                               <input
                                 type="date"
-                                className="w-full min-w-[9rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                                className="w-full min-w-[9.5rem] rounded-lg border border-slate-200 px-2 py-2 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                 value={row.fecha_deposito || ''}
                                 onChange={(e) => {
                                   const v = e.target.value;
@@ -544,17 +569,17 @@ const CajaChica = () => {
                             ) : (
                               <span className="text-slate-600">
                                 {row.fecha_deposito
-                                  ? new Date(row.fecha_deposito + 'T12:00:00').toLocaleDateString('es-PE')
+                                  ? new Date(`${row.fecha_deposito}T12:00:00`).toLocaleDateString('es-PE')
                                   : '—'}
                               </span>
                             )}
                           </td>
-                          <td className="py-2 align-top text-right">
+                          <td className="py-2 pr-2 align-middle">
                             {esBorrador ? (
                               <input
                                 type="text"
                                 inputMode="decimal"
-                                className="w-full min-w-[8rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm tabular-nums text-right"
+                                className="w-full rounded-lg border border-slate-200 px-2 py-2 text-sm tabular-nums text-right shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                 placeholder={
                                   row.tipo_motivo === 'saldo_anterior'
                                     ? 'Positivo o negativo según el cierre'
@@ -569,20 +594,20 @@ const CajaChica = () => {
                                 }}
                               />
                             ) : (
-                              <span className="tabular-nums whitespace-nowrap">{fmt(row.monto)}</span>
+                              <span className="block text-right tabular-nums">{fmt(row.monto)}</span>
                             )}
                           </td>
-                          <td className="py-2 pr-2 align-top">
-                            <div className="flex flex-col gap-1.5">
+                          <td className="py-2 pr-2 align-middle min-w-0">
+                            <div className="flex flex-col gap-1.5 pl-1">
                               {row.archivoPendiente ? (
-                                <span className="text-xs text-amber-700 truncate" title={row.archivoPendiente.name}>
+                                <span className="text-xs text-amber-700 line-clamp-2" title={row.archivoPendiente.name}>
                                   Pendiente: {row.archivoPendiente.name}
                                 </span>
                               ) : null}
                               {adjuntoSubiendoIdx === idx ? (
                                 <span className="text-xs text-slate-500">Subiendo…</span>
                               ) : esBorrador ? (
-                                <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                   <input
                                     id={`adj-cchica-${idx}`}
                                     type="file"
@@ -593,9 +618,9 @@ const CajaChica = () => {
                                   <button
                                     type="button"
                                     onClick={() => document.getElementById(`adj-cchica-${idx}`)?.click()}
-                                    className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                                    className="inline-flex items-center gap-1.5 shrink-0 rounded-md px-1 py-0.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 hover:underline"
                                   >
-                                    <PaperClipIcon className="w-3.5 h-3.5" />
+                                    <PaperClipIcon className="w-4 h-4 shrink-0" />
                                     {row.tiene_comprobante && row.id ? 'Cambiar' : 'Adjuntar'}
                                   </button>
                                   {row.id && row.tiene_comprobante ? (
@@ -603,15 +628,15 @@ const CajaChica = () => {
                                       <button
                                         type="button"
                                         onClick={() => descargarAdjuntoIngreso(row.id)}
-                                        className="inline-flex items-center gap-1 text-xs text-slate-600 hover:underline"
+                                        className="inline-flex items-center gap-1 shrink-0 text-xs text-slate-600 hover:underline"
                                       >
-                                        <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                                        <ArrowDownTrayIcon className="w-3.5 h-3.5 shrink-0" />
                                         Ver
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => quitarAdjuntoFila(row.id)}
-                                        className="text-xs text-rose-600 hover:underline"
+                                        className="text-xs text-rose-600 hover:underline shrink-0"
                                       >
                                         Quitar
                                       </button>
@@ -622,9 +647,9 @@ const CajaChica = () => {
                                 <button
                                   type="button"
                                   onClick={() => descargarAdjuntoIngreso(row.id)}
-                                  className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                                  className="inline-flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 hover:underline"
                                 >
-                                  <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                                  <ArrowDownTrayIcon className="w-4 h-4 shrink-0" />
                                   Descargar
                                 </button>
                               ) : (
@@ -633,10 +658,11 @@ const CajaChica = () => {
                             </div>
                           </td>
                           {esBorrador && (
-                            <td className="py-2 align-top">
+                            <td className="py-2 align-middle text-center">
                               <button
                                 type="button"
-                                className="p-1 text-slate-400 hover:text-rose-600"
+                                className="mx-auto inline-flex p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg"
+                                title="Eliminar fila"
                                 onClick={() =>
                                   setIngresosEdit((rows) =>
                                     rows.length > 1 ? rows.filter((_, i) => i !== idx) : rows
@@ -651,15 +677,15 @@ const CajaChica = () => {
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="font-semibold text-slate-800 bg-amber-50/80">
-                        <td className="py-2 pr-3" colSpan={2}>
+                      <tr className="border-t border-amber-200 bg-amber-50/90">
+                        <td colSpan={2} className="py-3 pr-3 pl-0 font-semibold text-slate-800">
                           Total ingreso
                         </td>
-                        <td className="py-2 tabular-nums text-right whitespace-nowrap">
+                        <td className="py-3 pr-2 font-semibold text-slate-800 tabular-nums text-right whitespace-nowrap">
                           {fmt(totalesVista?.total_ingreso)}
                         </td>
-                        <td />
-                        {esBorrador && <td />}
+                        <td className="py-3" aria-hidden />
+                        {esBorrador ? <td className="py-3" aria-hidden /> : null}
                       </tr>
                     </tfoot>
                   </table>
