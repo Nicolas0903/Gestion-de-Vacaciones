@@ -1,7 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, Cog6ToothIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowLeftIcon,
+  CheckBadgeIcon,
+  Cog6ToothIcon,
+  PencilSquareIcon,
+  TrashIcon
+} from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { reembolsoService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
@@ -226,6 +232,47 @@ const GestionReembolsos = () => {
 
   const hayFiltros = Boolean(mesFiltro || solicitanteFiltro);
 
+  const pendientesAprobacionMasiva = useMemo(
+    () => (tab === 'pendientes' ? filasFiltradas.filter((r) => puedeResolver(r)) : []),
+    [tab, filasFiltradas]
+  );
+
+  const aprobarTodosPendientes = async () => {
+    const lista = pendientesAprobacionMasiva;
+    if (!lista.length) return;
+    const n = lista.length;
+    const filtroTxt = hayFiltros ? ' que coinciden con los filtros actuales' : '';
+    if (
+      !window.confirm(
+        `¿Aprobar ${n} solicitud${n === 1 ? '' : 'es'}${filtroTxt}?\n\nSe aplicará sin comentarios adicionales.`
+      )
+    ) {
+      return;
+    }
+    setProcesando(true);
+    let ok = 0;
+    const fallidas = [];
+    for (const r of lista) {
+      try {
+        await reembolsoService.aprobar(r.id, '');
+        ok += 1;
+      } catch (err) {
+        fallidas.push(r.codigo_ticket || `#${r.id}`);
+      }
+    }
+    setProcesando(false);
+    if (fallidas.length === 0) {
+      toast.success(`${ok} solicitud${ok === 1 ? '' : 'es'} aprobada${ok === 1 ? '' : 's'}.`);
+    } else {
+      toast.error(
+        `Aprobadas: ${ok}. Fallaron ${fallidas.length}: ${fallidas.slice(0, 5).join(', ')}${
+          fallidas.length > 5 ? '…' : ''
+        }`
+      );
+    }
+    cargar();
+  };
+
   const guardarEdicionAdmin = async () => {
     if (!editar || !formEdit) return;
     if (!formEdit.fecha_solicitud_usuario || !formEdit.concepto.trim()) {
@@ -295,29 +342,42 @@ const GestionReembolsos = () => {
           </div>
         </div>
 
-        <div className="flex gap-2 mb-6">
-          <button
-            type="button"
-            onClick={() => setTab('pendientes')}
-            className={`px-4 py-2 rounded-xl text-sm font-medium ${
-              tab === 'pendientes'
-                ? 'bg-sky-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Pendientes ({pendientes.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('todos')}
-            className={`px-4 py-2 rounded-xl text-sm font-medium ${
-              tab === 'todos'
-                ? 'bg-sky-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Todas
-          </button>
+        <div className="flex flex-wrap items-center gap-3 justify-between mb-6">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setTab('pendientes')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                tab === 'pendientes'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Pendientes ({pendientes.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('todos')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                tab === 'todos'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Todas
+            </button>
+          </div>
+          {pendientesAprobacionMasiva.length > 0 && (
+            <button
+              type="button"
+              disabled={procesando}
+              onClick={aprobarTodosPendientes}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 shadow-sm shadow-emerald-600/20"
+            >
+              <CheckBadgeIcon className="w-5 h-5 shrink-0" />
+              Aprobar todas ({pendientesAprobacionMasiva.length})
+            </button>
+          )}
         </div>
 
         {!loading && filas.length > 0 && (
