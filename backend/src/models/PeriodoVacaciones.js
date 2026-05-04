@@ -52,48 +52,92 @@ class PeriodoVacaciones {
     return null;
   }
 
-  // Renovar períodos automáticamente cuando fecha_fin_periodo ya llegó o pasó (loop por años atrasados)
+  /** Fecha de negocio YYYY-MM-DD sin depender del driver (DATE como string o Date). */
+  static _soloFechaYYYYMMDD(val) {
+    if (val == null) return null;
+    if (typeof val === 'string') {
+      const m = val.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+    }
+    if (val instanceof Date && !isNaN(val.getTime())) {
+      return val.toISOString().slice(0, 10);
+    }
+    return this._soloFechaYYYYMMDD(String(val));
+  }
+
+  static _hoyYYYYMMDD() {
+    const n = new Date();
+    const y = n.getFullYear();
+    const mo = String(n.getMonth() + 1).padStart(2, '0');
+    const d = String(n.getDate()).padStart(2, '0');
+    return `${y}-${mo}-${d}`;
+  }
+
+  /** Suma días en calendario (UTC) y devuelve YYYY-MM-DD. */
+  static _addCalendarDays(ymd, deltaDays) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+    if (!m) return null;
+    const t = Date.UTC(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10) + deltaDays);
+    return new Date(t).toISOString().slice(0, 10);
+  }
+
+  /** Aniversario laboral: fin = inicio + 12 meses − 1 día (en calendario UTC). */
+  static _finPeriodoDesdeInicio(ymdInicio) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymdInicio);
+    if (!m) return null;
+    const y = parseInt(m[1], 10) + 1;
+    const mo = parseInt(m[2], 10) - 1;
+    const day = parseInt(m[3], 10);
+    const t = Date.UTC(y, mo, day - 1);
+    return new Date(t).toISOString().slice(0, 10);
+  }
+
+  /**
+   * Renueva cuando la fecha de hoy es estrictamente posterior a fecha_fin_periodo
+   * (el último día del período sigue siendo del período vigente).
+   * Repite por si hubo varios años sin abrir la app.
+   */
   static async renovarSiVencido(empleadoId) {
     try {
       for (let iter = 0; iter < 20; iter++) {
-      const [periodos] = await pool.execute(
-        `SELECT * FROM periodos_vacaciones WHERE empleado_id = ?
-         ORDER BY fecha_fin_periodo DESC LIMIT 1`,
-        [empleadoId]
-      );
-      if (periodos.length === 0) break;
+        const [periodos] = await pool.execute(
+          `SELECT * FROM periodos_vacaciones WHERE empleado_id = ?
+           ORDER BY fecha_fin_periodo DESC LIMIT 1`,
+          [empleadoId]
+        );
+        if (periodos.length === 0) break;
 
-      const ultimo = periodos[0];
-      const fechaFin = this._parsearFechaLocal(ultimo.fecha_fin_periodo);
-      if (!fechaFin || isNaN(fechaFin.getTime())) break;
+        const ultimo = periodos[0];
+        const finStr = this._soloFechaYYYYMMDD(ultimo.fecha_fin_periodo);
+        if (!finStr) break;
 
-      const hoy = new Date();
-      const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-      const finStr = `${fechaFin.getFullYear()}-${String(fechaFin.getMonth() + 1).padStart(2, '0')}-${String(fechaFin.getDate()).padStart(2, '0')}`;
-      if (finStr > hoyStr) break; // El período aún no termina (fecha fin en el futuro)
+        const hoyStr = this._hoyYYYYMMDD();
+        if (hoyStr <= finStr) break;
 
-      const diaSiguiente = new Date(fechaFin.getFullYear(), fechaFin.getMonth(), fechaFin.getDate() + 1);
-      const fechaInicioNuevo = `${diaSiguiente.getFullYear()}-${String(diaSiguiente.getMonth() + 1).padStart(2, '0')}-${String(diaSiguiente.getDate()).padStart(2, '0')}`;
+        const fechaInicioNuevo = this._addCalendarDays(finStr, 1);
+        if (!fechaInicioNuevo) break;
 
-      const finNuevo = new Date(diaSiguiente.getFullYear() + 1, diaSiguiente.getMonth(), diaSiguiente.getDate() - 1);
-      const fechaFinNuevo = `${finNuevo.getFullYear()}-${String(finNuevo.getMonth() + 1).padStart(2, '0')}-${String(finNuevo.getDate()).padStart(2, '0')}`;
+        const fechaFinNuevo = this._finPeriodoDesdeInicio(fechaInicioNuevo);
+        if (!fechaFinNuevo) break;
 
-      const [existe] = await pool.execute(
-        `SELECT id FROM periodos_vacaciones
-         WHERE empleado_id = ? AND fecha_inicio_periodo = ?`,
-        [empleadoId, fechaInicioNuevo]
-      );
-      if (existe.length > 0) break;
+        const [existe] = await pool.execute(
+          `SELECT id FROM periodos_vacaciones
+           WHERE empleado_id = ? AND fecha_inicio_periodo = ?`,
+          [empleadoId, fechaInicioNuevo]
+        );
+        if (existe.length > 0) break;
 
-      const diasCorrespondientes = ultimo.dias_correspondientes || 30;
-      await this.crear({
-        empleado_id: empleadoId,
-        fecha_inicio_periodo: fechaInicioNuevo,
-        fecha_fin_periodo: fechaFinNuevo,
-        dias_correspondientes,
-        tiempo_trabajado: '12 meses',
-        observaciones: `Período ${diaSiguiente.getFullYear()}-${diaSiguiente.getFullYear() + 1} (renovación automática)`
-      });
+        const diasCorrespondientes = ultimo.dias_correspondientes || 30;
+        const yIni = fechaInicioNuevo.slice(0, 4);
+        const yFin = fechaFinNuevo.slice(0, 4);
+        await this.crear({
+          empleado_id: empleadoId,
+          fecha_inicio_periodo: fechaInicioNuevo,
+          fecha_fin_periodo: fechaFinNuevo,
+          dias_correspondientes,
+          tiempo_trabajado: '12 meses',
+          observaciones: `Período ${yIni}-${yFin} (renovación automática)`
+        });
       }
     } catch (err) {
       console.error('Error renovarSiVencido:', err);
@@ -123,6 +167,12 @@ class PeriodoVacaciones {
 
   // Obtener períodos con días pendientes
   static async obtenerPendientes(empleadoId) {
+    try {
+      await this.renovarSiVencido(empleadoId);
+    } catch (e) {
+      console.error('renovarSiVencido obtenerPendientes:', e);
+    }
+
     const [rows] = await pool.execute(
       `SELECT * FROM periodos_vacaciones
        WHERE empleado_id = ? AND dias_pendientes > 0
@@ -137,6 +187,12 @@ class PeriodoVacaciones {
 
   // Obtener resumen de vacaciones de un empleado
   static async obtenerResumen(empleadoId) {
+    try {
+      await this.renovarSiVencido(empleadoId);
+    } catch (e) {
+      console.error('renovarSiVencido obtenerResumen:', e);
+    }
+
     const [rows] = await pool.execute(
       `SELECT 
          SUM(dias_correspondientes) as total_ganados,
