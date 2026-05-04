@@ -13,6 +13,7 @@ import {
   Squares2X2Icon
 } from '@heroicons/react/24/outline';
 import api from '../../services/api';
+import { formatoFechaHoraDMY } from '../../utils/dateUtils';
 
 const SolicitudesRegistro = () => {
   const [solicitudes, setSolicitudes] = useState([]);
@@ -113,17 +114,6 @@ const SolicitudesRegistro = () => {
     );
   };
 
-  const formatearFecha = (fecha) => {
-    return new Date(fecha).toLocaleDateString('es-PE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  return (
     <div className="space-y-6">
       {/* Volver al Portal */}
       <Link to="/portal" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-teal-600 transition-colors">
@@ -203,7 +193,7 @@ const SolicitudesRegistro = () => {
                         {solicitud.nombres} {solicitud.apellidos}
                       </h3>
                       <p className="text-sm text-slate-500">
-                        Solicitado el {formatearFecha(solicitud.created_at)}
+                        Solicitado el {formatoFechaHoraDMY(solicitud.created_at)}
                       </p>
                     </div>
                     {getEstadoBadge(solicitud.estado)}

@@ -18,9 +18,7 @@ import {
   EyeIcon,
   Squares2X2Icon
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { parseFechaSegura } from '../utils/dateUtils';
+import { formatoFechaDMY } from '../utils/dateUtils';
 
 const GestionPermisos = () => {
   const [permisos, setPermisos] = useState([]);
@@ -263,7 +261,7 @@ const GestionPermisos = () => {
                   </div>
                   <p className="text-sm text-slate-600">{permiso.motivo}</p>
                   <p className="text-xs text-slate-400 mt-1">
-                    {format(parseFechaSegura(permiso.fecha_inicio), 'dd/MM/yyyy')} - {format(parseFechaSegura(permiso.fecha_fin), 'dd/MM/yyyy')} ({permiso.dias_totales} días)
+                    {formatoFechaDMY(permiso.fecha_inicio)} - {formatoFechaDMY(permiso.fecha_fin)} ({permiso.dias_totales} días)
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -386,7 +384,7 @@ const GestionPermisos = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {format(parseFechaSegura(permiso.fecha_inicio), 'dd/MM/yyyy')} - {format(parseFechaSegura(permiso.fecha_fin), 'dd/MM/yyyy')}
+                      {formatoFechaDMY(permiso.fecha_inicio)} - {formatoFechaDMY(permiso.fecha_fin)}
                     </td>
                     <td className="px-6 py-4 text-center font-medium text-slate-700">
                       {permiso.dias_totales}

@@ -13,8 +13,6 @@ import {
   CalendarDaysIcon,
   Squares2X2Icon
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { formatearFechaServidor } from '../utils/dateUtils';
 
 const MisBoletas = () => {
@@ -98,12 +96,7 @@ const MisBoletas = () => {
     }
   };
 
-  const getNombreMes = (mes) => {
-    const fecha = new Date(2024, mes - 1, 1);
-    return format(fecha, 'MMMM', { locale: es });
-  };
-
-  const boletasPendientes = boletas.filter(b => !b.firmada).length;
+ = boletas.filter(b => !b.firmada).length;
   const boletasFirmadas = boletas.filter(b => b.firmada).length;
 
   return (
@@ -216,10 +209,9 @@ const MisBoletas = () => {
                     }`} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-slate-800 capitalize">
-                      {getNombreMes(boleta.mes)}
+                    <h3 className="font-semibold text-slate-800">
+                      {String(boleta.mes).padStart(2, '0')}/{boleta.anio}
                     </h3>
-                    <p className="text-sm text-slate-500">{boleta.anio}</p>
                   </div>
                 </div>
                 

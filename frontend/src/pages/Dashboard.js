@@ -13,9 +13,7 @@ import {
   DocumentTextIcon,
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { parseFechaSegura } from '../utils/dateUtils';
+import { formatoFechaDMY } from '../utils/dateUtils';
 
 const Dashboard = () => {
   const { usuario, puedeAprobar } = useAuth();
@@ -156,7 +154,8 @@ const Dashboard = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-slate-700">
-                        {format(parseFechaSegura(solicitud.fecha_inicio_vacaciones), "d 'de' MMMM", { locale: es })} - {format(parseFechaSegura(solicitud.fecha_fin_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
+                        {formatoFechaDMY(solicitud.fecha_inicio_vacaciones)} –{' '}
+                        {formatoFechaDMY(solicitud.fecha_fin_vacaciones)}
                       </p>
                       <p className="text-sm text-slate-500 mt-1">
                         {solicitud.dias_solicitados} días
@@ -209,7 +208,8 @@ const Dashboard = () => {
                           {solicitud.nombres} {solicitud.apellidos}
                         </p>
                         <p className="text-sm text-slate-500 mt-1">
-                          {format(parseFechaSegura(solicitud.fecha_inicio_vacaciones), "d MMM", { locale: es })} - {format(parseFechaSegura(solicitud.fecha_fin_vacaciones), "d MMM", { locale: es })} • {solicitud.dias_solicitados} días
+                          {formatoFechaDMY(solicitud.fecha_inicio_vacaciones)} –{' '}
+                          {formatoFechaDMY(solicitud.fecha_fin_vacaciones)} • {solicitud.dias_solicitados} días
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${getEstadoColor(solicitud.estado)}`}>

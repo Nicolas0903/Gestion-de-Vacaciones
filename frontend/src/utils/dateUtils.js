@@ -47,3 +47,16 @@ export function formatearFechaServidor(fechaStr, formato = 'dd/MM/yyyy HH:mm') {
     return '-';
   }
 }
+
+/** Solo fecha en pantalla: dd/MM/yyyy (consistente en todos los módulos). */
+export function formatoFechaDMY(fechaStr) {
+  if (fechaStr == null || fechaStr === '') return '—';
+  return format(parseFechaSegura(fechaStr), 'dd/MM/yyyy', { locale: es });
+}
+
+/** Fecha y hora (registros, auditoría): dd/MM/yyyy HH:mm */
+export function formatoFechaHoraDMY(fechaStr) {
+  if (fechaStr == null || fechaStr === '') return '—';
+  const s = formatearFechaServidor(fechaStr, 'dd/MM/yyyy HH:mm');
+  return s === '-' ? '—' : s;
+}

@@ -13,9 +13,7 @@ import {
   ClockIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { parseFechaSegura } from '../utils/dateUtils';
+import { formatoFechaDMY, formatoFechaHoraDMY } from '../utils/dateUtils';
 import { calcularFechaEfectivaRegreso } from '../utils/calcularDiasVacaciones';
 
 const DetalleSolicitud = () => {
@@ -209,13 +207,13 @@ const DetalleSolicitud = () => {
             <div>
               <p className="text-sm text-slate-500">Período</p>
               <p className="font-medium text-slate-800">
-                {format(parseFechaSegura(solicitud.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseFechaSegura(solicitud.fecha_fin_periodo), "d MMM yyyy", { locale: es })}
+                {formatoFechaDMY(solicitud.fecha_inicio_periodo)} – {formatoFechaDMY(solicitud.fecha_fin_periodo)}
               </p>
             </div>
             <div>
               <p className="text-sm text-slate-500">Días de Vacaciones</p>
               <p className="font-medium text-slate-800">
-                {format(parseFechaSegura(solicitud.fecha_inicio_vacaciones), "d 'de' MMMM", { locale: es })} al {format(parseFechaSegura(solicitud.fecha_fin_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
+                {formatoFechaDMY(solicitud.fecha_inicio_vacaciones)} al {formatoFechaDMY(solicitud.fecha_fin_vacaciones)}
               </p>
             </div>
             <div>
@@ -227,19 +225,15 @@ const DetalleSolicitud = () => {
             <div>
               <p className="text-sm text-slate-500">Fecha Efectiva de Salida</p>
               <p className="font-medium text-slate-800">
-                {format(parseFechaSegura(solicitud.fecha_efectiva_salida || solicitud.fecha_inicio_vacaciones), "d 'de' MMMM, yyyy", { locale: es })}
+                {formatoFechaDMY(solicitud.fecha_efectiva_salida || solicitud.fecha_inicio_vacaciones)}
               </p>
             </div>
             <div>
               <p className="text-sm text-slate-500">Fecha Efectiva de Regreso</p>
               <p className="font-medium text-slate-800">
-                {format(
-                  parseFechaSegura(
-                    solicitud.fecha_efectiva_regreso ||
-                      calcularFechaEfectivaRegreso(solicitud.fecha_fin_vacaciones)
-                  ),
-                  "d 'de' MMMM, yyyy",
-                  { locale: es }
+                {formatoFechaDMY(
+                  solicitud.fecha_efectiva_regreso ||
+                    calcularFechaEfectivaRegreso(solicitud.fecha_fin_vacaciones)
                 )}
               </p>
             </div>
@@ -281,7 +275,7 @@ const DetalleSolicitud = () => {
                   )}
                   {aprobacion.fecha_accion && (
                     <p className="text-xs text-slate-400 mt-2">
-                      {format(parseFechaSegura(aprobacion.fecha_accion), "d MMM yyyy, HH:mm", { locale: es })}
+                      {formatoFechaHoraDMY(aprobacion.fecha_accion)}
                     </p>
                   )}
                 </div>

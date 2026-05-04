@@ -14,6 +14,7 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { cajaChicaService, reembolsoService } from '../services/api';
+import { formatoFechaDMY } from '../utils/dateUtils';
 
 const MESES = [
   { v: 1, l: 'Enero' },
@@ -575,9 +576,7 @@ const CajaChica = () => {
                               />
                             ) : (
                               <span className="text-slate-600">
-                                {row.fecha_deposito
-                                  ? new Date(`${row.fecha_deposito}T12:00:00`).toLocaleDateString('es-PE')
-                                  : '—'}
+                                {row.fecha_deposito ? formatoFechaDMY(row.fecha_deposito) : '—'}
                               </span>
                             )}
                           </td>
@@ -703,7 +702,8 @@ const CajaChica = () => {
                 <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
                   <h2 className="text-sm font-semibold text-slate-800">Egresos (reintegros aprobados)</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Fecha documento: {detalle.rango_fecha_documento?.desde} al {detalle.rango_fecha_documento?.hasta}.
+                    Fecha documento: {formatoFechaDMY(detalle.rango_fecha_documento?.desde)} al{' '}
+                    {formatoFechaDMY(detalle.rango_fecha_documento?.hasta)}.
                     Listado: <strong>facturas</strong> primero y luego <strong>recibos Prayaga</strong> (en cada grupo por
                     fecha).
                   </p>
@@ -728,7 +728,7 @@ const CajaChica = () => {
                       <tbody>
                         {detalle.egresos.map((e) => (
                           <tr key={e.reembolso_id} className="border-b border-slate-50">
-                            <td className="py-2 pr-3 whitespace-nowrap">{e.fecha_documento}</td>
+                            <td className="py-2 pr-3 whitespace-nowrap">{formatoFechaDMY(e.fecha_documento)}</td>
                             <td className="py-2 pr-3">{e.ruc_proveedor}</td>
                             <td className="py-2 pr-3 font-mono text-xs">{e.numero_documento}</td>
                             <td className="py-2 pr-3 max-w-xs truncate" title={e.descripcion}>

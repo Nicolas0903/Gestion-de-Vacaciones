@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { BanknotesIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { reembolsoService } from '../services/api';
+import { formatoFechaDMY, formatoFechaHoraDMY } from '../utils/dateUtils';
 
 const metodoLabel = (m) =>
   ({ yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia' }[m] || m);
@@ -413,12 +414,12 @@ const Reembolsos = () => {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-slate-800">{r.codigo_ticket}</p>
                   <p className="text-xs text-slate-500">
-                    Registro: {r.fecha_registro_ticket ? new Date(r.fecha_registro_ticket).toLocaleString('es-PE') : '—'}
+                    Registro: {r.fecha_registro_ticket ? formatoFechaHoraDMY(r.fecha_registro_ticket) : '—'}
                   </p>
                   <p className="text-sm text-slate-600 mt-1 line-clamp-2">{r.concepto}</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Fecha gasto: {r.fecha_solicitud_usuario || '—'} · Monto: S/ {Number(r.monto || 0).toFixed(2)} ·{' '}
-                    {metodoLabel(r.metodo_reembolso)}
+                    Fecha gasto: {formatoFechaDMY(r.fecha_solicitud_usuario)} · Monto: S/{' '}
+                    {Number(r.monto || 0).toFixed(2)} · {metodoLabel(r.metodo_reembolso)}
                   </p>
                   <details className="mt-2 text-xs text-slate-600">
                     <summary className="cursor-pointer text-sky-600 font-medium select-none">Ver todos los datos</summary>

@@ -18,9 +18,7 @@ import {
   DocumentTextIcon,
   Squares2X2Icon
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { parseFechaSegura } from '../utils/dateUtils';
+import { formatoFechaDMY } from '../utils/dateUtils';
 
 const MisPermisos = () => {
   const { usuario } = useAuth();
@@ -329,7 +327,7 @@ const MisPermisos = () => {
                   <div className="flex items-center gap-4 text-sm text-slate-500">
                     <span className="flex items-center gap-1">
                       <CalendarDaysIcon className="w-4 h-4" />
-                      {format(parseFechaSegura(permiso.fecha_inicio), 'dd/MM/yyyy')} - {format(parseFechaSegura(permiso.fecha_fin), 'dd/MM/yyyy')}
+                      {formatoFechaDMY(permiso.fecha_inicio)} - {formatoFechaDMY(permiso.fecha_fin)}
                     </span>
                     <span className="font-medium text-amber-600">
                       {permiso.dias_totales} día(s)

@@ -16,8 +16,6 @@ import {
   MagnifyingGlassIcon,
   Squares2X2Icon
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { formatearFechaServidor } from '../utils/dateUtils';
 
 const GestionBoletas = () => {
@@ -193,11 +191,6 @@ const GestionBoletas = () => {
     setModalMode(mode);
     setShowModal(true);
     resetForm();
-  };
-
-  const getNombreMes = (mes) => {
-    const fecha = new Date(2024, mes - 1, 1);
-    return format(fecha, 'MMMM', { locale: es });
   };
 
   const meses = [
@@ -383,8 +376,8 @@ const GestionBoletas = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-medium text-slate-700 capitalize">
-                        {getNombreMes(boleta.mes)} {boleta.anio}
+                      <span className="font-medium text-slate-700 whitespace-nowrap">
+                        {String(boleta.mes).padStart(2, '0')}/{boleta.anio}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">

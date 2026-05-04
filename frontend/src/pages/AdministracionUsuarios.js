@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { format, differenceInDays } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { differenceInDays } from 'date-fns';
 import {
   UserPlusIcon,
   TrashIcon,
@@ -18,7 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { adminPortalUsuariosService, solicitudService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { parseFechaSegura } from '../utils/dateUtils';
+import { parseFechaSegura, formatoFechaDMY } from '../utils/dateUtils';
 
 const DETALLE_TABS = [
   { id: 'cuenta', label: 'Cuenta' },
@@ -1079,21 +1078,11 @@ export default function AdministracionUsuarios() {
                                       </td>
                                       <td className="px-2 py-2 text-center text-gray-200">
                                         {periodo.fecha_inicio_periodo
-                                          ? format(
-                                              parseFechaSegura(periodo.fecha_inicio_periodo),
-                                              'dd/MM/yyyy',
-                                              { locale: es }
-                                            )
+                                          ? formatoFechaDMY(periodo.fecha_inicio_periodo)
                                           : '—'}
                                       </td>
                                       <td className="px-2 py-2 text-center text-gray-200">
-                                        {periodo.fecha_fin_periodo
-                                          ? format(
-                                              parseFechaSegura(periodo.fecha_fin_periodo),
-                                              'dd/MM/yyyy',
-                                              { locale: es }
-                                            )
-                                          : '—'}
+                                        {periodo.fecha_fin_periodo ? formatoFechaDMY(periodo.fecha_fin_periodo) : '—'}
                                       </td>
                                       <td className="px-2 py-2 text-center">{diasCal}</td>
                                       <td className="px-2 py-2 text-center font-semibold text-teal-300">
@@ -1140,21 +1129,9 @@ export default function AdministracionUsuarios() {
               <div>
                 <h3 className="text-lg font-semibold text-white">Salidas del período</h3>
                 <p className="mt-1 text-xs text-gray-400">
-                  {periodoSalidas.fecha_inicio_periodo
-                    ? format(
-                        parseFechaSegura(periodoSalidas.fecha_inicio_periodo),
-                        'dd/MM/yyyy',
-                        { locale: es }
-                      )
-                    : '—'}{' '}
+                  {periodoSalidas.fecha_inicio_periodo ? formatoFechaDMY(periodoSalidas.fecha_inicio_periodo) : '—'}{' '}
                   –{' '}
-                  {periodoSalidas.fecha_fin_periodo
-                    ? format(
-                        parseFechaSegura(periodoSalidas.fecha_fin_periodo),
-                        'dd/MM/yyyy',
-                        { locale: es }
-                      )
-                    : '—'}
+                  {periodoSalidas.fecha_fin_periodo ? formatoFechaDMY(periodoSalidas.fecha_fin_periodo) : '—'}
                   {' · '}
                   {periodoSalidas.dias_correspondientes ?? '—'} días asignados
                 </p>
@@ -1190,22 +1167,10 @@ export default function AdministracionUsuarios() {
                     {listaSalidas.map((s) => (
                       <tr key={s.id}>
                         <td className="py-2 pr-2">
-                          {s.fecha_inicio_vacaciones
-                            ? format(
-                                parseFechaSegura(s.fecha_inicio_vacaciones),
-                                'dd/MM/yyyy',
-                                { locale: es }
-                              )
-                            : '—'}
+                          {s.fecha_inicio_vacaciones ? formatoFechaDMY(s.fecha_inicio_vacaciones) : '—'}
                         </td>
                         <td className="py-2 pr-2">
-                          {s.fecha_fin_vacaciones
-                            ? format(
-                                parseFechaSegura(s.fecha_fin_vacaciones),
-                                'dd/MM/yyyy',
-                                { locale: es }
-                              )
-                            : '—'}
+                          {s.fecha_fin_vacaciones ? formatoFechaDMY(s.fecha_fin_vacaciones) : '—'}
                         </td>
                         <td className="py-2 text-center font-semibold text-teal-300">
                           {s.dias_solicitados ?? '—'}

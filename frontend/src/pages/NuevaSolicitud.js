@@ -4,9 +4,8 @@ import { periodoService, solicitudService } from '../services/api';
 import Button from '../components/Button';
 import toast from 'react-hot-toast';
 import { CalendarDaysIcon, PaperAirplaneIcon, DocumentIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
-import { format, addDays, isWeekend } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { parseFechaSegura } from '../utils/dateUtils';
+import { isWeekend } from 'date-fns';
+import { formatoFechaDMY, parseFechaSegura } from '../utils/dateUtils';
 import { calcularDiasVacaciones, calcularFechaEfectivaRegreso } from '../utils/calcularDiasVacaciones';
 
 const NuevaSolicitud = () => {
@@ -186,7 +185,8 @@ const NuevaSolicitud = () => {
             >
               {periodos.map(periodo => (
                 <option key={periodo.id} value={periodo.id}>
-                  {format(parseFechaSegura(periodo.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseFechaSegura(periodo.fecha_fin_periodo), "d MMM yyyy", { locale: es })} ({periodo.dias_pendientes} días disponibles)
+                  {formatoFechaDMY(periodo.fecha_inicio_periodo)} – {formatoFechaDMY(periodo.fecha_fin_periodo)} (
+                  {periodo.dias_pendientes} días disponibles)
                 </option>
               ))}
             </select>

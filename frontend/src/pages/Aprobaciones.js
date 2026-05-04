@@ -9,9 +9,7 @@ import {
   CheckIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { parseFechaSegura } from '../utils/dateUtils';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatoFechaDMY } from '../utils/dateUtils';
 
 const Aprobaciones = () => {
   const [solicitudes, setSolicitudes] = useState([]);
@@ -124,7 +122,8 @@ const Aprobaciones = () => {
                     <div>
                       <p className="text-xs text-slate-500">Fechas</p>
                       <p className="text-sm font-medium text-slate-700">
-                        {format(parseFechaSegura(solicitud.fecha_inicio_vacaciones), "d MMM", { locale: es })} - {format(parseFechaSegura(solicitud.fecha_fin_vacaciones), "d MMM", { locale: es })}
+                        {formatoFechaDMY(solicitud.fecha_inicio_vacaciones)} –{' '}
+                        {formatoFechaDMY(solicitud.fecha_fin_vacaciones)}
                       </p>
                     </div>
                     <div>
@@ -134,7 +133,8 @@ const Aprobaciones = () => {
                     <div>
                       <p className="text-xs text-slate-500">Período</p>
                       <p className="text-sm font-medium text-slate-700">
-                        {format(parseFechaSegura(solicitud.fecha_inicio_periodo), "yyyy", { locale: es })} - {format(parseFechaSegura(solicitud.fecha_fin_periodo), "yyyy", { locale: es })}
+                        {formatoFechaDMY(solicitud.fecha_inicio_periodo)} –{' '}
+                        {formatoFechaDMY(solicitud.fecha_fin_periodo)}
                       </p>
                     </div>
                     <div>

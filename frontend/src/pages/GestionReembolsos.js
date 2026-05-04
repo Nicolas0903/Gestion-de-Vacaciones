@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { ArrowLeftIcon, Cog6ToothIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { reembolsoService } from '../services/api';
+import { formatoFechaDMY } from '../utils/dateUtils';
 
 const metodoLabel = (m) =>
   ({ yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia' }[m] || m);
@@ -384,6 +385,7 @@ const GestionReembolsos = () => {
               <thead className="bg-slate-50 text-left text-slate-600">
                 <tr>
                   <th className="px-4 py-3 font-medium">Ticket</th>
+                  <th className="px-4 py-3 font-medium whitespace-nowrap">Fecha (gasto)</th>
                   <th className="px-4 py-3 font-medium">Solicitante</th>
                   <th className="px-4 py-3 font-medium">Concepto</th>
                   <th className="px-4 py-3 font-medium whitespace-nowrap">Monto</th>
@@ -398,6 +400,9 @@ const GestionReembolsos = () => {
                 {filasFiltradas.map((r) => (
                   <tr key={r.id} className="text-slate-700">
                     <td className="px-4 py-3 font-mono text-xs">{r.codigo_ticket}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-700">
+                      {formatoFechaDMY(r.fecha_solicitud_usuario)}
+                    </td>
                     <td className="px-4 py-3">
                       {r.empleado_nombres} {r.empleado_apellidos}
                     </td>
@@ -423,7 +428,8 @@ const GestionReembolsos = () => {
                         <summary className="cursor-pointer text-sky-600 font-medium select-none">Ver ficha</summary>
                         <div className="mt-2 space-y-1 text-slate-600 border border-slate-100 rounded-lg p-2 bg-slate-50/90 max-w-xs">
                           <p>
-                            <span className="text-slate-500">Fecha gasto:</span> {r.fecha_solicitud_usuario || '—'}
+                            <span className="text-slate-500">Fecha gasto:</span>{' '}
+                            {formatoFechaDMY(r.fecha_solicitud_usuario)}
                           </p>
                           <p>
                             <span className="text-slate-500">DNI:</span> <span className="font-mono">{r.dni}</span>

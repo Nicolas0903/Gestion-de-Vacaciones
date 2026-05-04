@@ -9,9 +9,8 @@ import {
   XMarkIcon,
   DocumentTextIcon
 } from '@heroicons/react/24/outline';
-import { format, differenceInDays } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { parseFechaSegura } from '../utils/dateUtils';
+import { differenceInDays } from 'date-fns';
+import { formatoFechaDMY, parseFechaSegura } from '../utils/dateUtils';
 import Button from '../components/Button';
 
 const VacacionesGanadas = () => {
@@ -194,13 +193,13 @@ const VacacionesGanadas = () => {
                       </td>
                       <td className="px-6 py-4 text-center text-sm text-slate-600">
                         {periodo.fecha_inicio_periodo 
-                          ? format(parseFechaSegura(periodo.fecha_inicio_periodo), "dd/MM/yyyy", { locale: es })
+                          ? formatoFechaDMY(periodo.fecha_inicio_periodo)
                           : '-'
                         }
                       </td>
                       <td className="px-6 py-4 text-center text-sm text-slate-600">
                         {periodo.fecha_fin_periodo 
-                          ? format(parseFechaSegura(periodo.fecha_fin_periodo), "dd/MM/yyyy", { locale: es })
+                          ? formatoFechaDMY(periodo.fecha_fin_periodo)
                           : '-'
                         }
                       </td>
@@ -276,8 +275,8 @@ const VacacionesGanadas = () => {
                   Detalle de Salidas Gozadas
                 </h3>
                 <p className="text-sm text-slate-500">
-                  Período: {periodoSeleccionado.fecha_inicio_periodo && format(parseFechaSegura(periodoSeleccionado.fecha_inicio_periodo), "dd/MM/yyyy", { locale: es })} - 
-                  {periodoSeleccionado.fecha_fin_periodo && format(parseFechaSegura(periodoSeleccionado.fecha_fin_periodo), "dd/MM/yyyy", { locale: es })}
+                  Período: {periodoSeleccionado.fecha_inicio_periodo && formatoFechaDMY(periodoSeleccionado.fecha_inicio_periodo)} -
+                  {periodoSeleccionado.fecha_fin_periodo && formatoFechaDMY(periodoSeleccionado.fecha_fin_periodo)}
                   {' '}({periodoSeleccionado.dias_correspondientes} días de vacaciones)
                 </p>
               </div>
@@ -315,10 +314,10 @@ const VacacionesGanadas = () => {
                       {salidasPeriodo.map((salida) => (
                         <tr key={salida.id} className="hover:bg-slate-50">
                           <td className="px-4 py-3 text-sm text-slate-600">
-                            {salida.fecha_inicio_vacaciones && format(parseFechaSegura(salida.fecha_inicio_vacaciones), "dd/MM/yyyy", { locale: es })}
+                            {salida.fecha_inicio_vacaciones && formatoFechaDMY(salida.fecha_inicio_vacaciones)}
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-600">
-                            {salida.fecha_fin_vacaciones && format(parseFechaSegura(salida.fecha_fin_vacaciones), "dd/MM/yyyy", { locale: es })}
+                            {salida.fecha_fin_vacaciones && formatoFechaDMY(salida.fecha_fin_vacaciones)}
                           </td>
                           <td className="px-4 py-3 text-center font-semibold text-teal-600">
                             {salida.dias_solicitados}

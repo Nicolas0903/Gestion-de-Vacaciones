@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, addMonths, subMonths, addDays, isWeekend } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { parseFechaSegura } from '../utils/dateUtils';
+import { parseFechaSegura, formatoFechaDMY } from '../utils/dateUtils';
 import { solicitudService, periodoService } from '../services/api';
 import toast from 'react-hot-toast';
 import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XMarkIcon, PaperAirplaneIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
@@ -401,7 +401,8 @@ const Calendario = () => {
               <div className="flex justify-between">
                 <span className="text-sm text-slate-500">Fechas:</span>
                 <span className="text-sm font-medium text-slate-700">
-                  {format(parseFechaSegura(selectedEvent.fecha_inicio_vacaciones), "d MMM", { locale: es })} - {format(parseFechaSegura(selectedEvent.fecha_fin_vacaciones), "d MMM yyyy", { locale: es })}
+                  {formatoFechaDMY(selectedEvent.fecha_inicio_vacaciones)} –{' '}
+                  {formatoFechaDMY(selectedEvent.fecha_fin_vacaciones)}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -480,7 +481,8 @@ const Calendario = () => {
                     >
                       {periodos.map(periodo => (
                         <option key={periodo.id} value={periodo.id}>
-                          {format(parseFechaSegura(periodo.fecha_inicio_periodo), "d MMM yyyy", { locale: es })} - {format(parseFechaSegura(periodo.fecha_fin_periodo), "d MMM yyyy", { locale: es })} ({periodo.dias_pendientes} días)
+                          {formatoFechaDMY(periodo.fecha_inicio_periodo)} – {formatoFechaDMY(periodo.fecha_fin_periodo)} (
+                          {periodo.dias_pendientes} días)
                         </option>
                       ))}
                     </select>
