@@ -42,83 +42,45 @@ class PeriodoVacaciones {
     return 'pendiente';
   }
 
-  // Convierte fecha (string YYYY-MM-DD o Date) a objeto Date local
-  static _parsearFechaLocal(val) {
-    if (!val) return null;
-    if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
-    const str = String(val).trim();
-    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (match) return new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10));
-    return null;
-  }
-
-  /** Fecha de negocio YYYY-MM-DD sin depender del driver (DATE como string o Date). */
-  static _soloFechaYYYYMMDD(val) {
-    if (val == null) return null;
-    if (typeof val === 'string') {
-      const m = val.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
-      return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
-    }
-    if (val instanceof Date && !isNaN(val.getTime())) {
-      return val.toISOString().slice(0, 10);
-    }
-    return this._soloFechaYYYYMMDD(String(val));
-  }
-
-  static _hoyYYYYMMDD() {
-    const n = new Date();
-    const y = n.getFullYear();
-    const mo = String(n.getMonth() + 1).padStart(2, '0');
-    const d = String(n.getDate()).padStart(2, '0');
-    return `${y}-${mo}-${d}`;
-  }
-
-  /** Suma días en calendario (UTC) y devuelve YYYY-MM-DD. */
-  static _addCalendarDays(ymd, deltaDays) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
-    if (!m) return null;
-    const t = Date.UTC(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10) + deltaDays);
-    return new Date(t).toISOString().slice(0, 10);
-  }
-
-  /** Aniversario laboral: fin = inicio + 12 meses − 1 día (en calendario UTC). */
-  static _finPeriodoDesdeInicio(ymdInicio) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymdInicio);
-    if (!m) return null;
-    const y = parseInt(m[1], 10) + 1;
-    const mo = parseInt(m[2], 10) - 1;
-    const day = parseInt(m[3], 10);
-    const t = Date.UTC(y, mo, day - 1);
-    return new Date(t).toISOString().slice(0, 10);
-  }
-
   /**
-   * Renueva cuando la fecha de hoy es estrictamente posterior a fecha_fin_periodo
-   * (el último día del período sigue siendo del período vigente).
-   * Repite por si hubo varios años sin abrir la app.
+   * Renueva cuando en MySQL fecha_fin_periodo < CURDATE() (misma regla que el día
+   * siguiente al cierre tiene derecho nuevo; el último día del período aún cuenta).
+   * Usar CURDATE() evita cortar la renovación por desajuste TZ entre Node y la BD.
    */
   static async renovarSiVencido(empleadoId) {
     try {
       for (let iter = 0; iter < 20; iter++) {
-        const [periodos] = await pool.execute(
-          `SELECT * FROM periodos_vacaciones WHERE empleado_id = ?
-           ORDER BY fecha_fin_periodo DESC LIMIT 1`,
+        const [rows] = await pool.execute(
+          `SELECT
+             id,
+             empleado_id,
+             fecha_fin_periodo,
+             dias_correspondientes,
+             (fecha_fin_periodo < CURDATE()) AS debe_renovar,
+             DATE_FORMAT(DATE_ADD(fecha_fin_periodo, INTERVAL 1 DAY), '%Y-%m-%d')
+               AS fecha_inicio_nuevo,
+             DATE_FORMAT(
+               DATE_SUB(
+                 DATE_ADD(DATE_ADD(fecha_fin_periodo, INTERVAL 1 DAY), INTERVAL 1 YEAR),
+                 INTERVAL 1 DAY
+               ),
+               '%Y-%m-%d'
+             ) AS fecha_fin_nuevo
+           FROM periodos_vacaciones
+           WHERE empleado_id = ?
+           ORDER BY fecha_fin_periodo DESC
+           LIMIT 1`,
           [empleadoId]
         );
-        if (periodos.length === 0) break;
+        if (rows.length === 0) break;
 
-        const ultimo = periodos[0];
-        const finStr = this._soloFechaYYYYMMDD(ultimo.fecha_fin_periodo);
-        if (!finStr) break;
+        const ultimo = rows[0];
+        const debeRenovar = ultimo.debe_renovar == 1;
+        if (!debeRenovar) break;
 
-        const hoyStr = this._hoyYYYYMMDD();
-        if (hoyStr <= finStr) break;
-
-        const fechaInicioNuevo = this._addCalendarDays(finStr, 1);
-        if (!fechaInicioNuevo) break;
-
-        const fechaFinNuevo = this._finPeriodoDesdeInicio(fechaInicioNuevo);
-        if (!fechaFinNuevo) break;
+        const fechaInicioNuevo = ultimo.fecha_inicio_nuevo;
+        const fechaFinNuevo = ultimo.fecha_fin_nuevo;
+        if (!fechaInicioNuevo || !fechaFinNuevo) break;
 
         const [existe] = await pool.execute(
           `SELECT id FROM periodos_vacaciones
@@ -127,9 +89,9 @@ class PeriodoVacaciones {
         );
         if (existe.length > 0) break;
 
-        const diasCorrespondientes = ultimo.dias_correspondientes || 30;
-        const yIni = fechaInicioNuevo.slice(0, 4);
-        const yFin = fechaFinNuevo.slice(0, 4);
+        const diasCorrespondientes = Number(ultimo.dias_correspondientes) || 30;
+        const yIni = String(fechaInicioNuevo).slice(0, 4);
+        const yFin = String(fechaFinNuevo).slice(0, 4);
         await this.crear({
           empleado_id: empleadoId,
           fecha_inicio_periodo: fechaInicioNuevo,
