@@ -39,6 +39,7 @@ frontend/build/
 *.tmp
 *.temp
 .cache/
+tmp/
 
 # Uploads y archivos generados
 uploads/
