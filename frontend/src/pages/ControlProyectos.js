@@ -59,7 +59,7 @@ const proyectoVacio = () => ({
   proyecto: '',
   fecha_inicio: '',
   fecha_fin: '',
-  consultor_asignado_id: '',
+  consultores_empleado_ids: [],
   horas_asignadas: '',
   estado: 'pendiente',
   detalles: ''
@@ -163,12 +163,23 @@ const ControlProyectos = () => {
     e.preventDefault();
     try {
       const body = {
-        ...proyForm,
-        consultor_asignado_id: parseInt(proyForm.consultor_asignado_id, 10),
-        horas_asignadas: parseFloat(String(proyForm.horas_asignadas).replace(',', '.')) || 0
+        empresa: proyForm.empresa,
+        proyecto: proyForm.proyecto,
+        fecha_inicio: proyForm.fecha_inicio,
+        fecha_fin: proyForm.fecha_fin,
+        horas_asignadas: parseFloat(String(proyForm.horas_asignadas).replace(',', '.')) || 0,
+        estado: proyForm.estado,
+        detalles: proyForm.detalles,
+        consultores_empleado_ids: Array.isArray(proyForm.consultores_empleado_ids)
+          ? proyForm.consultores_empleado_ids.map((x) => Number(x))
+          : []
       };
       if (!body.empresa.trim() || !body.proyecto.trim() || !body.fecha_inicio || !body.fecha_fin) {
         toast.error('Complete los campos obligatorios del proyecto.');
+        return;
+      }
+      if (!body.consultores_empleado_ids.length) {
+        toast.error('Seleccione al menos un consultor del portal.');
         return;
       }
       if (proyectoEditId) {
@@ -232,7 +243,11 @@ const ControlProyectos = () => {
       proyecto: p.proyecto || '',
       fecha_inicio: p.fecha_inicio ? String(p.fecha_inicio).slice(0, 10) : '',
       fecha_fin: p.fecha_fin ? String(p.fecha_fin).slice(0, 10) : '',
-      consultor_asignado_id: String(p.consultor_asignado_id),
+      consultores_empleado_ids: Array.isArray(p.consultores_empleado_ids)
+        ? p.consultores_empleado_ids.map((x) => Number(x))
+        : Array.isArray(p.consultores)
+          ? p.consultores.map((c) => c.id)
+          : [],
       horas_asignadas: String(p.horas_asignadas ?? ''),
       estado: p.estado || 'pendiente',
       detalles: p.detalles || ''
@@ -357,20 +372,45 @@ const ControlProyectos = () => {
                         onChange={(e) => setProyForm((f) => ({ ...f, fecha_fin: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Consultor asignado *</label>
-                      <select
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                        value={proyForm.consultor_asignado_id}
-                        onChange={(e) => setProyForm((f) => ({ ...f, consultor_asignado_id: e.target.value }))}
-                      >
-                        <option value="">Seleccione</option>
-                        {consultores.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nombre_completo}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-2">
+                        Consultores asignados * (solo personal del portal; uno o más)
+                      </label>
+                      <div className="max-h-44 overflow-y-auto rounded-xl border border-slate-200 p-3 space-y-2 bg-slate-50/80">
+                        {consultores.length === 0 ? (
+                          <p className="text-xs text-slate-500">Sin lista de consultores.</p>
+                        ) : (
+                          consultores.map((c) => {
+                            const id = Number(c.id);
+                            const checked = proyForm.consultores_empleado_ids.includes(id);
+                            return (
+                              <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    const next = new Set(proyForm.consultores_empleado_ids);
+                                    if (e.target.checked) next.add(id);
+                                    else next.delete(id);
+                                    setProyForm((f) => ({
+                                      ...f,
+                                      consultores_empleado_ids: [...next].sort((a, b) => a - b)
+                                    }));
+                                  }}
+                                />
+                                <span>
+                                  {c.nombre_completo}{' '}
+                                  <span className="text-slate-400 text-xs">({c.email})</span>
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Quienes no estén en esta lista puedes mencionarlos en «Detalles» (no cuentan como usuario del portal).
+                      </p>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Horas asignadas *</label>
@@ -431,7 +471,7 @@ const ControlProyectos = () => {
                         <th className="px-4 py-2 text-left">Empresa</th>
                         <th className="px-4 py-2 text-left">Proyecto</th>
                         <th className="px-4 py-2 text-left whitespace-nowrap">Inicio–Fin</th>
-                        <th className="px-4 py-2 text-left">Consultor</th>
+                        <th className="px-4 py-2 text-left">Consultores</th>
                         <th className="px-4 py-2 text-right">Hrs.</th>
                         <th className="px-4 py-2 text-left">Estado</th>
                         {puedeProy && <th className="px-4 py-2 text-left w-28">Acción</th>}
@@ -445,7 +485,7 @@ const ControlProyectos = () => {
                           <td className="px-4 py-2 whitespace-nowrap text-xs">
                             {formatoFechaDMY(p.fecha_inicio)} – {formatoFechaDMY(p.fecha_fin)}
                           </td>
-                          <td className="px-4 py-2 text-xs">{p.consultor_nombre}</td>
+                          <td className="px-4 py-2 text-xs max-w-xs">{p.consultores_nombres || '—'}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{Number(p.horas_asignadas).toFixed(2)}</td>
                           <td className="px-4 py-2">{labelEstProy(p.estado)}</td>
                           {puedeProy && (

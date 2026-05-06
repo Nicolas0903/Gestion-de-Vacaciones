@@ -7,8 +7,50 @@ function horasDesdeDatetime(inicio, fin) {
   return Math.round(((b - a) / (1000 * 60 * 60)) * 100) / 100;
 }
 
+async function mapaConsultoresPorProyectos(proyectoIds) {
+  if (!proyectoIds.length) return new Map();
+  const placeholders = proyectoIds.map(() => '?').join(',');
+  const [rows] = await pool.execute(
+    `SELECT pc.proyecto_id,
+        e.id AS empleado_id,
+        CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo,
+        e.email
+      FROM cp_proyecto_consultores pc
+      INNER JOIN empleados e ON e.id = pc.empleado_id
+      WHERE pc.proyecto_id IN (${placeholders})
+      ORDER BY e.apellidos, e.nombres`,
+    proyectoIds
+  );
+  const map = new Map();
+  for (const r of rows) {
+    if (!map.has(r.proyecto_id)) map.set(r.proyecto_id, []);
+    map.get(r.proyecto_id).push({
+      id: r.empleado_id,
+      nombre_completo: r.nombre_completo,
+      email: r.email
+    });
+  }
+  return map;
+}
+
+async function enriquecerProyectos(rows) {
+  if (!rows.length) return [];
+  const ids = rows.map((r) => r.id);
+  const map = await mapaConsultoresPorProyectos(ids);
+  return rows.map((p) => {
+    const consultores = map.get(p.id) || [];
+    return {
+      ...p,
+      consultores,
+      consultores_empleado_ids: consultores.map((c) => c.id),
+      consultores_nombres: consultores.map((c) => c.nombre_completo).join(', ')
+    };
+  });
+}
+
 class ControlProyecto {
-  static async listarConsultoresActivos() {    const [rows] = await pool.execute(
+  static async listarConsultoresActivos() {
+    const [rows] = await pool.execute(
       `SELECT e.id,
         CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo,
         e.email,
@@ -20,82 +62,123 @@ class ControlProyecto {
 
   static async listarProyectosTodos() {
     const [rows] = await pool.execute(
-      `SELECT p.*,
-        CONCAT(TRIM(ev.nombres), ' ', TRIM(ev.apellidos)) AS consultor_nombre,
-        ev.email AS consultor_email
+      `SELECT p.*
        FROM cp_proyectos p
-       INNER JOIN empleados ev ON ev.id = p.consultor_asignado_id
        ORDER BY p.fecha_inicio DESC, p.id DESC`
     );
-    return rows;
+    return await enriquecerProyectos(rows);
   }
 
   static async listarProyectosPorConsultor(empleadoId) {
     const [rows] = await pool.execute(
-      `SELECT p.*,
-        CONCAT(TRIM(ev.nombres), ' ', TRIM(ev.apellidos)) AS consultor_nombre,
-        ev.email AS consultor_email
+      `SELECT DISTINCT p.*
        FROM cp_proyectos p
-       INNER JOIN empleados ev ON ev.id = p.consultor_asignado_id
-       WHERE p.consultor_asignado_id = ?
+       INNER JOIN cp_proyecto_consultores pc ON pc.proyecto_id = p.id AND pc.empleado_id = ?
        ORDER BY p.fecha_inicio DESC, p.id DESC`,
       [empleadoId]
     );
-    return rows;
+    return await enriquecerProyectos(rows);
+  }
+
+  static async empleadoAsignadoAProyecto(proyectoId, empleadoId) {
+    const [r] = await pool.execute(
+      `SELECT 1 FROM cp_proyecto_consultores WHERE proyecto_id = ? AND empleado_id = ? LIMIT 1`,
+      [proyectoId, empleadoId]
+    );
+    return r.length > 0;
   }
 
   static async obtenerProyecto(id) {
-    const [rows] = await pool.execute(
-      `SELECT p.*,
-        CONCAT(TRIM(ev.nombres), ' ', TRIM(ev.apellidos)) AS consultor_nombre,
-        ev.email AS consultor_email
-       FROM cp_proyectos p
-       INNER JOIN empleados ev ON ev.id = p.consultor_asignado_id
-       WHERE p.id = ?`,
-      [id]
-    );
-    return rows[0];
+    const [rows] = await pool.execute(`SELECT * FROM cp_proyectos WHERE id = ?`, [id]);
+    const p = rows[0];
+    if (!p) return null;
+    const enriched = await enriquecerProyectos([p]);
+    return enriched[0];
   }
 
-  static async crearProyecto({
-    empresa,
-    proyecto,
-    fecha_inicio,
-    fecha_fin,
-    consultor_asignado_id,
-    horas_asignadas,
-    estado,
-    detalles
-  }) {
-    const [r] = await pool.execute(
-      `INSERT INTO cp_proyectos
-       (empresa, proyecto, fecha_inicio, fecha_fin, consultor_asignado_id, horas_asignadas, estado, detalles)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        empresa,
-        proyecto,
-        fecha_inicio,
-        fecha_fin,
-        consultor_asignado_id,
-        horas_asignadas,
-        estado,
-        detalles || null
-      ]
-    );
-    return r.insertId;
+  static async reemplazarConsultoresProyecto(proyectoId, empleadoIds, conn) {
+    const c = conn || pool;
+    const uniq = [...new Set(empleadoIds.map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n) && n > 0))];
+    await c.execute(`DELETE FROM cp_proyecto_consultores WHERE proyecto_id = ?`, [proyectoId]);
+    for (const eid of uniq) {
+      await c.execute(`INSERT INTO cp_proyecto_consultores (proyecto_id, empleado_id) VALUES (?, ?)`, [
+        proyectoId,
+        eid
+      ]);
+    }
   }
 
+  static async crearProyectoConConsultores(
+    { empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles },
+    consultoresIds
+  ) {
+    const uniq = [...new Set(consultoresIds.map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n) && n > 0))];
+    if (!uniq.length) {
+      throw new Error('Debe indicar al menos un consultor asignado del portal');
+    }
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [r] = await conn.execute(
+        `INSERT INTO cp_proyectos
+         (empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles || null]
+      );
+      const id = r.insertId;
+      await ControlProyecto.reemplazarConsultoresProyecto(id, uniq, conn);
+      await conn.commit();
+      return id;
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+  }
+
+  static async actualizarProyectoYConsultores(id, patch, consultoresIds) {
+    const allowed = ['empresa', 'proyecto', 'fecha_inicio', 'fecha_fin', 'horas_asignadas', 'estado', 'detalles'];
+    const keys = allowed.filter((k) => patch[k] !== undefined);
+    if (!keys.length && consultoresIds == null) return false;
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      if (keys.length) {
+        const sets = keys.map((k) => `${k} = ?`).join(', ');
+        const vals = keys.map((k) => patch[k]);
+        const [r] = await conn.execute(`UPDATE cp_proyectos SET ${sets} WHERE id = ?`, [...vals, id]);
+        if (r.affectedRows === 0) {
+          await conn.rollback();
+          return false;
+        }
+      } else if (consultoresIds != null) {
+        const [ex] = await conn.execute(`SELECT id FROM cp_proyectos WHERE id = ? LIMIT 1`, [id]);
+        if (!ex.length) {
+          await conn.rollback();
+          return false;
+        }
+      }
+      if (consultoresIds != null) {
+        const uniq = [...new Set(consultoresIds.map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n) && n > 0))];
+        if (!uniq.length) {
+          throw new Error('Debe indicar al menos un consultor asignado del portal');
+        }
+        await ControlProyecto.reemplazarConsultoresProyecto(id, uniq, conn);
+      }
+      await conn.commit();
+      return true;
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+  }
+
+  /** compat: actualizar solo campos de proyecto sin tocar consultores */
   static async actualizarProyecto(id, patch) {
-    const allowed = [
-      'empresa',
-      'proyecto',
-      'fecha_inicio',
-      'fecha_fin',
-      'consultor_asignado_id',
-      'horas_asignadas',
-      'estado',
-      'detalles'
-    ];
+    const allowed = ['empresa', 'proyecto', 'fecha_inicio', 'fecha_fin', 'horas_asignadas', 'estado', 'detalles'];
     const keys = allowed.filter((k) => patch[k] !== undefined);
     if (!keys.length) return false;
     const sets = keys.map((k) => `${k} = ?`).join(', ');
@@ -104,7 +187,6 @@ class ControlProyecto {
     return r.affectedRows > 0;
   }
 
-  /** consultant: solo sus registros; admin o Veronica: todas (opcional filtro proyecto_id). */
   static async listarActividades({ empleadoId, verTodos, proyectoId }) {
     let sql = `
       SELECT a.*,
@@ -134,7 +216,6 @@ class ControlProyecto {
       `SELECT a.*,
         p.proyecto AS proyecto_nombre,
         p.empresa AS empresa_nombre,
-        p.consultor_asignado_id AS proyecto_consultor_id,
         CONCAT(TRIM(ec.nombres), ' ', TRIM(ec.apellidos)) AS consultor_nombre
        FROM cp_actividades a
        INNER JOIN cp_proyectos p ON p.id = a.proyecto_id

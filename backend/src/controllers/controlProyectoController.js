@@ -41,12 +41,25 @@ function normalizaDatetimeMysql(v) {
   return s.slice(0, 19);
 }
 
+function parseConsultoresEmpleadoIds(body) {
+  const raw = body.consultores_empleado_ids;
+  if (Array.isArray(raw)) {
+    return [...new Set(raw.map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n) && n > 0))];
+  }
+  if (raw != null && raw !== '') {
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? [n] : [];
+  }
+  return [];
+}
+
 function sqlMissing(msg) {
   return (
     typeof msg === 'string' &&
     (msg.includes("doesn't exist") ||
       msg.includes("Unknown table 'cp_") ||
-      (msg.includes('cp_proyectos') && msg.includes("doesn't exist")))
+      (msg.includes('cp_proyectos') && msg.includes("doesn't exist")) ||
+      (msg.includes('cp_proyecto_consultores') && msg.includes("doesn't exist")))
   );
 }
 
@@ -105,32 +118,31 @@ const crearProyecto = async (req, res) => {
     return res.status(403).json({ success: false, mensaje: 'Sin permiso para crear proyectos.' });
   }
   try {
-    const {
-      empresa,
-      proyecto,
-      fecha_inicio,
-      fecha_fin,
-      consultor_asignado_id,
-      horas_asignadas,
-      estado,
-      detalles
-    } = req.body;
-    if (!empresa || !proyecto || !fecha_inicio || !fecha_fin || !consultor_asignado_id) {
-      return res.status(400).json({ success: false, mensaje: 'Complete empresa, proyecto, fechas y consultor.' });
+    const { empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles } = req.body;
+    const consultoresIds = parseConsultoresEmpleadoIds(req.body);
+    if (!empresa || !proyecto || !fecha_inicio || !fecha_fin) {
+      return res.status(400).json({ success: false, mensaje: 'Complete empresa, proyecto y fechas.' });
+    }
+    if (!consultoresIds.length) {
+      return res
+        .status(400)
+        .json({ success: false, mensaje: 'Seleccione al menos un consultor asignado (del portal).' });
     }
     if (!ESTADOS_PROYECTO.has(estado || '')) {
       return res.status(400).json({ success: false, mensaje: 'Estado de proyecto no válido.' });
     }
-    const id = await ControlProyecto.crearProyecto({
-      empresa: String(empresa).trim(),
-      proyecto: String(proyecto).trim(),
-      fecha_inicio,
-      fecha_fin,
-      consultor_asignado_id: parseInt(consultor_asignado_id, 10),
-      horas_asignadas: parseNum(horas_asignadas, 0),
-      estado,
-      detalles: detalles != null ? String(detalles) : null
-    });
+    const id = await ControlProyecto.crearProyectoConConsultores(
+      {
+        empresa: String(empresa).trim(),
+        proyecto: String(proyecto).trim(),
+        fecha_inicio,
+        fecha_fin,
+        horas_asignadas: parseNum(horas_asignadas, 0),
+        estado,
+        detalles: detalles != null ? String(detalles) : null
+      },
+      consultoresIds
+    );
     const row = await ControlProyecto.obtenerProyecto(id);
     res.status(201).json({ success: true, data: row });
   } catch (e) {
@@ -145,11 +157,14 @@ const actualizarProyecto = async (req, res) => {
   }
   try {
     const id = parseInt(req.params.id, 10);
+    const consultoresIds =
+      req.body.consultores_empleado_ids !== undefined ? parseConsultoresEmpleadoIds(req.body) : null;
     const patch = { ...req.body };
+    delete patch.consultores_empleado_ids;
     if (patch.estado && !ESTADOS_PROYECTO.has(patch.estado)) {
       return res.status(400).json({ success: false, mensaje: 'Estado inválido.' });
     }
-    const ok = await ControlProyecto.actualizarProyecto(id, patch);
+    const ok = await ControlProyecto.actualizarProyectoYConsultores(id, patch, consultoresIds);
     if (!ok) return res.status(404).json({ success: false, mensaje: 'Proyecto no encontrado.' });
     const row = await ControlProyecto.obtenerProyecto(id);
     res.json({ success: true, data: row });
@@ -224,10 +239,11 @@ const crearActividad = async (req, res) => {
     if (!proyecto) {
       return res.status(404).json({ success: false, mensaje: 'Proyecto no encontrado.' });
     }
-    if (proyecto.consultor_asignado_id !== req.usuario.id) {
+    const asignado = await ControlProyecto.empleadoAsignadoAProyecto(pid, req.usuario.id);
+    if (!asignado) {
       return res.status(403).json({
         success: false,
-        mensaje: 'Solo puede registrar horas en proyectos en los que usted está asignado como consultor.'
+        mensaje: 'Solo puede registrar horas en proyectos en los que usted está entre los consultores asignados.'
       });
     }
 
@@ -285,18 +301,15 @@ const actualizarActividad = async (req, res) => {
     if (patch.proyecto_id != null) {
       const proyecto = await ControlProyecto.obtenerProyecto(parseInt(patch.proyecto_id, 10));
       if (!proyecto) return res.status(400).json({ success: false, mensaje: 'Proyecto no existe.' });
-      if (!gestor && proyecto.consultor_asignado_id !== req.usuario.id) {
-        return res.status(403).json({ success: false, mensaje: 'No puede mover la actividad a un proyecto ajeno.' });
+      if (!gestor) {
+        const okAsig = await ControlProyecto.empleadoAsignadoAProyecto(proyecto.id, req.usuario.id);
+        if (!okAsig) {
+          return res.status(403).json({ success: false, mensaje: 'No puede mover la actividad a un proyecto ajeno.' });
+        }
       }
     }
     if (patch.consultor_asignado_id != null && !gestor) {
       delete patch.consultor_asignado_id;
-    }
-    if (!gestor && patch.proyecto_id != null) {
-      const proyecto = await ControlProyecto.obtenerProyecto(parseInt(patch.proyecto_id, 10));
-      if (proyecto && proyecto.consultor_asignado_id !== req.usuario.id) {
-        return res.status(403).json({ success: false, mensaje: 'Proyecto no asignado a usted.' });
-      }
     }
 
     const ok = await ControlProyecto.actualizarActividad(id, patch, { permiteCambiarConsultor: gestor });
