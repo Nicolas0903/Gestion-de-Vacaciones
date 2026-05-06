@@ -124,6 +124,13 @@ export const AuthProvider = ({ children }) => {
   /**
    * Si hay mapa modulos_portal guardado, solo módulos con true. Si no, lógica histórica por rol/correo.
    */
+  /** Admin o Verónica: pueden crear/editar proyectos en Control de Proyectos */
+  const puedeGestionarProyectosCp = () => {
+    if (!usuario) return false;
+    if (esAdmin()) return true;
+    return (usuario.email || '').toLowerCase().trim() === 'veronica.gonzales@prayaga.biz';
+  };
+
   const puedeAccederModuloPortal = (moduloId) => {
     if (!usuario) return false;
     const em = (usuario.email || '').toLowerCase().trim();
@@ -137,7 +144,7 @@ export const AuthProvider = ({ children }) => {
       return m[moduloId] === true;
     }
 
-    const baseColaborador = ['vacaciones', 'boletas', 'permisos', 'reembolsos'];
+    const baseColaborador = ['vacaciones', 'boletas', 'permisos', 'reembolsos', 'control-proyectos'];
     if (baseColaborador.includes(moduloId)) return true;
 
     if (moduloId === 'asistencia') {
@@ -178,6 +185,7 @@ export const AuthProvider = ({ children }) => {
     esAprobadorReembolsos,
     esAdminPortalUsuarios,
     puedeAccederModuloPortal,
+    puedeGestionarProyectosCp,
     isAuthenticated: !!usuario
   };
 

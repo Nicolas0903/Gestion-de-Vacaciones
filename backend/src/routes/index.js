@@ -15,6 +15,7 @@ const aprobacionReembolsoEmailRoutes = require('./aprobacionReembolsoEmail');
 const reembolsosRoutes = require('./reembolsos');
 const cajaChicaRoutes = require('./cajaChica');
 const adminPortalUsuariosRoutes = require('./adminPortalUsuarios');
+const controlProyectosRoutes = require('./controlProyectos');
 
 router.use('/auth', authRoutes);
 router.use('/empleados', empleadosRoutes);
@@ -30,6 +31,7 @@ router.use('/aprobacion-reembolso-email', aprobacionReembolsoEmailRoutes);
 router.use('/reembolsos', reembolsosRoutes);
 router.use('/caja-chica', cajaChicaRoutes);
 router.use('/admin-portal-usuarios', adminPortalUsuariosRoutes);
+router.use('/control-proyectos', controlProyectosRoutes);
 
 // Ruta de health check
 router.get('/health', (req, res) => {

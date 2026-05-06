@@ -20,7 +20,7 @@ const EMAILS_MODULO_CAJA_CHICA = [
  */
 function rolPuedeModuloBase(rolNombre, moduloId, email) {
   const e = (email || '').toLowerCase().trim();
-  const base = ['vacaciones', 'boletas', 'permisos', 'reembolsos'];
+  const base = ['vacaciones', 'boletas', 'permisos', 'reembolsos', 'control-proyectos'];
   if (base.includes(moduloId)) return true;
   if (moduloId === 'asistencia') {
     return rolNombre === 'admin' || EMAILS_REPORTE_ASISTENCIA.includes(e);

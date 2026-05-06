@@ -12,7 +12,8 @@ import {
   UserPlusIcon,
   BanknotesIcon,
   WalletIcon,
-  UsersIcon
+  UsersIcon,
+  BriefcaseIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
@@ -108,6 +109,22 @@ const Portal = () => {
       link: '/caja-chica',
       activo: true,
       restringido: true
+    });
+  }
+
+  if (puedeAccederModuloPortal('control-proyectos')) {
+    modulos.push({
+      id: 'control-proyectos',
+      titulo: 'Control de proyectos',
+      descripcion: 'Proyectos asignados y registro de horas por consultor',
+      icono: BriefcaseIcon,
+      color: 'from-indigo-500 to-violet-600',
+      shadowColor: 'shadow-indigo-500/30',
+      bgLight: 'bg-indigo-50',
+      textColor: 'text-indigo-600',
+      link: '/control-proyectos',
+      activo: true,
+      adminLink: '/admin/control-proyectos-costo-hora'
     });
   }
 
@@ -249,7 +266,9 @@ const Portal = () => {
                       ? esAdmin() || esAprobadorReembolsos()
                       : modulo.id === 'caja-chica'
                         ? puedeAccederModuloPortal('caja-chica')
-                        : esAdmin() || esContadora()) && (
+                        : modulo.id === 'control-proyectos'
+                          ? esAdmin()
+                          : esAdmin() || esContadora()) && (
                     <Link
                       to={modulo.adminLink}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors"

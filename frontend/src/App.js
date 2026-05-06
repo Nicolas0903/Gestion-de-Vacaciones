@@ -27,6 +27,8 @@ import SolicitudesRegistro from './pages/admin/SolicitudesRegistro';
 import Reembolsos from './pages/Reembolsos';
 import GestionReembolsos from './pages/GestionReembolsos';
 import CajaChica from './pages/CajaChica';
+import ControlProyectos from './pages/ControlProyectos';
+import AdminCostoHoraProyectos from './pages/AdminCostoHoraProyectos';
 import AdministracionUsuarios from './pages/AdministracionUsuarios';
 
 // Components
@@ -199,6 +201,20 @@ function AppRoutes() {
           <ModuloPortalRoute moduloId="caja-chica">
             <PageWrapper><CajaChica /></PageWrapper>
           </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/control-proyectos" element={
+        <ProtectedRoute>
+          <ModuloPortalRoute moduloId="control-proyectos">
+            <PageWrapper><ControlProyectos /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/admin/control-proyectos-costo-hora" element={
+        <ProtectedRoute roles={['admin']}>
+          <PageWrapper><AdminCostoHoraProyectos /></PageWrapper>
         </ProtectedRoute>
       } />
 

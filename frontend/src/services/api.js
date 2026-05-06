@@ -223,5 +223,20 @@ export const cajaChicaService = {
     api.get(`/caja-chica/periodos/${id}/resumen-pdf`, { responseType: 'blob' }),
 };
 
+export const controlProyectosService = {
+  catalogo: () => api.get('/control-proyectos/catalogo'),
+  consultoresSelect: () => api.get('/control-proyectos/consultores-select'),
+  listarProyectos: () => api.get('/control-proyectos/proyectos'),
+  misProyectos: () => api.get('/control-proyectos/mis-proyectos'),
+  crearProyecto: (body) => api.post('/control-proyectos/proyectos', body),
+  actualizarProyecto: (id, body) => api.put(`/control-proyectos/proyectos/${id}`, body),
+  listarActividades: (params) => api.get('/control-proyectos/actividades', { params }),
+  crearActividad: (body) => api.post('/control-proyectos/actividades', body),
+  actualizarActividad: (id, body) => api.put(`/control-proyectos/actividades/${id}`, body),
+  listarCostosHora: () => api.get('/control-proyectos/costo-hora'),
+  guardarCostoHora: (empleadoId, costoPorHora) =>
+    api.put(`/control-proyectos/costo-hora/${empleadoId}`, { costo_por_hora: costoPorHora })
+};
+
 export default api;
 
