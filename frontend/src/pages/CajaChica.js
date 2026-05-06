@@ -133,35 +133,37 @@ const CajaChica = () => {
 
   const guardarIngresos = async () => {
     if (!selId || detalle?.periodo?.estado !== 'borrador') return;
-    const lineas = ingresosEdit
-      .map((r) => {
-        const rawMonto = String(r.monto ?? '').replace(',', '.').trim();
-        let montoVal;
-        if (rawMonto === '') {
-          /* Fila ya guardada: mandar 0 en vez de omitirla (evita DELETE involuntario). */
-          montoVal = r.id != null && r.id !== '' ? 0 : NaN;
-        } else {
-          montoVal = parseFloat(rawMonto, 10);
-        }
-        const linea = {
-          tipo_motivo: r.tipo_motivo,
-          monto: montoVal,
-          fecha_deposito: r.fecha_deposito && String(r.fecha_deposito).trim() ? String(r.fecha_deposito).trim() : null
-        };
-        if (r.id != null && r.id !== '') linea.id = Number(r.id);
-        return linea;
-      })
-      .filter((r) => !Number.isNaN(r.monto));
+    const lineasConMeta = ingresosEdit.map((r, origIdx) => {
+      const rawMonto = String(r.monto ?? '').replace(',', '.').trim();
+      let montoVal;
+      if (rawMonto === '') {
+        /* Fila ya guardada: mandar 0 en vez de omitirla (evita DELETE involuntario). */
+        montoVal = r.id != null && r.id !== '' ? 0 : NaN;
+      } else {
+        montoVal = parseFloat(rawMonto, 10);
+      }
+      const linea = {
+        tipo_motivo: r.tipo_motivo,
+        monto: montoVal,
+        fecha_deposito: r.fecha_deposito && String(r.fecha_deposito).trim() ? String(r.fecha_deposito).trim() : null
+      };
+      if (r.id != null && r.id !== '') linea.id = Number(r.id);
+      return { linea, origIdx, keep: !Number.isNaN(montoVal) };
+    });
+    const lineas = lineasConMeta.filter((x) => x.keep).map((x) => x.linea);
+    const origenPorPosicion = lineasConMeta.filter((x) => x.keep).map((x) => x.origIdx);
+
     setGuardando(true);
     try {
       const resp = await cajaChicaService.guardarIngresos(selId, lineas);
       const guardados = resp.data?.data || [];
-      for (let i = 0; i < Math.min(guardados.length, ingresosEdit.length); i++) {
-        const pend = ingresosEdit[i]?.archivoPendiente;
-        if (pend && guardados[i]?.id) {
+      for (let k = 0; k < guardados.length; k++) {
+        const origIdx = origenPorPosicion[k];
+        const pend = origIdx != null ? ingresosEdit[origIdx]?.archivoPendiente : null;
+        if (pend && guardados[k]?.id) {
           try {
-            setAdjuntoSubiendoIdx(i);
-            await cajaChicaService.subirAdjuntoIngreso(selId, guardados[i].id, pend);
+            setAdjuntoSubiendoIdx(origIdx);
+            await cajaChicaService.subirAdjuntoIngreso(selId, guardados[k].id, pend);
           } catch (uploadErr) {
             toast.error(uploadErr.response?.data?.mensaje || 'No se pudo subir un comprobante.');
           }
@@ -364,6 +366,10 @@ const CajaChica = () => {
           <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
             <h2 className="text-sm font-semibold text-slate-800 mb-3">Nuevo período</h2>
             <form onSubmit={crearPeriodo} className="space-y-3">
+              <p className="text-[11px] text-slate-500 leading-snug">
+                Al crear un mes, la línea «saldo anterior» usa el <strong>cierre del último período cerrado</strong>. Meses en
+                borrador no cuentan hasta que uses «Cerrar período».
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-slate-600">Año</label>
@@ -468,8 +474,10 @@ const CajaChica = () => {
               {detalle.saldo_anterior_sugerido != null && (
                 <div className="rounded-xl bg-sky-50 border border-sky-100 px-4 py-3 text-sm text-sky-900">
                   <strong>Saldo del último período cerrado antes de este mes:</strong>{' '}
-                  {fmt(detalle.saldo_anterior_sugerido)}. Al crear un período nuevo se rellena solo en la línea
-                  correspondiente; aquí puedes comprobar o ajustar el monto si hace falta.
+                  {fmt(detalle.saldo_anterior_sugerido)}. Ese valor es el que el sistema usa al{' '}
+                  <strong className="font-semibold">crear</strong> un mes nuevo (línea «saldo anterior»). Si hay meses en
+                  borrador sin cerrar, el arrastre sigue tomando solo el <strong>último cerrado</strong>, no el borrador.
+                  Cierra cada mes en orden para que el mes siguiente reciba el saldo correcto.
                 </div>
               )}
 

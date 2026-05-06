@@ -53,9 +53,25 @@ const Reembolsos = () => {
   const [numeroCuenta, setNumeroCuenta] = useState('');
   const [rucProveedor, setRucProveedor] = useState('');
   const [numeroDocumento, setNumeroDocumento] = useState('');
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const nombreCompleto = `${usuario?.nombres || ''} ${usuario?.apellidos || ''}`.trim();
   const dni = usuario?.dni || '—';
+
+  const resetFormularioReintegro = () => {
+    setFechaSolicitud('');
+    setConcepto('');
+    setTieneComprobante(false);
+    setArchivo(null);
+    setMonto('0');
+    setMetodo('yape');
+    setCelular('');
+    setNombreEnMetodo('');
+    setNumeroCuenta('');
+    setRucProveedor('');
+    setNumeroDocumento('');
+    setFileInputKey((k) => k + 1);
+  };
 
   const cargarLista = async () => {
     setLoading(true);
@@ -128,12 +144,7 @@ const Reembolsos = () => {
     try {
       await reembolsoService.crear(fd);
       toast.success('Solicitud registrada. Se notificó al aprobador.');
-      setConcepto('');
-      setArchivo(null);
-      setMonto('0');
-      setNumeroCuenta('');
-      setRucProveedor('');
-      setNumeroDocumento('');
+      resetFormularioReintegro();
       cargarLista();
     } catch (err) {
       const msg = err.response?.data?.mensaje || 'No se pudo enviar la solicitud.';
@@ -288,6 +299,7 @@ const Reembolsos = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Adjuntar comprobante *</label>
                 <input
+                  key={fileInputKey}
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
                   className="text-sm text-slate-600"

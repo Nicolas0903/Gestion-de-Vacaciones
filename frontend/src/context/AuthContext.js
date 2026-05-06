@@ -94,6 +94,14 @@ export const AuthProvider = ({ children }) => {
     'nicolas.valdivia@prayaga.biz'
   ];
 
+  const EMAILS_MODULO_CAJA_CHICA = [
+    'rocio.picon@prayaga.biz',
+    'veronica.gonzales@prayaga.biz',
+    'enrique.prayaga@prayaga.biz',
+    'enrique.agapito@prayaga.biz',
+    'nicolas.valdivia@prayaga.biz'
+  ];
+
   const ADMIN_PORTAL_USUARIOS_EMAILS = (
     process.env.REACT_APP_ADMIN_PORTAL_USUARIOS_EMAILS ||
     'enrique.agapito@prayaga.biz,nicolas.valdivia@prayaga.biz'
@@ -118,6 +126,11 @@ export const AuthProvider = ({ children }) => {
    */
   const puedeAccederModuloPortal = (moduloId) => {
     if (!usuario) return false;
+    const em = (usuario.email || '').toLowerCase().trim();
+    if (moduloId === 'caja-chica' && EMAILS_MODULO_CAJA_CHICA.includes(em)) {
+      return true;
+    }
+
     const m = usuario.modulos_portal;
     const tieneMapa = m && typeof m === 'object' && Object.keys(m).length > 0;
     if (tieneMapa) {
@@ -131,7 +144,11 @@ export const AuthProvider = ({ children }) => {
       return puedeVerReporteAsistencia();
     }
 
-    if (moduloId === 'caja-chica' || moduloId === 'solicitudes-registro') {
+    if (moduloId === 'caja-chica') {
+      return esAdmin() || esContadora();
+    }
+
+    if (moduloId === 'solicitudes-registro') {
       return esAdmin() || esContadora();
     }
 

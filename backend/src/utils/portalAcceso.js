@@ -6,6 +6,15 @@ const EMAILS_REPORTE_ASISTENCIA = [
   'nicolas.valdivia@prayaga.biz'
 ];
 
+/** Acceso a Caja chica aunque no sea admin/contadora (mapa portal o rol). */
+const EMAILS_MODULO_CAJA_CHICA = [
+  'rocio.picon@prayaga.biz',
+  'veronica.gonzales@prayaga.biz',
+  'enrique.prayaga@prayaga.biz',
+  'enrique.agapito@prayaga.biz',
+  'nicolas.valdivia@prayaga.biz'
+];
+
 /**
  * Si el rol (y correo cuando aplica) permitiría ver el módulo antes de aplicar modulos_portal.
  */
@@ -16,7 +25,11 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
   if (moduloId === 'asistencia') {
     return rolNombre === 'admin' || EMAILS_REPORTE_ASISTENCIA.includes(e);
   }
-  if (moduloId === 'caja-chica' || moduloId === 'solicitudes-registro') {
+  if (moduloId === 'caja-chica') {
+    if (EMAILS_MODULO_CAJA_CHICA.includes(e)) return true;
+    return rolNombre === 'admin' || rolNombre === 'contadora';
+  }
+  if (moduloId === 'solicitudes-registro') {
     return rolNombre === 'admin' || rolNombre === 'contadora';
   }
   return false;
@@ -32,6 +45,10 @@ function tieneMapaPortalExplicito(empleado) {
  * Si no hay mapa (null / vacío), se usa la lógica histórica por rol y correo.
  */
 function tieneAccesoEfectivoModulo(empleado, moduloId) {
+  const e = (empleado.email || '').toLowerCase().trim();
+  if (moduloId === 'caja-chica' && EMAILS_MODULO_CAJA_CHICA.includes(e)) {
+    return true;
+  }
   if (tieneMapaPortalExplicito(empleado)) {
     return empleado.modulos_portal[moduloId] === true;
   }
@@ -63,5 +80,6 @@ module.exports = {
   tieneAccesoEfectivoModulo,
   accesoPortalDetalleCompleto,
   etiquetasAccesoResumen,
-  EMAILS_REPORTE_ASISTENCIA
+  EMAILS_REPORTE_ASISTENCIA,
+  EMAILS_MODULO_CAJA_CHICA
 };
