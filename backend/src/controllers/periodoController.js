@@ -42,7 +42,7 @@ const crear = async (req, res) => {
 const listarPorEmpleado = async (req, res) => {
   try {
     const { empleadoId } = req.params;
-    const periodos = await PeriodoVacaciones.listarPorEmpleado(parseInt(empleadoId));
+    const periodos = await PeriodoVacaciones.listarPorEmpleado(parseInt(empleadoId), { vistaEmpleado: true });
 
     res.json({
       success: true,
@@ -79,8 +79,7 @@ const listarMios = async (req, res) => {
 const obtenerPendientes = async (req, res) => {
   try {
     const empleadoId = req.params.empleadoId ? parseInt(req.params.empleadoId) : req.usuario.id;
-    const vistaEmpleado = !req.params.empleadoId;
-    const periodos = await PeriodoVacaciones.obtenerPendientes(empleadoId, { vistaEmpleado });
+    const periodos = await PeriodoVacaciones.obtenerPendientes(empleadoId, { vistaEmpleado: true });
 
     res.json({
       success: true,
@@ -95,12 +94,11 @@ const obtenerPendientes = async (req, res) => {
   }
 };
 
-// Obtener resumen de vacaciones (empleado: períodos ya iniciados — histórico + actual; admin: todo)
+// Obtener resumen de vacaciones (mismo tope operativo portal + admin: sin sumar períodos auto-renovados fuera del acuerdo)
 const obtenerResumen = async (req, res) => {
   try {
     const empleadoId = req.params.empleadoId ? parseInt(req.params.empleadoId) : req.usuario.id;
-    const vistaEmpleado = !req.params.empleadoId;
-    const resumen = await PeriodoVacaciones.obtenerResumen(empleadoId, { vistaEmpleado });
+    const resumen = await PeriodoVacaciones.obtenerResumen(empleadoId, { vistaEmpleado: true });
 
     res.json({
       success: true,

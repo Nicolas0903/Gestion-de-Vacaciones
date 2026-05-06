@@ -998,7 +998,7 @@ export default function AdministracionUsuarios() {
               ) : (
                 <div className="space-y-4 text-sm">
                   <p className="text-xs text-gray-500">
-                    Períodos y totales según los registros de vacaciones del sistema (vista administración).
+                    Períodos y totales alineados con el portal del colaborador (hasta el tope vigente acordado, sin bloques posteriores solo por renovación automática).
                   </p>
                   {vacError ? <p className="text-sm text-red-400">{vacError}</p> : null}
                   {vacCargando ? (

@@ -1,5 +1,14 @@
 const { pool } = require('../config/database');
 
+/** Régimen PYME 15 días (renovación automática debe ser 15, no copiar erróneo ni usar 30 por defecto). */
+const EMAILS_VACACIONES_15_DIAS = new Set(
+  (process.env.VACACIONES_PYME_15_EMAILS ||
+    'soham.carbajal@prayaga.biz,nicolas.valdivia@prayaga.biz')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+);
+
 class PeriodoVacaciones {
   // Crear nuevo período
   static async crear(datos) {
@@ -61,6 +70,13 @@ class PeriodoVacaciones {
    */
   static async renovarSiVencido(empleadoId) {
     try {
+      const [empRows] = await pool.execute(
+        `SELECT LOWER(TRIM(email)) AS email FROM empleados WHERE id = ? LIMIT 1`,
+        [empleadoId]
+      );
+      const emailEmp = (empRows[0]?.email || '').trim();
+      const esRegimen15 = EMAILS_VACACIONES_15_DIAS.has(emailEmp);
+
       for (let iter = 0; iter < 20; iter++) {
         const [cerrado] = await pool.execute(
           `SELECT fecha_fin_periodo, dias_correspondientes
@@ -97,7 +113,13 @@ class PeriodoVacaciones {
         );
         if (existe.length > 0) break;
 
-        const diasCorrespondientes = Number(ref.dias_correspondientes) || 30;
+        let diasCorrespondientes = Number(ref.dias_correspondientes);
+        if (esRegimen15) {
+          diasCorrespondientes = 15;
+        } else if (!Number.isFinite(diasCorrespondientes) || diasCorrespondientes <= 0) {
+          diasCorrespondientes = 30;
+        }
+
         const yIni = String(fechaInicioNuevo).slice(0, 4);
         const yFin = String(fechaFinNuevo).slice(0, 4);
         await this.crear({

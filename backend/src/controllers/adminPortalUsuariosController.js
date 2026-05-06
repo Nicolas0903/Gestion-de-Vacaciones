@@ -318,8 +318,9 @@ const vacacionesEmpleado = async (req, res) => {
     if (!empleado) {
       return res.status(404).json({ success: false, mensaje: 'Empleado no encontrado' });
     }
-    const periodos = await PeriodoVacaciones.listarPorEmpleado(id);
-    const rawResumen = await PeriodoVacaciones.obtenerResumen(id, { vistaEmpleado: false });
+    /* Misma regla que el portal empleado: tope operativo (sin períodos auto-renovados futuros hasta que RRHH cargue período empresa). */
+    const periodos = await PeriodoVacaciones.listarPorEmpleado(id, { vistaEmpleado: true });
+    const rawResumen = await PeriodoVacaciones.obtenerResumen(id, { vistaEmpleado: true });
     const resumen = {
       total_ganados: Number(rawResumen?.total_ganados) || 0,
       total_gozados: Number(rawResumen?.total_gozados) || 0,
