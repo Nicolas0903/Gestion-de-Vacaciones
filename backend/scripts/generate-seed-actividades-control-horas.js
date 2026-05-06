@@ -2,7 +2,11 @@
  * Lee "Control de Horas.xlsx" (lista SharePoint exportada) y genera
  * backend/sql/seed_actividades_control_horas.sql para cp_actividades.
  *
- * Uso: node backend/scripts/generate-seed-actividades-control-horas.js [ruta.xlsx]
+ * Uso:
+ *   node backend/scripts/generate-seed-actividades-control-horas.js [ruta.xlsx]
+ *   node backend/scripts/generate-seed-actividades-control-horas.js --solo N [ruta.xlsx]
+ *
+ * Ej. solo las primeras 5 filas (como en captura proyecto Migración MSTR): --solo 5
  */
 const fs = require('fs');
 const path = require('path');
@@ -154,7 +158,28 @@ function mapPago(s) {
 }
 
 const defaultXlsx = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Downloads', 'Control de Horas.xlsx');
-const xlsxPath = process.argv[2] || defaultXlsx;
+
+const argv = process.argv.slice(2);
+let soloPrimeraN = null;
+const positionalArgs = [];
+for (let ai = 0; ai < argv.length; ai++) {
+  if (argv[ai] === '--solo' && argv[ai + 1] != null) {
+    soloPrimeraN = parseInt(argv[ai + 1], 10);
+    ai++;
+    continue;
+  }
+  positionalArgs.push(argv[ai]);
+}
+
+const xlsxPath = positionalArgs[0]
+  ? path.isAbsolute(positionalArgs[0])
+    ? positionalArgs[0]
+    : path.resolve(process.cwd(), positionalArgs[0])
+  : defaultXlsx;
+
+if (Number.isFinite(soloPrimeraN) && soloPrimeraN >= 1) {
+  console.log(`Modo --solo ${soloPrimeraN} (solo las primeras filas del Excel).`);
+}
 
 if (!fs.existsSync(xlsxPath)) {
   console.error('No existe:', xlsxPath);
@@ -162,7 +187,9 @@ if (!fs.existsSync(xlsxPath)) {
 }
 
 const wb = XLSX.readFile(xlsxPath);
-const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+const rowsAll = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+const rows =
+  Number.isFinite(soloPrimeraN) && soloPrimeraN >= 1 ? rowsAll.slice(0, soloPrimeraN) : rowsAll;
 
 const valueRows = [];
 
@@ -218,15 +245,24 @@ for (let i = 0; i < rows.length; i++) {
   );
 }
 
-const header = [
-  '-- Importación desde Control de Horas.xlsx → cp_actividades',
-  '-- Requisitos: proyectos ya existentes en cp_proyectos (p. ej. seed Data Proyectos) y empleados consultores cargados.',
+const headerLines = [
+  '-- Importación desde Control de Horas.xlsx → cp_actividades'
+];
+if (Number.isFinite(soloPrimeraN) && soloPrimeraN >= 1) {
+  headerLines.push(
+    `-- IMPORTANTE: solo las primeras ${soloPrimeraN} filas del Excel (p. ej. captura proyecto Migración MSTR). Para todo el libro: ejecutar sin --solo.`
+  );
+}
+headerLines.push(
+  '-- Requisitos: proyectos ya existentes en cp_proyectos y empleados consultores cargados.',
   '-- Si falta proyecto o empleado, la fila fallará por FK/subconsulta NULL.',
   '-- Filas donde en Excel «fin» < «inicio» (o medianoche huérfana): se corrige automáticamente sumando las horas del registro o +1 min (script).',
   'USE gestor_vacaciones;',
   'SET NAMES utf8mb4;',
   ''
-];
+);
+
+const header = headerLines;
 
 const sql =
   header.join('\n') +
