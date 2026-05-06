@@ -137,7 +137,8 @@ export default function AdministracionUsuarios() {
     cargo: '',
     fecha_ingreso: '',
     codigo_empleado: '',
-    rol_id: ''
+    rol_id: '',
+    es_consultor_cp: false
   });
   const [roles, setRoles] = useState([]);
   const [formAlta, setFormAlta] = useState({
@@ -268,7 +269,8 @@ export default function AdministracionUsuarios() {
         cargo: empleado.cargo || '',
         fecha_ingreso: (empleado.fecha_ingreso || '').slice(0, 10),
         codigo_empleado: empleado.codigo_empleado || '',
-        rol_id: empleado.rol_id != null ? String(empleado.rol_id) : ''
+        rol_id: empleado.rol_id != null ? String(empleado.rol_id) : '',
+        es_consultor_cp: !!empleado.es_consultor_cp
       });
     } catch (e) {
       toast.error(e.response?.data?.mensaje || 'No se pudo cargar el usuario');
@@ -462,7 +464,8 @@ export default function AdministracionUsuarios() {
         cargo: formCuenta.cargo,
         fecha_ingreso: formCuenta.fecha_ingreso,
         codigo_empleado: formCuenta.codigo_empleado,
-        rol_id: formCuenta.rol_id ? parseInt(formCuenta.rol_id, 10) : undefined
+        rol_id: formCuenta.rol_id ? parseInt(formCuenta.rol_id, 10) : undefined,
+        es_consultor_cp: formCuenta.es_consultor_cp
       });
       toast.success('Cuenta actualizada');
       const res = await adminPortalUsuariosService.obtener(detalle.empleado.id);
@@ -477,7 +480,8 @@ export default function AdministracionUsuarios() {
         cargo: em.cargo || '',
         fecha_ingreso: (em.fecha_ingreso || '').slice(0, 10),
         codigo_empleado: em.codigo_empleado || '',
-        rol_id: em.rol_id != null ? String(em.rol_id) : ''
+        rol_id: em.rol_id != null ? String(em.rol_id) : '',
+        es_consultor_cp: !!em.es_consultor_cp
       });
       setModulosDraft(aplicarModulosEditorADraft(payload.modulos_editor));
       cargarLista();
@@ -916,6 +920,20 @@ export default function AdministracionUsuarios() {
                       onChange={(e) => setFormCuenta((f) => ({ ...f, fecha_ingreso: e.target.value }))}
                     />
                   </div>
+                  <label className="flex gap-3 items-start p-3 rounded-lg border border-white/10 bg-[#1c1b1a] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formCuenta.es_consultor_cp}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, es_consultor_cp: e.target.checked }))}
+                      className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500"
+                    />
+                    <span>
+                      <span className="font-medium text-gray-200 block">Consultor en control de proyectos</span>
+                      <span className="text-xs text-gray-400 block mt-0.5">
+                        Si está activo, esta persona aparece en el listado para asignar a proyectos (formulario reducido).
+                      </span>
+                    </span>
+                  </label>
                   <div>
                     <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
                       Estado

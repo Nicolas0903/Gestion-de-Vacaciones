@@ -225,7 +225,7 @@ export const cajaChicaService = {
 
 export const controlProyectosService = {
   catalogo: () => api.get('/control-proyectos/catalogo'),
-  consultoresSelect: () => api.get('/control-proyectos/consultores-select'),
+  consultoresSelect: (params) => api.get('/control-proyectos/consultores-select', { params }),
   listarProyectos: () => api.get('/control-proyectos/proyectos'),
   misProyectos: () => api.get('/control-proyectos/mis-proyectos'),
   crearProyecto: (body) => api.post('/control-proyectos/proyectos', body),

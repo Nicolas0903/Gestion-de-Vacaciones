@@ -68,7 +68,13 @@ const consultoresParaProyectos = async (req, res) => {
     return res.status(403).json({ success: false, mensaje: 'Sin permiso para cargar consultores.' });
   }
   try {
-    const data = await ControlProyecto.listarConsultoresActivos();
+    const raw = req.query.proyecto_id;
+    const proyectoId =
+      raw !== undefined && raw !== null && String(raw).trim() !== ''
+        ? parseInt(String(raw), 10)
+        : null;
+    const pid = Number.isFinite(proyectoId) && proyectoId > 0 ? proyectoId : null;
+    const data = await ControlProyecto.listarConsultoresParaSelector(pid);
     res.json({ success: true, data });
   } catch (e) {
     console.error(e);

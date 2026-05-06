@@ -29,6 +29,7 @@ CREATE TABLE empleados (
     rol_id INT NOT NULL,
     jefe_id INT NULL, -- Referencia al jefe directo
     activo BOOLEAN DEFAULT TRUE,
+    es_consultor_cp TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Consultor asignable en Control de proyectos (catálogo)',
     avatar_url VARCHAR(255),
     modulos_portal JSON NULL COMMENT 'Mapa id_modulo -> boolean; null = sin restricción granular',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

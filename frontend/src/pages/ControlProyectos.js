@@ -54,7 +54,7 @@ function previewHorasIniFin(iniLocal, finLocal) {
   return Math.round((((b - a) / 3600000) * 100)) / 100;
 }
 
-/** IDs numéricos únicos para multiselect de consultores */
+/** IDs numéricos únicos para selección de consultores (checkboxes) */
 function normalizaIdsConsultores(arr) {
   if (!Array.isArray(arr)) return [];
   return [...new Set(arr.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0))].sort((a, b) => a - b);
@@ -92,6 +92,7 @@ const ControlProyectos = () => {
   const [misProyectos, setMisProyectos] = useState([]);
   const [actividades, setActividades] = useState([]);
   const [consultores, setConsultores] = useState([]);
+  const [filtroConsultor, setFiltroConsultor] = useState('');
   const [proyectoEditId, setProyectoEditId] = useState(null);
   const [actividadEditId, setActividadEditId] = useState(null);
   const [proyForm, setProyForm] = useState(proyectoVacio);
@@ -110,11 +111,15 @@ const ControlProyectos = () => {
     setProyectos(data.data || []);
   }, [puedeProy]);
 
-  const cargarConsultores = useCallback(async () => {
-    if (!puedeProy) return;
-    const { data } = await controlProyectosService.consultoresSelect();
-    setConsultores(data.data || []);
-  }, [puedeProy]);
+  const consultoresFiltrados = useMemo(() => {
+    const q = filtroConsultor.trim().toLowerCase();
+    if (!q) return consultores;
+    return consultores.filter((c) => {
+      const nombre = (c.nombre_completo || '').toLowerCase();
+      const mail = (c.email || '').toLowerCase();
+      return nombre.includes(q) || mail.includes(q);
+    });
+  }, [consultores, filtroConsultor]);
 
   const cargarActividades = useCallback(async () => {
     const params = {};
@@ -129,7 +134,7 @@ const ControlProyectos = () => {
       setCargando(true);
       try {
         await cargarMisProyectos();
-        if (puedeProy) await Promise.all([cargarProyectosTodos(), cargarConsultores()]);
+        if (puedeProy) await cargarProyectosTodos();
       } catch {
         if (!cancel) toast.error('Error al cargar control de proyectos. ¿Ejecutaste la migración SQL?');
       } finally {
@@ -139,7 +144,27 @@ const ControlProyectos = () => {
     return () => {
       cancel = true;
     };
-  }, [puedeProy, cargarMisProyectos, cargarProyectosTodos, cargarConsultores]);
+  }, [puedeProy, cargarMisProyectos, cargarProyectosTodos]);
+
+  useEffect(() => {
+    let cancel = false;
+    if (!puedeProy) {
+      setConsultores([]);
+      return undefined;
+    }
+    (async () => {
+      try {
+        const params = proyectoEditId ? { proyecto_id: proyectoEditId } : {};
+        const { data } = await controlProyectosService.consultoresSelect(params);
+        if (!cancel) setConsultores(data.data || []);
+      } catch {
+        if (!cancel) toast.error('Error al cargar listado de consultores.');
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [puedeProy, proyectoEditId]);
 
   useEffect(() => {
     let cancel = false;
@@ -163,6 +188,7 @@ const ControlProyectos = () => {
   const resetProyForm = () => {
     setProyForm(proyectoVacio());
     setProyectoEditId(null);
+    setFiltroConsultor('');
   };
 
   const submitProyecto = async (e) => {
@@ -244,6 +270,7 @@ const ControlProyectos = () => {
 
   const abrirEditProyecto = (p) => {
     setProyectoEditId(p.id);
+    setFiltroConsultor('');
     setProyForm({
       empresa: p.empresa || '',
       proyecto: p.proyecto || '',
@@ -383,44 +410,66 @@ const ControlProyectos = () => {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-slate-600 mb-2" htmlFor="cp-consultores-multi">
-                        Consultores asignados * <span className="text-slate-400 font-normal">(uno o más del portal)</span>
+                      <label className="block text-xs font-medium text-slate-600 mb-2">
+                        Consultores asignados * <span className="text-slate-400 font-normal">(marca uno o más)</span>
                       </label>
                       {consultores.length === 0 ? (
                         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-                          No hay lista de empleados. Debes entrar como admin o Verónica para cargar consultores en el
-                          formulario.
+                          No hay consultores en el catálogo. Quien deba asignarse a proyectos debe tener activo{' '}
+                          <strong>«Consultor en control de proyectos»</strong> en Administración de usuarios (admin). Si
+                          acabas de desplegar, ejecuta la migración SQL{' '}
+                          <code className="text-[10px] bg-amber-100 px-1 rounded">20260506_empleados_es_consultor_cp</code>.
                         </p>
                       ) : (
                         <>
-                          <select
-                            id="cp-consultores-multi"
-                            multiple
-                            size={Math.min(12, Math.max(5, consultores.length))}
-                            className="w-full rounded-xl border-2 border-slate-300 bg-white px-2 py-2 text-sm shadow-inner focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 min-h-[10rem]"
-                            value={proyForm.consultores_empleado_ids.map(String)}
-                            onChange={(e) => {
-                              const selected = Array.from(e.target.selectedOptions, (opt) => Number(opt.value));
-                              setProyForm((f) => ({
-                                ...f,
-                                consultores_empleado_ids: normalizaIdsConsultores(selected)
-                              }));
-                            }}
-                          >
-                            {consultores.map((c) => (
-                              <option key={c.id} value={String(c.id)}>
-                                {c.nombre_completo} ({c.email})
-                              </option>
-                            ))}
-                          </select>
-                          <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                            <strong className="text-slate-700">Selección múltiple:</strong> mantén pulsado{' '}
-                            <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[10px]">Ctrl</kbd> (Windows) o{' '}
-                            <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[10px]">Cmd</kbd> (Mac) y haz clic
-                            en varias filas. Así se distinguen de un desplegable de una sola opción.
+                          <input
+                            type="search"
+                            placeholder="Filtrar por nombre o correo…"
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm mb-3"
+                            value={filtroConsultor}
+                            onChange={(e) => setFiltroConsultor(e.target.value)}
+                          />
+                          <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 p-3 space-y-2 bg-slate-50/80">
+                            {consultoresFiltrados.length === 0 ? (
+                              <p className="text-xs text-slate-500">Nadie coincide con el filtro.</p>
+                            ) : (
+                              consultoresFiltrados.map((c) => {
+                                const id = Number(c.id);
+                                const checked = proyForm.consultores_empleado_ids.includes(id);
+                                return (
+                                  <label
+                                    key={c.id}
+                                    className="flex items-start gap-3 text-sm cursor-pointer rounded-lg px-2 py-1.5 hover:bg-white border border-transparent hover:border-slate-200"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 shrink-0"
+                                      checked={checked}
+                                      onChange={(e) => {
+                                        const next = new Set(proyForm.consultores_empleado_ids);
+                                        if (e.target.checked) next.add(id);
+                                        else next.delete(id);
+                                        setProyForm((f) => ({
+                                          ...f,
+                                          consultores_empleado_ids: normalizaIdsConsultores([...next])
+                                        }));
+                                      }}
+                                    />
+                                    <span>
+                                      <span className="font-medium text-slate-800">{c.nombre_completo}</span>
+                                      <span className="text-slate-400 text-xs block">({c.email})</span>
+                                    </span>
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-2">
+                            Solo aparecen personas dadas de alta como consultores en Administración de usuarios. Al
+                            editar un proyecto también ves quien ya estaba asignado aunque se le haya quitado el catálogo.
                           </p>
                           <p className="text-xs text-slate-500 mt-1">
-                            Personas que no estén en el portal pueden anotarse en «Detalles o comentarios».
+                            Quienes no estén en el portal pueden mencionarse en «Detalles o comentarios».
                           </p>
                         </>
                       )}

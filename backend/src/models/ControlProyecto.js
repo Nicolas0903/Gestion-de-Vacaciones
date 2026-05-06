@@ -49,15 +49,78 @@ async function enriquecerProyectos(rows) {
 }
 
 class ControlProyecto {
-  static async listarConsultoresActivos() {
+  /**
+   * Catálogo para asignar consultores: usuarios con es_consultor_cp=1.
+   * Si proyectoId está definido, también muestra los ya asignados a ese proyecto (edición).
+   */
+  static async listarConsultoresParaSelector(proyectoId = null) {
+    const pid =
+      proyectoId != null && Number.isFinite(Number(proyectoId)) && Number(proyectoId) > 0
+        ? Number(proyectoId)
+        : null;
+    if (pid) {
+      const [rows] = await pool.execute(
+        `SELECT DISTINCT e.id,
+          CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo,
+          e.email,
+          e.activo
+         FROM empleados e
+         WHERE e.activo = 1
+           AND (
+             IFNULL(e.es_consultor_cp, 0) = 1
+             OR e.id IN (SELECT empleado_id FROM cp_proyecto_consultores WHERE proyecto_id = ?)
+           )
+         ORDER BY e.apellidos, e.nombres`,
+        [pid]
+      );
+      return rows;
+    }
     const [rows] = await pool.execute(
       `SELECT e.id,
         CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo,
         e.email,
         e.activo
-       FROM empleados e WHERE e.activo = 1 ORDER BY e.apellidos, e.nombres`
+       FROM empleados e
+       WHERE e.activo = 1 AND IFNULL(e.es_consultor_cp, 0) = 1
+       ORDER BY e.apellidos, e.nombres`
     );
     return rows;
+  }
+
+  /** Valida que todos los IDs puedan quedar asignados (crear: solo catálogo; editar: catálogo o ya en el proyecto). */
+  static async assertConsultoresPermitidos(empleadoIds, proyectoIdExistente) {
+    const ids = [...new Set(empleadoIds.map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n) && n > 0))];
+    if (!ids.length) {
+      throw new Error('Debe indicar al menos un consultor asignado del portal');
+    }
+    const ph = ids.map(() => '?').join(',');
+    if (proyectoIdExistente) {
+      const [rows] = await pool.execute(
+        `SELECT e.id FROM empleados e
+         WHERE e.id IN (${ph}) AND e.activo = 1
+           AND (
+             IFNULL(e.es_consultor_cp, 0) = 1
+             OR e.id IN (SELECT empleado_id FROM cp_proyecto_consultores WHERE proyecto_id = ?)
+           )`,
+        [...ids, proyectoIdExistente]
+      );
+      if (rows.length !== ids.length) {
+        throw new Error(
+          'Hay consultores no permitidos. Solo puede asignar personas marcadas como consultores en «Administración de usuarios», o mantener asignaciones ya existentes en este proyecto.'
+        );
+      }
+    } else {
+      const [rows] = await pool.execute(
+        `SELECT e.id FROM empleados e
+         WHERE e.id IN (${ph}) AND e.activo = 1 AND IFNULL(e.es_consultor_cp, 0) = 1`,
+        ids
+      );
+      if (rows.length !== ids.length) {
+        throw new Error(
+          'Uno o más consultores no están habilitados. Activa «Consultor en control de proyectos» en Administración de usuarios.'
+        );
+      }
+    }
   }
 
   static async listarProyectosTodos() {
@@ -116,6 +179,7 @@ class ControlProyecto {
     if (!uniq.length) {
       throw new Error('Debe indicar al menos un consultor asignado del portal');
     }
+    await ControlProyecto.assertConsultoresPermitidos(uniq, null);
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
@@ -164,6 +228,7 @@ class ControlProyecto {
         if (!uniq.length) {
           throw new Error('Debe indicar al menos un consultor asignado del portal');
         }
+        await ControlProyecto.assertConsultoresPermitidos(uniq, id);
         await ControlProyecto.reemplazarConsultoresProyecto(id, uniq, conn);
       }
       await conn.commit();

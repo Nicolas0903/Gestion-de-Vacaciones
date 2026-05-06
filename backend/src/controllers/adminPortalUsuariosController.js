@@ -248,13 +248,19 @@ const actualizarCuenta = async (req, res) => {
       'cargo',
       'fecha_ingreso',
       'codigo_empleado',
-      'rol_id'
+      'rol_id',
+      'es_consultor_cp'
     ];
     const datos = {};
     for (const k of permitidos) {
       if (req.body[k] === undefined) continue;
       if (k === 'cargo') {
         datos.cargo = req.body[k] === '' || req.body[k] == null ? null : String(req.body[k]).trim();
+        continue;
+      }
+      if (k === 'es_consultor_cp') {
+        const v = req.body[k];
+        datos.es_consultor_cp = v === true || v === 1 || v === '1' ? 1 : 0;
         continue;
       }
       const v = req.body[k];
