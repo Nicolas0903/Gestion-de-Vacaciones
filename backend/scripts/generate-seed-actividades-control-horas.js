@@ -18,6 +18,31 @@ function excelSerialToMysqlDateTime(serial) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 }
 
+/** Comparación en ms (UTC, igual que excelSerialToMysqlDateTime). */
+function mysqlUtcToMs(s) {
+  const [date, time = '00:00:00'] = s.split(' ');
+  const [y, mo, day] = date.split('-').map(Number);
+  const [hh, mm, ss] = time.split(':').map(Number);
+  return Date.UTC(y, mo - 1, day, hh || 0, mm || 0, ss || 0);
+}
+
+function msToMysqlUtc(ms) {
+  const d = new Date(ms);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
+/** chk_cp_act_fechas: fecha_hora_fin >= fecha_hora_inicio. Si Excel trae fin vacío/mal (p. ej. 00:00 o anterior al inicio), alargamos con horas trabajadas o +1 min. */
+function coerceFinPosteriorOIgualIni(fiStr, ffStr, horasTrabajadas) {
+  const t0 = mysqlUtcToMs(fiStr);
+  const t1 = mysqlUtcToMs(ffStr);
+  if (t1 >= t0) return ffStr;
+  const h = Number(horasTrabajadas);
+  const msHoras = Number.isFinite(h) && h > 0 ? Math.round(h * 3600 * 1000) : 0;
+  const bump = Math.max(msHoras, 60 * 1000);
+  return msToMysqlUtc(t0 + bump);
+}
+
 function sqlEscape(s) {
   return String(s)
     .replace(/\\/g, '\\\\')
@@ -164,8 +189,8 @@ for (let i = 0; i < rows.length; i++) {
   }
 
   const fi = excelSerialToMysqlDateTime(r['Fecha de actividad']);
-  const ff = excelSerialToMysqlDateTime(r['Fecha y Hora de Fin']);
-  if (!fi || !ff) {
+  const ffRaw = excelSerialToMysqlDateTime(r['Fecha y Hora de Fin']);
+  if (!fi || !ffRaw) {
     console.error(`Fila ${i + 1}: fechas inválidas`);
     process.exit(1);
   }
@@ -173,6 +198,11 @@ for (let i = 0; i < rows.length; i++) {
   let horas = Number(r['Horas trabajadas']);
   if (!Number.isFinite(horas)) horas = 0;
   horas = Math.round(horas * 100) / 100;
+
+  const ff = coerceFinPosteriorOIgualIni(fi, ffRaw, horas);
+  if (ff !== ffRaw) {
+    console.warn(`Fila ${i + 1}: fecha fin ajustada (Excel fin < inicio o 00:00): ${ffRaw} → ${ff}`);
+  }
 
   const prioridad = mapPrioridad(r.Prioridad);
   const estado = mapEstado(r.Estado);
@@ -192,6 +222,7 @@ const header = [
   '-- Importación desde Control de Horas.xlsx → cp_actividades',
   '-- Requisitos: proyectos ya existentes en cp_proyectos (p. ej. seed Data Proyectos) y empleados consultores cargados.',
   '-- Si falta proyecto o empleado, la fila fallará por FK/subconsulta NULL.',
+  '-- Filas donde en Excel «fin» < «inicio» (o medianoche huérfana): se corrige automáticamente sumando las horas del registro o +1 min (script).',
   'USE gestor_vacaciones;',
   'SET NAMES utf8mb4;',
   ''
