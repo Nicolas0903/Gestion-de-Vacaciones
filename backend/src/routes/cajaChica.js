@@ -23,18 +23,23 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = [
+  const allowed = new Set([
     'application/pdf',
     'image/jpeg',
     'image/png',
     'image/gif',
     'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ];
-  if (allowed.includes(file.mimetype)) {
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/x-pdf'
+  ]);
+  const name = String(file.originalname || '').toLowerCase();
+  const extOk = /\.(pdf|png|jpg|jpeg|gif|doc|docx)$/.test(name);
+  const mime = (file.mimetype || '').toLowerCase();
+  /* Windows / algunos navegadores mandan PDF u otros como octet-stream */
+  if (allowed.has(mime) || (mime === 'application/octet-stream' && extOk) || (!mime && extOk)) {
     cb(null, true);
   } else {
-    cb(new Error('Tipo de archivo no permitido.'), false);
+    cb(new Error('Tipo de archivo no permitido (PDF, imagen o Word).'), false);
   }
 };
 

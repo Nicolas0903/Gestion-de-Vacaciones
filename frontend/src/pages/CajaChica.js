@@ -672,18 +672,29 @@ const CajaChica = () => {
                             </div>
                           </td>
                           {esBorrador && (
-                            <td className="py-2 align-middle text-center">
+                            <td className="py-2 align-middle">
                               <button
                                 type="button"
-                                className="mx-auto inline-flex p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg"
-                                title="Eliminar fila"
-                                onClick={() =>
-                                  setIngresosEdit((rows) =>
-                                    rows.length > 1 ? rows.filter((_, i) => i !== idx) : rows
-                                  )
-                                }
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                                title="Quitar esta fila (guarda ingresos para aplicar en el servidor)"
+                                onClick={() => {
+                                  if (ingresosEdit.length <= 1) {
+                                    toast.error('Debe quedar al menos una línea de ingreso.');
+                                    return;
+                                  }
+                                  if (
+                                    row.id &&
+                                    !window.confirm(
+                                      '¿Eliminar esta fila? Los cambios en el servidor se aplican al pulsar «Guardar ingresos».'
+                                    )
+                                  ) {
+                                    return;
+                                  }
+                                  setIngresosEdit((rows) => rows.filter((_, i) => i !== idx));
+                                }}
                               >
-                                <TrashIcon className="w-4 h-4" />
+                                <TrashIcon className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                                Eliminar
                               </button>
                             </td>
                           )}

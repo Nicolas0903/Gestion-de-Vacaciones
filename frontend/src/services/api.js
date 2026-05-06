@@ -15,6 +15,11 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  /* FormData: quitar Content-Type por defecto (application/json) para que el navegador
+   * envíe multipart/form-data con boundary. Si no, multer no recibe archivo → 400. */
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
   return config;
 });
 
