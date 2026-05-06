@@ -28,6 +28,7 @@ import Reembolsos from './pages/Reembolsos';
 import GestionReembolsos from './pages/GestionReembolsos';
 import CajaChica from './pages/CajaChica';
 import ControlProyectos from './pages/ControlProyectos';
+import ControlProyectosReporte from './pages/ControlProyectosReporte';
 import AdminCostoHoraProyectos from './pages/AdminCostoHoraProyectos';
 import AdministracionUsuarios from './pages/AdministracionUsuarios';
 
@@ -208,6 +209,14 @@ function AppRoutes() {
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
             <PageWrapper><ControlProyectos /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/control-proyectos/reporte" element={
+        <ProtectedRoute>
+          <ModuloPortalRoute moduloId="control-proyectos">
+            <PageWrapper><ControlProyectosReporte /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

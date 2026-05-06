@@ -326,6 +326,79 @@ class ControlProyecto {
     const [rows] = await pool.execute(`SELECT * FROM cp_costo_hora WHERE empleado_id = ?`, [empleadoId]);
     return rows[0];
   }
+
+  /**
+   * KPIs y series para vista tipo BI. Si verTodo=false, solo datos de proyectos donde el empleado está asignado.
+   */
+  static async reporteDashboard({ verTodo, empleadoId }) {
+    const scope = verTodo ? 1 : 0;
+    const emp = empleadoId;
+
+    const filtroProyecto = `(
+      ? = 1 OR EXISTS (
+        SELECT 1 FROM cp_proyecto_consultores pc
+        WHERE pc.proyecto_id = p.id AND pc.empleado_id = ?
+      )
+    )`;
+
+    const [porEstado] = await pool.execute(
+      `SELECT p.estado, COUNT(*) AS total
+       FROM cp_proyectos p
+       WHERE ${filtroProyecto}
+       GROUP BY p.estado`,
+      [scope, emp]
+    );
+
+    const [totProy] = await pool.execute(
+      `SELECT COUNT(*) AS total_proyectos, COALESCE(SUM(p.horas_asignadas), 0) AS horas_bolsa_total
+       FROM cp_proyectos p
+       WHERE ${filtroProyecto}`,
+      [scope, emp]
+    );
+
+    const [actAgg] = await pool.execute(
+      `SELECT COUNT(*) AS registros_actividades, COALESCE(SUM(a.horas_trabajadas), 0) AS horas_registradas_total
+       FROM cp_actividades a
+       INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
+       WHERE ${filtroProyecto}`,
+      [scope, emp]
+    );
+
+    const [porMes] = await pool.execute(
+      `SELECT DATE_FORMAT(a.fecha_hora_inicio, '%Y-%m') AS mes,
+              COALESCE(SUM(a.horas_trabajadas), 0) AS horas
+       FROM cp_actividades a
+       INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
+       WHERE ${filtroProyecto}
+         AND a.fecha_hora_inicio >= DATE_SUB(CURDATE(), INTERVAL 14 MONTH)
+       GROUP BY DATE_FORMAT(a.fecha_hora_inicio, '%Y-%m')
+       ORDER BY mes ASC`,
+      [scope, emp]
+    );
+
+    const [topProyectos] = await pool.execute(
+      `SELECT p.id, p.empresa, p.proyecto, p.estado,
+              COALESCE(SUM(a.horas_trabajadas), 0) AS horas_registradas
+       FROM cp_proyectos p
+       LEFT JOIN cp_actividades a ON a.proyecto_id = p.id
+       WHERE ${filtroProyecto}
+       GROUP BY p.id, p.empresa, p.proyecto, p.estado
+       ORDER BY horas_registradas DESC
+       LIMIT 10`,
+      [scope, emp]
+    );
+
+    return {
+      resumen: {
+        ...(totProy[0] || {}),
+        ...(actAgg[0] || {})
+      },
+      proyectos_por_estado: porEstado,
+      horas_por_mes: porMes,
+      top_proyectos_horas: topProyectos,
+      alcance: verTodo ? 'todos' : 'mis_proyectos_asignados'
+    };
+  }
 }
 
 module.exports = ControlProyecto;

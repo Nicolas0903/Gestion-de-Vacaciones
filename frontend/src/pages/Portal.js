@@ -124,7 +124,8 @@ const Portal = () => {
       textColor: 'text-indigo-600',
       link: '/control-proyectos',
       activo: true,
-      adminLink: '/admin/control-proyectos-costo-hora'
+      adminLink: '/admin/control-proyectos-costo-hora',
+      extraLinks: [{ to: '/control-proyectos/reporte', label: 'Reporte BI' }]
     });
   }
 
@@ -251,7 +252,7 @@ const Portal = () => {
                   {modulo.descripcion}
                 </p>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <Link
                     to={modulo.link}
                     className={`flex items-center gap-2 ${modulo.textColor} font-medium text-sm hover:underline`}
@@ -259,6 +260,15 @@ const Portal = () => {
                     <span>Acceder</span>
                     <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
                   </Link>
+                  {(modulo.extraLinks || []).map((el) => (
+                    <Link
+                      key={el.to}
+                      to={el.to}
+                      className="flex items-center gap-1 text-sm font-medium text-violet-600 hover:text-violet-800 hover:underline"
+                    >
+                      {el.label}
+                    </Link>
+                  ))}
                   
                   {/* Botón de gestión: reintegros solo aprobador o admin */}
                   {modulo.adminLink &&

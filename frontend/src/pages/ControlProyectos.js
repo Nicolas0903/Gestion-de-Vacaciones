@@ -54,6 +54,12 @@ function previewHorasIniFin(iniLocal, finLocal) {
   return Math.round((((b - a) / 3600000) * 100)) / 100;
 }
 
+/** IDs numéricos únicos para multiselect de consultores */
+function normalizaIdsConsultores(arr) {
+  if (!Array.isArray(arr)) return [];
+  return [...new Set(arr.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0))].sort((a, b) => a - b);
+}
+
 const proyectoVacio = () => ({
   empresa: '',
   proyecto: '',
@@ -171,7 +177,7 @@ const ControlProyectos = () => {
         estado: proyForm.estado,
         detalles: proyForm.detalles,
         consultores_empleado_ids: Array.isArray(proyForm.consultores_empleado_ids)
-          ? proyForm.consultores_empleado_ids.map((x) => Number(x))
+          ? normalizaIdsConsultores(proyForm.consultores_empleado_ids)
           : []
       };
       if (!body.empresa.trim() || !body.proyecto.trim() || !body.fecha_inicio || !body.fecha_fin) {
@@ -243,11 +249,9 @@ const ControlProyectos = () => {
       proyecto: p.proyecto || '',
       fecha_inicio: p.fecha_inicio ? String(p.fecha_inicio).slice(0, 10) : '',
       fecha_fin: p.fecha_fin ? String(p.fecha_fin).slice(0, 10) : '',
-      consultores_empleado_ids: Array.isArray(p.consultores_empleado_ids)
-        ? p.consultores_empleado_ids.map((x) => Number(x))
-        : Array.isArray(p.consultores)
-          ? p.consultores.map((c) => c.id)
-          : [],
+        consultores_empleado_ids: normalizaIdsConsultores(
+          p.consultores_empleado_ids || p.consultores?.map((c) => c.id) || []
+        ),
       horas_asignadas: String(p.horas_asignadas ?? ''),
       estado: p.estado || 'pendiente',
       detalles: p.detalles || ''
@@ -302,6 +306,12 @@ const ControlProyectos = () => {
             Costo por hora (consultores)
           </Link>
         )}
+        <Link
+          to="/control-proyectos/reporte"
+          className="text-sm font-medium text-violet-700 hover:text-violet-900 bg-violet-50 px-4 py-2 rounded-xl border border-violet-100"
+        >
+          Reporte BI
+        </Link>
       </div>
 
       <div className="flex gap-2 mb-6">
@@ -373,44 +383,47 @@ const ControlProyectos = () => {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-slate-600 mb-2">
-                        Consultores asignados * (solo personal del portal; uno o más)
+                      <label className="block text-xs font-medium text-slate-600 mb-2" htmlFor="cp-consultores-multi">
+                        Consultores asignados * <span className="text-slate-400 font-normal">(uno o más del portal)</span>
                       </label>
-                      <div className="max-h-44 overflow-y-auto rounded-xl border border-slate-200 p-3 space-y-2 bg-slate-50/80">
-                        {consultores.length === 0 ? (
-                          <p className="text-xs text-slate-500">Sin lista de consultores.</p>
-                        ) : (
-                          consultores.map((c) => {
-                            const id = Number(c.id);
-                            const checked = proyForm.consultores_empleado_ids.includes(id);
-                            return (
-                              <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                  checked={checked}
-                                  onChange={(e) => {
-                                    const next = new Set(proyForm.consultores_empleado_ids);
-                                    if (e.target.checked) next.add(id);
-                                    else next.delete(id);
-                                    setProyForm((f) => ({
-                                      ...f,
-                                      consultores_empleado_ids: [...next].sort((a, b) => a - b)
-                                    }));
-                                  }}
-                                />
-                                <span>
-                                  {c.nombre_completo}{' '}
-                                  <span className="text-slate-400 text-xs">({c.email})</span>
-                                </span>
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Quienes no estén en esta lista puedes mencionarlos en «Detalles» (no cuentan como usuario del portal).
-                      </p>
+                      {consultores.length === 0 ? (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                          No hay lista de empleados. Debes entrar como admin o Verónica para cargar consultores en el
+                          formulario.
+                        </p>
+                      ) : (
+                        <>
+                          <select
+                            id="cp-consultores-multi"
+                            multiple
+                            size={Math.min(12, Math.max(5, consultores.length))}
+                            className="w-full rounded-xl border-2 border-slate-300 bg-white px-2 py-2 text-sm shadow-inner focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 min-h-[10rem]"
+                            value={proyForm.consultores_empleado_ids.map(String)}
+                            onChange={(e) => {
+                              const selected = Array.from(e.target.selectedOptions, (opt) => Number(opt.value));
+                              setProyForm((f) => ({
+                                ...f,
+                                consultores_empleado_ids: normalizaIdsConsultores(selected)
+                              }));
+                            }}
+                          >
+                            {consultores.map((c) => (
+                              <option key={c.id} value={String(c.id)}>
+                                {c.nombre_completo} ({c.email})
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                            <strong className="text-slate-700">Selección múltiple:</strong> mantén pulsado{' '}
+                            <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[10px]">Ctrl</kbd> (Windows) o{' '}
+                            <kbd className="px-1 py-0.5 bg-slate-100 rounded text-[10px]">Cmd</kbd> (Mac) y haz clic
+                            en varias filas. Así se distinguen de un desplegable de una sola opción.
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Personas que no estén en el portal pueden anotarse en «Detalles o comentarios».
+                          </p>
+                        </>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Horas asignadas *</label>
