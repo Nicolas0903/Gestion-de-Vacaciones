@@ -1,12 +1,14 @@
 /**
- * Lee "Control de Horas.xlsx" (lista SharePoint exportada) y genera
- * backend/sql/seed_actividades_control_horas.sql para cp_actividades.
+ * Genera backend/sql/seed_actividades_control_horas.sql para la tabla cp_actividades.
+ * Lee un Excel con las columnas típicas del registro de horas (Proyecto, Requerido por, etc.).
+ *
+ * Por defecto usa: %USERPROFILE%/Downloads/Migracion 1.xlsx
  *
  * Uso:
- *   node backend/scripts/generate-seed-actividades-control-horas.js [ruta.xlsx]
+ *   node backend/scripts/generate-seed-actividades-control-horas.js [ruta/al/archivo.xlsx]
  *   node backend/scripts/generate-seed-actividades-control-horas.js --solo N [ruta.xlsx]
  *
- * Ej. solo las primeras 5 filas (como en captura proyecto Migración MSTR): --solo 5
+ * `--solo N` limita a las N primeras filas (pruebas).
  */
 const fs = require('fs');
 const path = require('path');
@@ -157,7 +159,11 @@ function mapPago(s) {
   return 'pendiente';
 }
 
-const defaultXlsx = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Downloads', 'Control de Horas.xlsx');
+const defaultXlsx = path.join(
+  process.env.USERPROFILE || process.env.HOME || '',
+  'Downloads',
+  'Migracion 1.xlsx'
+);
 
 const argv = process.argv.slice(2);
 let soloPrimeraN = null;
@@ -187,7 +193,8 @@ if (!fs.existsSync(xlsxPath)) {
 }
 
 const wb = XLSX.readFile(xlsxPath);
-const rowsAll = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+const sheetName = wb.SheetNames[0];
+const rowsAll = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
 const rows =
   Number.isFinite(soloPrimeraN) && soloPrimeraN >= 1 ? rowsAll.slice(0, soloPrimeraN) : rowsAll;
 
@@ -245,8 +252,10 @@ for (let i = 0; i < rows.length; i++) {
   );
 }
 
+const excelBasename = path.basename(xlsxPath);
+
 const headerLines = [
-  '-- Importación desde Control de Horas.xlsx → cp_actividades'
+  `-- Importación de actividades → cp_actividades (origen: ${excelBasename}, hoja «${sheetName}»)`
 ];
 if (Number.isFinite(soloPrimeraN) && soloPrimeraN >= 1) {
   headerLines.push(
