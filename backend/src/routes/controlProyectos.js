@@ -16,6 +16,7 @@ router.get('/proyectos', ctrl.listarProyectos);
 router.get('/mis-proyectos', ctrl.misProyectos);
 router.post('/proyectos', ctrl.crearProyecto);
 router.put('/proyectos/:id', ctrl.actualizarProyecto);
+router.delete('/proyectos/:id', ctrl.eliminarProyecto);
 
 router.get('/actividades', ctrl.listarActividades);
 router.post('/actividades', ctrl.crearActividad);

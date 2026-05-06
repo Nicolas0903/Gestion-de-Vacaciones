@@ -286,6 +286,24 @@ const ControlProyectos = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const eliminarProyectoFila = async (p) => {
+    const nombre = `${p.proyecto || '(sin nombre)'} — ${p.empresa || ''}`;
+    const okConfirm = window.confirm(
+      `¿Eliminar este proyecto?\n\n${nombre}\n\nSe eliminarán también las horas/actividades registradas para este proyecto. Esta acción no se puede deshacer.`
+    );
+    if (!okConfirm) return;
+    try {
+      await controlProyectosService.eliminarProyecto(p.id);
+      toast.success('Proyecto eliminado.');
+      if (proyectoEditId === p.id) resetProyForm();
+      await cargarProyectosTodos();
+      await cargarMisProyectos();
+      await cargarActividades();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo eliminar el proyecto.');
+    }
+  };
+
   const abrirEditActividad = (a) => {
     setActividadEditId(a.id);
     setActForm({
@@ -536,7 +554,11 @@ const ControlProyectos = () => {
                         <th className="px-4 py-2 text-left">Consultores</th>
                         <th className="px-4 py-2 text-right">Hrs.</th>
                         <th className="px-4 py-2 text-left">Estado</th>
-                        {puedeProy && <th className="px-4 py-2 text-left w-28">Acción</th>}
+                        {puedeProy && (
+                          <th className="px-4 py-2 text-left whitespace-nowrap min-w-[8.5rem]">
+                            Acción
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -552,13 +574,22 @@ const ControlProyectos = () => {
                           <td className="px-4 py-2">{labelEstProy(p.estado)}</td>
                           {puedeProy && (
                             <td className="px-4 py-2">
-                              <button
-                                type="button"
-                                className="text-indigo-600 text-xs font-medium hover:underline"
-                                onClick={() => abrirEditProyecto(p)}
-                              >
-                                Editar
-                              </button>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <button
+                                  type="button"
+                                  className="text-indigo-600 text-xs font-medium hover:underline"
+                                  onClick={() => abrirEditProyecto(p)}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-rose-600 text-xs font-medium hover:underline"
+                                  onClick={() => eliminarProyectoFila(p)}
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
                             </td>
                           )}
                         </tr>

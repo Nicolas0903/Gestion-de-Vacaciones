@@ -252,6 +252,11 @@ class ControlProyecto {
     return r.affectedRows > 0;
   }
 
+  static async eliminarProyecto(id) {
+    const [r] = await pool.execute(`DELETE FROM cp_proyectos WHERE id = ?`, [id]);
+    return r.affectedRows > 0;
+  }
+
   static async listarActividades({ empleadoId, verTodos, proyectoId }) {
     let sql = `
       SELECT a.*,

@@ -180,6 +180,33 @@ const actualizarProyecto = async (req, res) => {
   }
 };
 
+const eliminarProyecto = async (req, res) => {
+  if (!puedeGestionProyectos(req.usuario)) {
+    return res.status(403).json({ success: false, mensaje: 'Sin permiso para eliminar proyectos.' });
+  }
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id < 1) {
+      return res.status(400).json({ success: false, mensaje: 'ID de proyecto no válido.' });
+    }
+    const ok = await ControlProyecto.eliminarProyecto(id);
+    if (!ok) {
+      return res.status(404).json({ success: false, mensaje: 'Proyecto no encontrado.' });
+    }
+    res.json({ success: true, mensaje: 'Proyecto eliminado.' });
+  } catch (e) {
+    console.error(e);
+    if (sqlMissing(e.sqlMessage || e.message)) {
+      return res.status(503).json({
+        success: false,
+        mensaje:
+          'Falta crear las tablas de Control de Proyectos en la base de datos. Ejecuta backend/sql/control_proyectos.sql'
+      });
+    }
+    res.status(500).json({ success: false, mensaje: 'Error al eliminar el proyecto.' });
+  }
+};
+
 const listarActividades = async (req, res) => {
   try {
     const proyectoId = req.query.proyecto_id ? parseInt(req.query.proyecto_id, 10) : null;
@@ -384,6 +411,7 @@ module.exports = {
   misProyectos,
   crearProyecto,
   actualizarProyecto,
+  eliminarProyecto,
   listarActividades,
   crearActividad,
   actualizarActividad,

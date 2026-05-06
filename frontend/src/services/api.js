@@ -230,6 +230,7 @@ export const controlProyectosService = {
   misProyectos: () => api.get('/control-proyectos/mis-proyectos'),
   crearProyecto: (body) => api.post('/control-proyectos/proyectos', body),
   actualizarProyecto: (id, body) => api.put(`/control-proyectos/proyectos/${id}`, body),
+  eliminarProyecto: (id) => api.delete(`/control-proyectos/proyectos/${id}`),
   listarActividades: (params) => api.get('/control-proyectos/actividades', { params }),
   crearActividad: (body) => api.post('/control-proyectos/actividades', body),
   actualizarActividad: (id, body) => api.put(`/control-proyectos/actividades/${id}`, body),
