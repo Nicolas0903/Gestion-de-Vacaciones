@@ -513,7 +513,7 @@ class ControlProyecto {
            pc.proyecto_id,
            GROUP_CONCAT(
              DISTINCT CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos))
-             ORDER BY e.apellidos, e.nombres SEPARATOR ', '
+             SEPARATOR ', '
            ) AS consultores_nombres
          FROM cp_proyecto_consultores pc
          INNER JOIN empleados e ON e.id = pc.empleado_id
@@ -533,12 +533,12 @@ class ControlProyecto {
     );
 
     const [consultoresRows] = await pool.execute(
-      `SELECT DISTINCT
-         CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo
+      `SELECT CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo
        FROM cp_proyecto_consultores pc
        INNER JOIN empleados e ON e.id = pc.empleado_id
        INNER JOIN cp_proyectos p ON p.id = pc.proyecto_id
        WHERE ${filtroProyecto}
+       GROUP BY e.id, e.nombres, e.apellidos
        ORDER BY e.apellidos, e.nombres`,
       [scope, emp]
     );
