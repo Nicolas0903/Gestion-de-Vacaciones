@@ -235,6 +235,7 @@ export const controlProyectosService = {
   crearActividad: (body) => api.post('/control-proyectos/actividades', body),
   actualizarActividad: (id, body) => api.put(`/control-proyectos/actividades/${id}`, body),
   reporteDashboard: () => api.get('/control-proyectos/reporte'),
+  reporteProyectosVistaBi: () => api.get('/control-proyectos/reporte/proyectos-bi'),
   listarCostosHora: () => api.get('/control-proyectos/costo-hora'),
   guardarCostoHora: (empleadoId, costoPorHora) =>
     api.put(`/control-proyectos/costo-hora/${empleadoId}`, { costo_por_hora: costoPorHora })

@@ -125,7 +125,10 @@ const Portal = () => {
       link: '/control-proyectos',
       activo: true,
       adminLink: '/admin/control-proyectos-costo-hora',
-      extraLinks: [{ to: '/control-proyectos/reporte', label: 'Reporte BI' }]
+      extraLinks: [
+        { to: '/control-proyectos/reporte', label: 'Reporte BI' },
+        { to: '/control-proyectos/reporte/proyectos', label: 'Vista proyectos' }
+      ]
     });
   }
 

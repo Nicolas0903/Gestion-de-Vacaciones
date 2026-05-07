@@ -404,6 +404,27 @@ const reporteDashboard = async (req, res) => {
   }
 };
 
+const reporteProyectosVistaBi = async (req, res) => {
+  try {
+    const verTodo = puedeGestionProyectos(req.usuario);
+    const data = await ControlProyecto.reporteProyectosVistaBi({
+      verTodo,
+      empleadoId: req.usuario.id
+    });
+    res.json({ success: true, data });
+  } catch (e) {
+    console.error(e);
+    if (sqlMissing(e.sqlMessage || e.message)) {
+      return res.status(503).json({
+        success: false,
+        mensaje:
+          'Falta crear o actualizar las tablas de Control de Proyectos (incl. cp_proyecto_consultores). Ver backend/sql/'
+      });
+    }
+    res.status(500).json({ success: false, mensaje: 'Error al generar el reporte de proyectos.' });
+  }
+};
+
 module.exports = {
   puedeGestionProyectos,
   consultoresParaProyectos,
@@ -418,6 +439,7 @@ module.exports = {
   listarCostosHora,
   upsertCostoHora,
   reporteDashboard,
+  reporteProyectosVistaBi,
   EMAIL_VERONICA_CP,
   etiquetasCatalogo: () => ({
     estados_proyecto: [...ESTADOS_PROYECTO],

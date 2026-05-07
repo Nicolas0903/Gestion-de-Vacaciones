@@ -65,6 +65,21 @@ const ControlProyectosReporte = () => {
         </Link>
       </div>
 
+      <div className="flex flex-wrap gap-2 mb-6">
+        <Link
+          to="/control-proyectos/reporte"
+          className="rounded-full px-4 py-1.5 text-sm font-medium border border-transparent bg-indigo-600 text-white shadow-sm shadow-indigo-500/25"
+        >
+          Resumen
+        </Link>
+        <Link
+          to="/control-proyectos/reporte/proyectos"
+          className="rounded-full px-4 py-1.5 text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+        >
+          Proyectos
+        </Link>
+      </div>
+
       <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-500/25 shrink-0">

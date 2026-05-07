@@ -469,6 +469,106 @@ class ControlProyecto {
       alcance: verTodo ? 'todos' : 'mis_proyectos_asignados'
     };
   }
+
+  /**
+   * Lista de proyectos y agregados para vista «Proyectos» (consumidas vs bolsa, horas por empresa, consultores).
+   * Mismo alcance que reporteDashboard (gestión = todos; colaborador = asignaciones en cp_proyecto_consultores).
+   */
+  static async reporteProyectosVistaBi({ verTodo, empleadoId }) {
+    const scope = verTodo ? 1 : 0;
+    const emp = empleadoId;
+
+    const filtroProyecto = `(
+      ? = 1 OR EXISTS (
+        SELECT 1 FROM cp_proyecto_consultores pc
+        WHERE pc.proyecto_id = p.id AND pc.empleado_id = ?
+      )
+    )`;
+
+    const [proyectosRows] = await pool.execute(
+      `SELECT
+         p.id,
+         p.empresa,
+         p.proyecto,
+         p.fecha_inicio,
+         p.fecha_fin,
+         p.estado,
+         CAST(p.horas_asignadas AS DECIMAL(14, 4)) AS horas_asignadas,
+         CAST(COALESCE(ac.horas_consumidas, 0) AS DECIMAL(14, 4)) AS horas_consumidas,
+         COALESCE(pa.num_actividades, 0) AS num_actividades,
+         cns.consultores_nombres AS consultores_nombres
+       FROM cp_proyectos p
+       LEFT JOIN (
+         SELECT proyecto_id, SUM(horas_trabajadas) AS horas_consumidas
+         FROM cp_actividades
+         GROUP BY proyecto_id
+       ) ac ON ac.proyecto_id = p.id
+       LEFT JOIN (
+         SELECT proyecto_id, COUNT(*) AS num_actividades
+         FROM cp_actividades
+         GROUP BY proyecto_id
+       ) pa ON pa.proyecto_id = p.id
+       LEFT JOIN (
+         SELECT
+           pc.proyecto_id,
+           GROUP_CONCAT(
+             DISTINCT CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos))
+             ORDER BY e.apellidos, e.nombres SEPARATOR ', '
+           ) AS consultores_nombres
+         FROM cp_proyecto_consultores pc
+         INNER JOIN empleados e ON e.id = pc.empleado_id
+         GROUP BY pc.proyecto_id
+       ) cns ON cns.proyecto_id = p.id
+       WHERE ${filtroProyecto}
+       ORDER BY p.empresa ASC, p.proyecto ASC`,
+      [scope, emp]
+    );
+
+    const [avgRow] = await pool.execute(
+      `SELECT CAST(AVG(a.horas_trabajadas) AS DECIMAL(14, 4)) AS horas_promedio_actividad
+       FROM cp_actividades a
+       INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
+       WHERE ${filtroProyecto}`,
+      [scope, emp]
+    );
+
+    const [consultoresRows] = await pool.execute(
+      `SELECT DISTINCT
+         CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo
+       FROM cp_proyecto_consultores pc
+       INNER JOIN empleados e ON e.id = pc.empleado_id
+       INNER JOIN cp_proyectos p ON p.id = pc.proyecto_id
+       WHERE ${filtroProyecto}
+       ORDER BY e.apellidos, e.nombres`,
+      [scope, emp]
+    );
+
+    const proyectos = proyectosRows.map((row) => {
+      const bolsa = Number(row.horas_asignadas) || 0;
+      const cons = Number(row.horas_consumidas) || 0;
+      const rest = bolsa - cons;
+      return {
+        ...row,
+        horas_asignadas: bolsa,
+        horas_consumidas: cons,
+        horas_restantes: rest,
+        num_actividades: Number(row.num_actividades) || 0,
+        pct_consumido_bolsa:
+          bolsa > 0 ? Math.round((cons / bolsa) * 10000) / 100 : cons > 0 ? 100 : 0,
+        pct_restante_bolsa: bolsa > 0 ? Math.round((Math.max(rest, 0) / bolsa) * 10000) / 100 : 0
+      };
+    });
+
+    const rawAvg = avgRow[0]?.horas_promedio_actividad;
+    const horasProm = rawAvg != null ? Number(rawAvg) : 0;
+
+    return {
+      alcance: verTodo ? 'todos' : 'mis_proyectos_asignados',
+      horas_promedio_actividad: Number.isFinite(horasProm) ? Math.round(horasProm * 100) / 100 : 0,
+      consultores_catalogo: consultoresRows.map((r) => r.nombre_completo).filter(Boolean),
+      proyectos
+    };
+  }
 }
 
 module.exports = ControlProyecto;
