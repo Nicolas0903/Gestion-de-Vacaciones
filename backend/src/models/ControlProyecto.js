@@ -608,8 +608,8 @@ class ControlProyecto {
     }
     const filtroExtraProySuffix = filtroExtraProySql.length ? `AND ${filtroExtraProySql.join(' AND ')}` : '';
 
-    const whereActividades = `
-      WHERE ${filtroProyecto}
+    const condicionesActividades = `
+      ${filtroProyecto}
       ${filtroExtraProySuffix}
       AND DATE(a.fecha_hora_fin) BETWEEN ? AND ?
       AND a.fecha_hora_fin IS NOT NULL
@@ -633,7 +633,7 @@ class ControlProyecto {
       `SELECT CAST(COALESCE(SUM(a.horas_trabajadas), 0) AS DECIMAL(16, 4)) AS horas_consumidas_total
        FROM cp_actividades a
        INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
-       WHERE ${whereActividades.trim()}`,
+       WHERE ${condicionesActividades.trim()}`,
       paramsActs
     );
 
@@ -641,7 +641,7 @@ class ControlProyecto {
       `SELECT COUNT(DISTINCT DATE(a.fecha_hora_fin)) AS dias_distintos_fin
        FROM cp_actividades a
        INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
-       WHERE ${whereActividades.trim()}`,
+       WHERE ${condicionesActividades.trim()}`,
       paramsActs
     );
 
@@ -662,7 +662,7 @@ class ControlProyecto {
        FROM cp_actividades a
        INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
        INNER JOIN empleados ec ON ec.id = a.consultor_asignado_id
-       WHERE ${whereActividades.trim()}
+       WHERE ${condicionesActividades.trim()}
        ORDER BY a.fecha_hora_fin DESC, a.id DESC`,
       paramsActs
     );
