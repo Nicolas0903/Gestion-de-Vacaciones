@@ -10,6 +10,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { REEMBOLSOS_MAX_UPLOAD_MB, REEMBOLSOS_MAX_FILE_BYTES } from '../config/reembolsosUpload';
 import { reembolsoService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
 
@@ -287,6 +288,12 @@ const GestionReembolsos = () => {
     }
     if (editar.tiene_comprobante && !String(formEdit.numero_documento).trim()) {
       toast.error('Indique el número de documento (factura).');
+      return;
+    }
+    if (archivoReemplazo && archivoReemplazo.size > REEMBOLSOS_MAX_FILE_BYTES) {
+      toast.error(
+        `Supera los ${REEMBOLSOS_MAX_UPLOAD_MB} MB permitidos (${(archivoReemplazo.size / (1024 * 1024)).toFixed(1)} MB). Comprímalo e inténtelo de nuevo.`
+      );
       return;
     }
     setProcesando(true);
@@ -843,6 +850,7 @@ const GestionReembolsos = () => {
                       className="text-xs w-full"
                       onChange={(e) => setArchivoReemplazo(e.target.files?.[0] || null)}
                     />
+                    <p className="text-[11px] text-slate-500 mt-1">Máx. {REEMBOLSOS_MAX_UPLOAD_MB} MB.</p>
                   </div>
                 </>
               )}

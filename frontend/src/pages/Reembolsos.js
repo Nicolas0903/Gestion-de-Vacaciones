@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { BanknotesIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { reembolsoService } from '../services/api';
+import { REEMBOLSOS_MAX_UPLOAD_MB, REEMBOLSOS_MAX_FILE_BYTES } from '../config/reembolsosUpload';
 import { formatoFechaDMY, formatoFechaHoraDMY } from '../utils/dateUtils';
 
 const metodoLabel = (m) =>
@@ -113,6 +114,12 @@ const Reembolsos = () => {
     }
     if (tieneComprobante && !archivo) {
       toast.error('Adjunte el comprobante.');
+      return;
+    }
+    if (tieneComprobante && archivo && archivo.size > REEMBOLSOS_MAX_FILE_BYTES) {
+      toast.error(
+        `El archivo supera los ${REEMBOLSOS_MAX_UPLOAD_MB} MB permitidos (${(archivo.size / (1024 * 1024)).toFixed(1)} MB). Comprímalo e inténtelo de nuevo.`
+      );
       return;
     }
     const montoNum = parseFloat(String(monto).replace(',', '.')) || 0;
@@ -305,6 +312,10 @@ const Reembolsos = () => {
                   className="text-sm text-slate-600"
                   onChange={(e) => setArchivo(e.target.files?.[0] || null)}
                 />
+                <p className="text-xs text-slate-500 mt-1">
+                  Tamaño máximo <strong className="font-medium text-slate-600">{REEMBOLSOS_MAX_UPLOAD_MB} MB</strong>. Formatos:
+                  PDF, imagen (JPG, PNG, GIF) o Word.
+                </p>
               </div>
             </>
           )}

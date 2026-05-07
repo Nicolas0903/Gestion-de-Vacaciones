@@ -5,6 +5,7 @@ const fs = require('fs');
 const { autenticar, verificarRol } = require('../middleware/auth');
 const { soloAprobadorReembolsos } = require('../middleware/reembolsosAprobador');
 const reembolsoController = require('../controllers/reembolsoController');
+const { REEMBOLSOS_MAX_FILE_BYTES } = require('../config/reembolsosUpload');
 
 const router = express.Router();
 
@@ -41,7 +42,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: REEMBOLSOS_MAX_FILE_BYTES }
 });
 
 router.post('/', autenticar, upload.single('comprobante'), reembolsoController.crear);
