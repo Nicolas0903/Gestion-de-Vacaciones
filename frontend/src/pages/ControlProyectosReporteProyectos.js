@@ -164,7 +164,7 @@ const ControlProyectosReporteProyectos = () => {
   }, [filtered]);
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full max-w-none">
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <Link
           to="/portal"

@@ -175,7 +175,7 @@ const ControlProyectosReporteActividades = () => {
   const labelEst = (k) => EST_ACT.find((x) => x.value === k)?.label || k;
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full max-w-none">
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <Link
           to="/portal"
@@ -342,7 +342,7 @@ const ControlProyectosReporteActividades = () => {
                     </td>
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{labelReq(a.requerido_por)}</td>
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{a.consultor_nombre}</td>
-                    <td className="px-3 py-2 text-slate-600 max-w-md">{a.descripcion_actividad}</td>
+                    <td className="px-3 py-2 text-slate-600 min-w-[260px] whitespace-normal align-top">{a.descripcion_actividad}</td>
                     <td className="px-3 py-2 text-slate-700">{labelPri(a.prioridad)}</td>
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap font-mono text-xs">{fmtInicio(a.fecha_hora_inicio)}</td>
                     <td className="px-3 py-2 text-right tabular-nums font-medium text-slate-800">

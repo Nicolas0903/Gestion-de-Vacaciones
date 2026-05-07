@@ -218,7 +218,7 @@ function AppRoutes() {
       <Route path="/control-proyectos/reporte/actividades" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
-            <PageWrapper><ControlProyectosReporteActividades /></PageWrapper>
+            <PageWrapper wide><ControlProyectosReporteActividades /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -226,7 +226,7 @@ function AppRoutes() {
       <Route path="/control-proyectos/reporte/proyectos" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
-            <PageWrapper><ControlProyectosReporteProyectos /></PageWrapper>
+            <PageWrapper wide><ControlProyectosReporteProyectos /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -234,7 +234,7 @@ function AppRoutes() {
       <Route path="/control-proyectos/reporte" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
-            <PageWrapper><ControlProyectosReporte /></PageWrapper>
+            <PageWrapper wide><ControlProyectosReporte /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

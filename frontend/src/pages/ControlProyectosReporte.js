@@ -51,7 +51,7 @@ const ControlProyectosReporte = () => {
   const resumen = data?.resumen || {};
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="w-full max-w-none">
       <div className="flex flex-wrap items-center gap-3 mb-8">
         <Link
           to="/portal"
