@@ -114,7 +114,7 @@ const ControlProyectosReporteProyectos = () => {
     return { total: filtered.length, ...cnt };
   }, [filtered]);
 
- = useMemo(() => {
+  const horasPorEmpresa = useMemo(() => {
     const m = new Map();
     for (const p of filtered) {
       const e = (p.empresa || 'Sin empresa').trim() || 'Sin empresa';
