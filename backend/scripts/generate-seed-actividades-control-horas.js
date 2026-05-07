@@ -8,7 +8,7 @@
  *
  * Uso:
  *   node backend/scripts/generate-seed-actividades-control-horas.js [ruta/al/archivo.xlsx]
- *   node backend/scripts/generate-seed-actividades-control-horas.js --solo N [ruta.xlsx]
+ *   node backend/scripts/generate-seed-actividades-control-horas.js --out backend/sql/mi_seed.sql libro.xlsx
  *
  * `--solo N` limita a las N primeras filas (pruebas).
  */
@@ -169,10 +169,19 @@ const defaultXlsx = path.join(
 
 const argv = process.argv.slice(2);
 let soloPrimeraN = null;
+/** @type {string | null} */
+let outSqlPath = null;
 const positionalArgs = [];
 for (let ai = 0; ai < argv.length; ai++) {
   if (argv[ai] === '--solo' && argv[ai + 1] != null) {
     soloPrimeraN = parseInt(argv[ai + 1], 10);
+    ai++;
+    continue;
+  }
+  if (argv[ai] === '--out' && argv[ai + 1] != null) {
+    outSqlPath = path.isAbsolute(argv[ai + 1])
+      ? argv[ai + 1]
+      : path.resolve(process.cwd(), argv[ai + 1]);
     ai++;
     continue;
   }
@@ -281,6 +290,6 @@ const sql =
   valueRows.join(',\n') +
   ';\n';
 
-const dest = path.join(__dirname, '../sql/seed_actividades_control_horas.sql');
+const dest = outSqlPath || path.join(__dirname, '../sql/seed_actividades_control_horas.sql');
 fs.writeFileSync(dest, sql, 'utf8');
 console.log('Generado:', dest, `(${rows.length} actividades)`);
