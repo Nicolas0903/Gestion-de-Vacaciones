@@ -383,13 +383,14 @@ const upsertCostoHora = async (req, res) => {
   }
 };
 
-const reporteDashboard = async (req, res) => {
+async function responderReporteCp(req, res, modo) {
   try {
     const verTodo = puedeGestionProyectos(req.usuario);
-    const data = await ControlProyecto.reporteDashboard({
-      verTodo,
-      empleadoId: req.usuario.id
-    });
+    const empleadoId = req.usuario.id;
+    const data =
+      modo === 'proyectos'
+        ? await ControlProyecto.reporteProyectosVistaBi({ verTodo, empleadoId })
+        : await ControlProyecto.reporteDashboard({ verTodo, empleadoId });
     res.json({ success: true, data });
   } catch (e) {
     console.error(e);
@@ -400,30 +401,24 @@ const reporteDashboard = async (req, res) => {
           'Falta crear o actualizar las tablas de Control de Proyectos (incl. cp_proyecto_consultores). Ver backend/sql/'
       });
     }
-    res.status(500).json({ success: false, mensaje: 'Error al generar el reporte.' });
+    res.status(500).json({
+      success: false,
+      mensaje: modo === 'proyectos' ? 'Error al generar el reporte de proyectos.' : 'Error al generar el reporte.'
+    });
   }
+}
+
+/** Query `?vista=proyectos` devuelve el listado por proyecto (tabla cp_proyectos + agregados de actividades). */
+const reporteDashboard = async (req, res) => {
+  const vista = String(req.query.vista || '').trim().toLowerCase();
+  if (vista === 'proyectos') {
+    return responderReporteCp(req, res, 'proyectos');
+  }
+  return responderReporteCp(req, res, 'resumen');
 };
 
-const reporteProyectosVistaBi = async (req, res) => {
-  try {
-    const verTodo = puedeGestionProyectos(req.usuario);
-    const data = await ControlProyecto.reporteProyectosVistaBi({
-      verTodo,
-      empleadoId: req.usuario.id
-    });
-    res.json({ success: true, data });
-  } catch (e) {
-    console.error(e);
-    if (sqlMissing(e.sqlMessage || e.message)) {
-      return res.status(503).json({
-        success: false,
-        mensaje:
-          'Falta crear o actualizar las tablas de Control de Proyectos (incl. cp_proyecto_consultores). Ver backend/sql/'
-      });
-    }
-    res.status(500).json({ success: false, mensaje: 'Error al generar el reporte de proyectos.' });
-  }
-};
+/** Alias explícito (misma respuesta que /reporte?vista=proyectos). */
+const reporteProyectosVistaBi = async (req, res) => responderReporteCp(req, res, 'proyectos');
 
 module.exports = {
   puedeGestionProyectos,
