@@ -1,4 +1,10 @@
--- Importación Oscar → cp_actividades (93 filas, Data Proyectos Oscar.xlsx). Copia también en seed_actividades_data_proyectos_oscar.sql.
+-- =============================================================================
+-- Data Proyectos Oscar.xlsx → cp_actividades (93 filas).
+-- No re-ejecutar si ya importaste este lote (generaría actividades duplicadas).
+-- Ajustes automáticos: si en Excel fecha fin < inicio o medianoche inválida, el script suma horas o +1 min (chk_cp_act_fechas).
+-- Requiere proyectos del seed cp_proyectos y empleado Oscar en empleados. Ajustá USE nombre_bd si tu MySQL usa otro esquema.
+-- =============================================================================
+-- Importación de actividades → cp_actividades (origen: Data Proyectos Oscar.xlsx, hoja «Hoja1»)
 -- Requisitos: proyectos ya existentes en cp_proyectos y empleados consultores cargados.
 -- Si falta proyecto o empleado, la fila fallará por FK/subconsulta NULL.
 -- Filas donde en Excel «fin» < «inicio» (o medianoche huérfana): se corrige automáticamente sumando las horas del registro o +1 min (script).

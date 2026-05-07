@@ -3,6 +3,8 @@
  * Lee un Excel con las columnas típicas del registro de horas (Proyecto, Requerido por, etc.).
  *
  * Por defecto usa: %USERPROFILE%/Downloads/Migracion 1.xlsx
+ * Ejemplo Data Proyectos Oscar.xlsx:
+ *   node backend/scripts/generate-seed-actividades-control-horas.js "%USERPROFILE%/Downloads/Data Proyectos Oscar.xlsx"
  *
  * Uso:
  *   node backend/scripts/generate-seed-actividades-control-horas.js [ruta/al/archivo.xlsx]
