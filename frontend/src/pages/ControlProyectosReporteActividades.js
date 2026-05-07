@@ -4,7 +4,8 @@ import toast from 'react-hot-toast';
 import {
   ArrowLeftIcon,
   TableCellsIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -82,6 +83,7 @@ const ControlProyectosReporteActividades = () => {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
   const [finDesde, setFinDesde] = useState(defs.desde);
   const [finHasta, setFinHasta] = useState(defs.hasta);
   const [proyectoId, setProyectoId] = useState('');
@@ -104,6 +106,44 @@ const ControlProyectosReporteActividades = () => {
       toast.error(e.response?.data?.mensaje || 'Error al cargar reporte');
     } finally {
       setLoading(false);
+    }
+  }, [finDesde, finHasta, proyectoId, empresaSel]);
+
+  const exportarPdf = useCallback(async () => {
+    setExportandoPdf(true);
+    try {
+      const params = {
+        fecha_fin_desde: finDesde,
+        fecha_fin_hasta: finHasta
+      };
+      if (proyectoId) params.proyecto_id = proyectoId;
+      if (empresaSel !== 'Todas' && empresaSel) params.empresa = empresaSel;
+
+      const res = await controlProyectosService.reporteActividadesPdf(params);
+      const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reporte-actividades-cp_${finDesde}_${finHasta}.pdf`;
+      a.click();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+      toast.success('PDF descargado.');
+    } catch (e) {
+      let msg = 'No se pudo generar el PDF.';
+      const d = e.response?.data;
+      if (typeof e.response?.data?.mensaje === 'string') {
+        msg = e.response.data.mensaje;
+      } else if (d instanceof Blob) {
+        try {
+          const j = JSON.parse(await d.text());
+          if (j?.mensaje) msg = j.mensaje;
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      toast.error(msg);
+    } finally {
+      setExportandoPdf(false);
     }
   }, [finDesde, finHasta, proyectoId, empresaSel]);
 
@@ -231,6 +271,15 @@ const ControlProyectosReporteActividades = () => {
               >
                 <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Actualizar
+              </button>
+              <button
+                type="button"
+                onClick={() => exportarPdf()}
+                disabled={loading || exportandoPdf}
+                className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold text-white border border-slate-500 disabled:opacity-50"
+              >
+                <DocumentArrowDownIcon className="w-4 h-4" />
+                Exportar PDF
               </button>
             </div>
           </div>

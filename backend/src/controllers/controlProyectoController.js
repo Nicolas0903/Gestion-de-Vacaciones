@@ -1,4 +1,5 @@
 const ControlProyecto = require('../models/ControlProyecto');
+const PDFService = require('../services/pdfService');
 
 const EMAIL_VERONICA_CP =
   (process.env.CONTROL_PROYECTOS_VERONICA_EMAIL || 'veronica.gonzales@prayaga.biz').toLowerCase().trim();
@@ -83,6 +84,40 @@ function defaultRangoFechaFinUltimosNoventa() {
     return `${y}-${mo}-${da}`;
   };
   return { desde: p(desde), hasta: p(hasta) };
+}
+
+/** Mismos filtros que `reporteActividadesCp` (`YYYY-MM-DD` / proyecto / empresa). */
+function parseQueryReporteActividades(req) {
+  let desde = parseFechaSoloDia(req.query.fecha_fin_desde);
+  let hasta = parseFechaSoloDia(req.query.fecha_fin_hasta);
+  if (!desde || !hasta) {
+    const def = defaultRangoFechaFinUltimosNoventa();
+    desde = desde || def.desde;
+    hasta = hasta || def.hasta;
+  }
+  if (desde > hasta) {
+    const t = desde;
+    desde = hasta;
+    hasta = t;
+  }
+
+  const rawPid = req.query.proyecto_id;
+  const proyectoIdParsed =
+    rawPid !== undefined && rawPid !== null && String(rawPid).trim() !== ''
+      ? parseInt(String(rawPid), 10)
+      : null;
+  const proyectoId =
+    Number.isFinite(proyectoIdParsed) && proyectoIdParsed > 0 ? proyectoIdParsed : null;
+
+  const empresaTrim = req.query.empresa != null ? String(req.query.empresa).trim() : '';
+
+  return { desde, hasta, proyectoId, empresaTrim };
+}
+
+function formatoFechaReporteDdMmYyyy(ymd) {
+  if (!ymd || typeof ymd !== 'string') return '—';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : ymd.slice(0, 10);
 }
 
 const consultoresParaProyectos = async (req, res) => {
@@ -432,28 +467,7 @@ async function responderReporteCp(req, res, modo) {
 
 const reporteActividadesCp = async (req, res) => {
   try {
-    let desde = parseFechaSoloDia(req.query.fecha_fin_desde);
-    let hasta = parseFechaSoloDia(req.query.fecha_fin_hasta);
-    if (!desde || !hasta) {
-      const def = defaultRangoFechaFinUltimosNoventa();
-      desde = desde || def.desde;
-      hasta = hasta || def.hasta;
-    }
-    if (desde > hasta) {
-      const t = desde;
-      desde = hasta;
-      hasta = t;
-    }
-
-    const rawPid = req.query.proyecto_id;
-    const proyectoIdParsed =
-      rawPid !== undefined && rawPid !== null && String(rawPid).trim() !== ''
-        ? parseInt(String(rawPid), 10)
-        : null;
-    const proyectoIdFinal =
-      Number.isFinite(proyectoIdParsed) && proyectoIdParsed > 0 ? proyectoIdParsed : null;
-
-    const empresaTrim = req.query.empresa != null ? String(req.query.empresa).trim() : '';
+    const { desde, hasta, proyectoId: proyectoIdFinal, empresaTrim } = parseQueryReporteActividades(req);
 
     const verTodo = puedeGestionProyectos(req.usuario);
     const data = await ControlProyecto.reporteActividadesVistaBi({
@@ -475,6 +489,68 @@ const reporteActividadesCp = async (req, res) => {
       });
     }
     res.status(500).json({ success: false, mensaje: 'Error al generar el reporte de actividades.' });
+  }
+};
+
+const reporteActividadesPdfCp = async (req, res) => {
+  try {
+    const { desde, hasta, proyectoId, empresaTrim } = parseQueryReporteActividades(req);
+
+    const verTodo = puedeGestionProyectos(req.usuario);
+    const data = await ControlProyecto.reporteActividadesVistaBi({
+      verTodo,
+      empleadoId: req.usuario.id,
+      proyectoId,
+      empresa: empresaTrim === '' ? null : empresaTrim,
+      fechaFinDesde: desde,
+      fechaFinHasta: hasta
+    });
+
+    let proyectoFiltroLabel = 'Todas';
+    if (proyectoId) {
+      const p = (data.proyectos_opciones || []).find((x) => Number(x.id) === proyectoId);
+      proyectoFiltroLabel = p ? `${p.empresa} — ${p.proyecto}` : `Proyecto id ${proyectoId}`;
+    }
+    const empresaFiltroLabel = empresaTrim === '' ? 'Todas' : empresaTrim;
+
+    const u = req.usuario;
+    const generadoPorNombre =
+      [u.nombres, u.apellidos].filter(Boolean).join(' ').trim() || u.email || '—';
+
+    const alcanceLinea =
+      data.alcance === 'todos'
+        ? 'Alcance administración.'
+        : 'Alcance solo actividades donde usted es el consultor asignado.';
+
+    const acts = Array.isArray(data.actividades) ? data.actividades : [];
+    const totalHorasLista = Math.round(acts.reduce((s, r) => s + (Number(r.horas_trabajadas) || 0), 0) * 100) / 100;
+
+    const pdfBuffer = await PDFService.generarReporteActividadesControlProyectos({
+      generadoPorNombre,
+      proyectoFiltroLabel,
+      empresaFiltroLabel,
+      fechaFinDesdeLabel: formatoFechaReporteDdMmYyyy(desde),
+      fechaFinHastaLabel: formatoFechaReporteDdMmYyyy(hasta),
+      alcanceLinea,
+      kpis: data.kpis,
+      actividades: acts,
+      totalHorasLista
+    });
+
+    const safeName = `reporte-actividades-cp_${desde}_${hasta}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+    res.send(pdfBuffer);
+  } catch (e) {
+    console.error(e);
+    if (sqlMissing(e.sqlMessage || e.message)) {
+      return res.status(503).json({
+        success: false,
+        mensaje:
+          'Falta crear o actualizar las tablas de Control de Proyectos (incl. cp_proyecto_consultores). Ver backend/sql/'
+      });
+    }
+    res.status(500).json({ success: false, mensaje: 'Error al generar el PDF del reporte de actividades.' });
   }
 };
 
@@ -508,6 +584,7 @@ module.exports = {
   upsertCostoHora,
   reporteDashboard,
   reporteProyectosVistaBi,
+  reporteActividadesPdfCp,
   EMAIL_VERONICA_CP,
   etiquetasCatalogo: () => ({
     estados_proyecto: [...ESTADOS_PROYECTO],

@@ -22,6 +22,8 @@ router.get('/actividades', ctrl.listarActividades);
 router.post('/actividades', ctrl.crearActividad);
 router.put('/actividades/:id', ctrl.actualizarActividad);
 
+router.get('/reporte/actividades/pdf', ctrl.reporteActividadesPdfCp);
+
 router.get('/reporte', ctrl.reporteDashboard);
 router.get('/reporte/proyectos-bi', ctrl.reporteProyectosVistaBi);
 router.get('/costo-hora', verificarRol('admin'), ctrl.listarCostosHora);

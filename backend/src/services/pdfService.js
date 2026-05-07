@@ -519,6 +519,236 @@ class PDFService {
   }
 
   /**
+   * Reporte PDF tipo «caja chica»: encabezado Prayaga, filtros, KPIs y tabla detalle (horizontal A4).
+   */
+  static generarReporteActividadesControlProyectos(payload) {
+    const REQ = {
+      ricardo_martinez: 'Ricardo Martínez',
+      rodrigo_loayza: 'Rodrigo Loayza',
+      juan_pena: 'Juan Peña',
+      magali_sevillano: 'Magali Sevillano',
+      enrique_agapito: 'Enrique Agapito'
+    };
+    const PRI = { baja: 'Bajo', media: 'Medio', alta: 'Alta' };
+    const EST = { no_iniciado: 'No iniciado', en_progreso: 'En progreso', cerrado: 'Cerrado' };
+    function fmtDt(v) {
+      if (v == null || v === '') return '—';
+      const mo = moment(v);
+      return mo.isValid() ? mo.format('DD/MM/YYYY hh:mm:ss a') : String(v).slice(0, 22);
+    }
+    function fmtN2(x) {
+      const n = Number(x);
+      return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+    }
+    function trunc(s, max) {
+      const t = String(s || '').replace(/\s+/g, ' ');
+      return t.length > max ? `${t.slice(0, Math.max(0, max - 3))}...` : t;
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        const {
+          generadoPorNombre,
+          proyectoFiltroLabel,
+          empresaFiltroLabel,
+          fechaFinDesdeLabel,
+          fechaFinHastaLabel,
+          alcanceLinea,
+          kpis,
+          actividades,
+          totalHorasLista
+        } = payload;
+
+        const pageW = 841.89;
+        const pageH = 595.28;
+        const m = 40;
+        const contentW = pageW - m * 2;
+
+        const doc = new PDFDocument({
+          margins: { top: m, bottom: m, left: m, right: m },
+          size: [pageW, pageH]
+        });
+        const buffers = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => resolve(Buffer.concat(buffers)));
+
+        let y = m;
+
+        const logoPath = path.join(__dirname, '../assets/logo.png');
+        if (fs.existsSync(logoPath)) {
+          doc.image(logoPath, m, y, { width: 86 });
+        } else {
+          doc.fontSize(12).font('Helvetica-Bold').fillColor('#0d9488').text('PRAYAGA', m, y + 8);
+        }
+        doc.fontSize(8).font('Helvetica').fillColor('#64748b')
+          .text('Portal Prayaga · Control de proyectos · Actividades / registro de horas', m + 96, y + 22);
+        y += 72;
+
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#0f172a')
+          .text('Reporte: Actividades / registro de horas', m, y, { width: contentW, align: 'center' });
+        y += 22;
+        doc.fontSize(9).font('Helvetica').fillColor('#334155');
+        doc.text(`Proyecto: ${proyectoFiltroLabel || '—'}`, m, y);
+        doc.text(`Empresa: ${empresaFiltroLabel || '—'}`, m + 280, y);
+        y += 14;
+        doc.text(`Rango fecha y hora de fin (inclusive por día): ${fechaFinDesdeLabel} → ${fechaFinHastaLabel}`, m, y, {
+          width: contentW
+        });
+        y += 13;
+        doc.fontSize(8).fillColor('#64748b')
+          .text(alcanceLinea || '', m, y, { width: contentW });
+        y += 16;
+        doc.text(
+          `Generado por: ${generadoPorNombre || '—'} · ${moment().format('DD/MM/YYYY HH:mm')}`,
+          m,
+          y,
+          { width: contentW }
+        );
+        y += 22;
+
+        const kGap = 8;
+        const kW = (contentW - kGap * 3) / 4;
+        const kpiDef = [
+          {
+            tit: 'TOTAL DE HORAS ASIGNADAS',
+            val: fmtN2(kpis?.horas_asignadas_total),
+            sub: 'Bolsa de proyectos en filtro no limitada por el rango',
+            fill: '#16a34a'
+          },
+          {
+            tit: 'TOTAL DE HORAS CONSUMIDAS',
+            val: fmtN2(kpis?.horas_consumidas_total),
+            sub: 'Suma de horas trabajadas (actividades dentro del filtro por fin)',
+            fill: '#0f766e'
+          },
+          {
+            tit: 'TOTAL DE HORAS RESTANTES',
+            val: fmtN2(kpis?.horas_restantes_total),
+            sub: 'Asignadas − consumidas (mismo criterio de KPIs)',
+            fill: '#14b8a6'
+          },
+          {
+            tit: 'HORAS PROMEDIO TRABAJADAS POR DÍA',
+            val: fmtN2(kpis?.horas_promedio_trabajadas_por_dia),
+            sub: `Consumidas ÷ días distintos con fin en rango (${kpis?.dias_con_actividad_en_rango ?? 0} días)`,
+            fill: '#0284c7'
+          }
+        ];
+        for (let ki = 0; ki < 4; ki++) {
+          const k = kpiDef[ki];
+          const x0 = m + ki * (kW + kGap);
+          doc.roundedRect(x0, y, kW, 62, 3).fillAndStroke(k.fill, '#e2e8f0');
+          doc.fontSize(6).font('Helvetica-Bold').fillColor('#ffffff').text(k.tit, x0 + 6, y + 5, { width: kW - 12 });
+          doc.fontSize(12).font('Helvetica-Bold').fillColor('#ffffff').text(k.val, x0 + 6, y + 24, { width: kW - 12 });
+          doc.fontSize(5).font('Helvetica').fillColor('#ecfeff').text(k.sub, x0 + 6, y + 44, { width: kW - 12 });
+        }
+        y += 74;
+
+        const colProj = m;
+        const wProj = 100;
+        const wReq = 58;
+        const wCons = 72;
+        const wDesc = 192;
+        const wPri = 38;
+        const wIni = 96;
+        const wHor = 40;
+        const wFin = 100;
+        const wEst = 48;
+        const xReq = colProj + wProj;
+        const xCons = xReq + wReq;
+        const xDesc = xCons + wCons;
+        const xPri = xDesc + wDesc;
+        const xIni = xPri + wPri;
+        const xHor = xIni + wIni;
+        const xFin = xHor + wHor;
+
+        function pageBreak(nextBlockH = 44) {
+          if (y + nextBlockH > pageH - m) {
+            doc.addPage();
+            y = m;
+            return true;
+          }
+          return false;
+        }
+
+        function drawColumnHeaderRow() {
+          doc.rect(colProj, y, contentW, 16).fillAndStroke('#0f766e', '#0f766e');
+          doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff');
+          doc.text('Proyecto', colProj + 3, y + 4, { width: wProj });
+          doc.text('Req. por', xReq + 2, y + 4, { width: wReq });
+          doc.text('Consultor', xCons + 2, y + 4, { width: wCons });
+          doc.text('Descripción', xDesc + 2, y + 4, { width: wDesc });
+          doc.text('Pr.', xPri + 2, y + 4, { width: wPri });
+          doc.text('Inicio', xIni + 2, y + 4, { width: wIni });
+          doc.text('Horas', xHor + 2, y + 4, { width: wHor, align: 'right' });
+          doc.text('Fin', xFin + 2, y + 4, { width: wFin });
+          doc.text('Estado', xFin + wFin + 2, y + 4, { width: wEst });
+          y += 18;
+        }
+
+        pageBreak(72);
+        drawColumnHeaderRow();
+
+        const rows = Array.isArray(actividades) ? actividades : [];
+        for (let i = 0; i < rows.length; i++) {
+          const a = rows[i];
+          const descTxt = trunc(a.descripcion_actividad, 420);
+          const hDesc = Math.min(
+            36,
+            doc.heightOfString(descTxt, { width: wDesc - 4, align: 'left' }) || 12
+          );
+          const rowH = Math.max(22, Math.ceil(hDesc) + 8);
+          if (pageBreak(rowH + 14)) {
+            drawColumnHeaderRow();
+          }
+
+          const zebra = i % 2 === 0 ? '#f8fafc' : '#ffffff';
+          doc.rect(colProj, y, contentW, rowH).fillAndStroke(zebra, '#e2e8f0');
+
+          const reqLbl = REQ[a.requerido_por] || a.requerido_por || '—';
+          const priLbl = PRI[a.prioridad] || a.prioridad || '—';
+          const estLbl = EST[a.estado_actividad] || a.estado_actividad || '—';
+          doc.fontSize(6).font('Helvetica').fillColor('#0f172a');
+          doc.text(trunc(a.proyecto_nombre, 62), colProj + 3, y + 3, { width: wProj - 4 });
+          doc.text(trunc(reqLbl, 42), xReq + 2, y + 3, { width: wReq - 4 });
+          doc.text(trunc(a.consultor_nombre, 48), xCons + 2, y + 3, { width: wCons - 4 });
+          doc.text(descTxt, xDesc + 2, y + 3, { width: wDesc - 4, lineGap: 0 });
+          doc.text(priLbl, xPri + 2, y + 3, { width: wPri - 4 });
+          doc.fontSize(6).text(fmtDt(a.fecha_hora_inicio), xIni + 2, y + 3, { width: wIni - 4 });
+          doc.text(fmtN2(a.horas_trabajadas), xHor + 2, y + 3, { width: wHor - 8, align: 'right' });
+          doc.text(fmtDt(a.fecha_hora_fin), xFin + 2, y + 3, { width: wFin - 4 });
+          doc.text(estLbl, xFin + wFin + 2, y + 3, { width: wEst - 4 });
+          y += rowH;
+        }
+
+        pageBreak(28);
+        const totCalc = rows.reduce((s, r) => s + (Number(r.horas_trabajadas) || 0), 0);
+        const totShown =
+          totalHorasLista != null && Number.isFinite(Number(totalHorasLista))
+            ? Number(totalHorasLista)
+            : totCalc;
+        doc.rect(colProj, y, contentW, 18).fillAndStroke('#ccfbf1', '#5eead4');
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#115e59')
+          .text(`Total horas trabajadas (lista): ${fmtN2(totShown)}`, m + 6, y + 5, {
+            width: contentW - 12
+          });
+        y += 26;
+
+        doc.fontSize(7).font('Helvetica').fillColor('#94a3b8').text(
+          'Este documento refleja el mismo alcance que el reporte web. El rango usa la fecha de fin de cada actividad.',
+          m,
+          y,
+          { width: contentW, align: 'center' }
+        );
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
    * Añade al PDF las páginas de cada comprobante o recibo Prayaga (orden de reembolsosRows).
    * @returns {boolean} true si se añadió al menos una página de archivo
    */
