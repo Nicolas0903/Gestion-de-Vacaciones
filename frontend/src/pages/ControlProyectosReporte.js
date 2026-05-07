@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { controlProyectosService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import ControlProyectosReporteNav from '../components/ControlProyectosReporteNav';
 
 const ESTADO_PROY = {
   finalizado: 'Finalizado',
@@ -65,20 +66,7 @@ const ControlProyectosReporte = () => {
         </Link>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        <Link
-          to="/control-proyectos/reporte"
-          className="rounded-full px-4 py-1.5 text-sm font-medium border border-transparent bg-indigo-600 text-white shadow-sm shadow-indigo-500/25"
-        >
-          Resumen
-        </Link>
-        <Link
-          to="/control-proyectos/reporte/proyectos"
-          className="rounded-full px-4 py-1.5 text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-        >
-          Proyectos
-        </Link>
-      </div>
+      <ControlProyectosReporteNav active="resumen" />
 
       <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex items-start gap-4">

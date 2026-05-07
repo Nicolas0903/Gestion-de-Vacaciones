@@ -569,6 +569,138 @@ class ControlProyecto {
       proyectos
     };
   }
+
+  /**
+   * Reporte detallado de actividades (registro de horas).
+   * Filtros: rango inclusivo sobre DATE(a.fecha_hora_fin); opcional proyecto y empresa.
+   * Alcance: gestión = todas las actividades de proyectos en alcance; colaborador = solo sus actividades en esos proyectos.
+   */
+  static async reporteActividadesVistaBi({
+    verTodo,
+    empleadoId,
+    proyectoId,
+    empresa,
+    fechaFinDesde,
+    fechaFinHasta
+  }) {
+    const scope = verTodo ? 1 : 0;
+    const emp = empleadoId;
+
+    const filtroProyecto = `(
+      ? = 1 OR EXISTS (
+        SELECT 1 FROM cp_proyecto_consultores pc
+        WHERE pc.proyecto_id = p.id AND pc.empleado_id = ?
+      )
+    )`;
+
+    const proyectoIdSql = proyectoId && Number.isFinite(Number(proyectoId)) ? Number(proyectoId) : null;
+    const empresaNorm = empresa && String(empresa).trim() ? String(empresa).trim() : null;
+
+    const filtroExtraProySql = [];
+    const filtroExtraProyParams = [];
+    if (proyectoIdSql != null && proyectoIdSql > 0) {
+      filtroExtraProySql.push('p.id = ?');
+      filtroExtraProyParams.push(proyectoIdSql);
+    }
+    if (empresaNorm) {
+      filtroExtraProySql.push('TRIM(p.empresa) = ?');
+      filtroExtraProyParams.push(empresaNorm);
+    }
+    const filtroExtraProySuffix = filtroExtraProySql.length ? `AND ${filtroExtraProySql.join(' AND ')}` : '';
+
+    const whereActividades = `
+      WHERE ${filtroProyecto}
+      ${filtroExtraProySuffix}
+      AND DATE(a.fecha_hora_fin) BETWEEN ? AND ?
+      AND a.fecha_hora_fin IS NOT NULL
+      ${verTodo ? '' : 'AND a.consultor_asignado_id = ?'}
+    `;
+
+    const paramsBolsa = [scope, emp, ...filtroExtraProyParams];
+    const paramsActs = [...paramsBolsa, fechaFinDesde, fechaFinHasta];
+    if (!verTodo) paramsActs.push(emp);
+
+    /* Horas bolsa (proyectos que cumplen proyecto/empresa y alcance) */
+    const [bolsaRow] = await pool.execute(
+      `SELECT CAST(COALESCE(SUM(p.horas_asignadas), 0) AS DECIMAL(16, 4)) AS horas_asignadas_total
+       FROM cp_proyectos p
+       WHERE ${filtroProyecto}
+       ${filtroExtraProySuffix}`,
+      paramsBolsa
+    );
+
+    const [aggRow] = await pool.execute(
+      `SELECT CAST(COALESCE(SUM(a.horas_trabajadas), 0) AS DECIMAL(16, 4)) AS horas_consumidas_total
+       FROM cp_actividades a
+       INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
+       WHERE ${whereActividades.trim()}`,
+      paramsActs
+    );
+
+    const [diasRow] = await pool.execute(
+      `SELECT COUNT(DISTINCT DATE(a.fecha_hora_fin)) AS dias_distintos_fin
+       FROM cp_actividades a
+       INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
+       WHERE ${whereActividades.trim()}`,
+      paramsActs
+    );
+
+    const [listaRows] = await pool.execute(
+      `SELECT
+         a.id,
+         a.proyecto_id,
+         p.empresa AS empresa_nombre,
+         p.proyecto AS proyecto_nombre,
+         a.requerido_por,
+         a.descripcion_actividad,
+         a.prioridad,
+         a.fecha_hora_inicio,
+         a.fecha_hora_fin,
+         CAST(a.horas_trabajadas AS DECIMAL(14, 4)) AS horas_trabajadas,
+         a.estado AS estado_actividad,
+         CONCAT(TRIM(ec.nombres), ' ', TRIM(ec.apellidos)) AS consultor_nombre
+       FROM cp_actividades a
+       INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
+       INNER JOIN empleados ec ON ec.id = a.consultor_asignado_id
+       WHERE ${whereActividades.trim()}
+       ORDER BY a.fecha_hora_fin DESC, a.id DESC`,
+      paramsActs
+    );
+
+    const [proyectosOpt] = await pool.execute(
+      `SELECT p.id, p.empresa, p.proyecto
+       FROM cp_proyectos p
+       WHERE ${filtroProyecto}
+       ORDER BY p.empresa ASC, p.proyecto ASC`,
+      [scope, emp]
+    );
+
+    const bolsaTotal = bolsaRow[0] != null ? Number(bolsaRow[0].horas_asignadas_total) || 0 : 0;
+    const consTotal = aggRow[0] != null ? Number(aggRow[0].horas_consumidas_total) || 0 : 0;
+    const diasConActividad =
+      diasRow[0] != null ? parseInt(String(diasRow[0].dias_distintos_fin), 10) || 0 : 0;
+    const horasPromDia =
+      diasConActividad > 0 ? Math.round((consTotal / diasConActividad) * 100) / 100 : 0;
+
+    return {
+      alcance: verTodo ? 'todos' : 'mis_proyectos_asignados',
+      filtros: {
+        fecha_fin_desde: fechaFinDesde,
+        fecha_fin_hasta: fechaFinHasta,
+        proyecto_id: proyectoIdSql,
+        empresa: empresaNorm
+      },
+      kpis: {
+        horas_asignadas_total: bolsaTotal,
+        horas_consumidas_total: consTotal,
+        horas_restantes_total: Math.round((bolsaTotal - consTotal) * 100) / 100,
+        horas_promedio_trabajadas_por_dia: horasPromDia,
+        dias_con_actividad_en_rango: diasConActividad
+      },
+      proyectos_opciones: proyectosOpt,
+      actividades: listaRows
+    };
+  }
 }
 
 module.exports = ControlProyecto;

@@ -127,7 +127,8 @@ const Portal = () => {
       adminLink: '/admin/control-proyectos-costo-hora',
       extraLinks: [
         { to: '/control-proyectos/reporte', label: 'Reporte BI' },
-        { to: '/control-proyectos/reporte/proyectos', label: 'Vista proyectos' }
+        { to: '/control-proyectos/reporte/proyectos', label: 'Vista proyectos' },
+        { to: '/control-proyectos/reporte/actividades', label: 'Actividades / horas' }
       ]
     });
   }

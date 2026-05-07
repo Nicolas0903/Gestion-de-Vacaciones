@@ -63,6 +63,28 @@ function sqlMissing(msg) {
   );
 }
 
+/** YYYY-MM-DD */
+function parseFechaSoloDia(s) {
+  if (!s || typeof s !== 'string') return null;
+  const t = s.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  if (!m) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+function defaultRangoFechaFinUltimosNoventa() {
+  const hasta = new Date();
+  const desde = new Date(hasta);
+  desde.setDate(desde.getDate() - 89);
+  const p = (d) => {
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    return `${y}-${mo}-${da}`;
+  };
+  return { desde: p(desde), hasta: p(hasta) };
+}
+
 const consultoresParaProyectos = async (req, res) => {
   if (!puedeGestionProyectos(req.usuario)) {
     return res.status(403).json({ success: false, mensaje: 'Sin permiso para cargar consultores.' });
@@ -408,11 +430,62 @@ async function responderReporteCp(req, res, modo) {
   }
 }
 
-/** Query `?vista=proyectos` devuelve el listado por proyecto (tabla cp_proyectos + agregados de actividades). */
+const reporteActividadesCp = async (req, res) => {
+  try {
+    let desde = parseFechaSoloDia(req.query.fecha_fin_desde);
+    let hasta = parseFechaSoloDia(req.query.fecha_fin_hasta);
+    if (!desde || !hasta) {
+      const def = defaultRangoFechaFinUltimosNoventa();
+      desde = desde || def.desde;
+      hasta = hasta || def.hasta;
+    }
+    if (desde > hasta) {
+      const t = desde;
+      desde = hasta;
+      hasta = t;
+    }
+
+    const rawPid = req.query.proyecto_id;
+    const proyectoIdParsed =
+      rawPid !== undefined && rawPid !== null && String(rawPid).trim() !== ''
+        ? parseInt(String(rawPid), 10)
+        : null;
+    const proyectoIdFinal =
+      Number.isFinite(proyectoIdParsed) && proyectoIdParsed > 0 ? proyectoIdParsed : null;
+
+    const empresaTrim = req.query.empresa != null ? String(req.query.empresa).trim() : '';
+
+    const verTodo = puedeGestionProyectos(req.usuario);
+    const data = await ControlProyecto.reporteActividadesVistaBi({
+      verTodo,
+      empleadoId: req.usuario.id,
+      proyectoId: proyectoIdFinal,
+      empresa: empresaTrim === '' ? null : empresaTrim,
+      fechaFinDesde: desde,
+      fechaFinHasta: hasta
+    });
+    res.json({ success: true, data });
+  } catch (e) {
+    console.error(e);
+    if (sqlMissing(e.sqlMessage || e.message)) {
+      return res.status(503).json({
+        success: false,
+        mensaje:
+          'Falta crear o actualizar las tablas de Control de Proyectos (incl. cp_proyecto_consultores). Ver backend/sql/'
+      });
+    }
+    res.status(500).json({ success: false, mensaje: 'Error al generar el reporte de actividades.' });
+  }
+};
+
+/** Query `?vista=proyectos` proyectos BI; `?vista=actividades` tabla de actividades por fecha de fin. */
 const reporteDashboard = async (req, res) => {
   const vista = String(req.query.vista || '').trim().toLowerCase();
   if (vista === 'proyectos') {
     return responderReporteCp(req, res, 'proyectos');
+  }
+  if (vista === 'actividades') {
+    return reporteActividadesCp(req, res);
   }
   return responderReporteCp(req, res, 'resumen');
 };

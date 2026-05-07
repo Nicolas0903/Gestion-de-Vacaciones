@@ -30,6 +30,7 @@ import CajaChica from './pages/CajaChica';
 import ControlProyectos from './pages/ControlProyectos';
 import ControlProyectosReporte from './pages/ControlProyectosReporte';
 import ControlProyectosReporteProyectos from './pages/ControlProyectosReporteProyectos';
+import ControlProyectosReporteActividades from './pages/ControlProyectosReporteActividades';
 import AdminCostoHoraProyectos from './pages/AdminCostoHoraProyectos';
 import AdministracionUsuarios from './pages/AdministracionUsuarios';
 
@@ -210,6 +211,14 @@ function AppRoutes() {
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
             <PageWrapper><ControlProyectos /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/control-proyectos/reporte/actividades" element={
+        <ProtectedRoute>
+          <ModuloPortalRoute moduloId="control-proyectos">
+            <PageWrapper><ControlProyectosReporteActividades /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
