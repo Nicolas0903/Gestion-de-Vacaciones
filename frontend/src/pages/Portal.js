@@ -115,8 +115,8 @@ const Portal = () => {
   if (puedeAccederModuloPortal('control-proyectos')) {
     modulos.push({
       id: 'control-proyectos',
-      titulo: 'Control de proyectos',
-      descripcion: 'Proyectos asignados y registro de horas por consultor',
+      titulo: 'Bolsa de Horas',
+      descripcion: 'Proyectos, bolsa de horas y registro de actividades por consultor',
       icono: BriefcaseIcon,
       color: 'from-indigo-500 to-violet-600',
       shadowColor: 'shadow-indigo-500/30',
@@ -125,11 +125,7 @@ const Portal = () => {
       link: '/control-proyectos',
       activo: true,
       adminLink: '/admin/control-proyectos-costo-hora',
-      extraLinks: [
-        { to: '/control-proyectos/reporte', label: 'Reporte BI' },
-        { to: '/control-proyectos/reporte/proyectos', label: 'Vista proyectos' },
-        { to: '/control-proyectos/reporte/actividades', label: 'Actividades / horas' }
-      ]
+      extraLinks: [{ to: '/control-proyectos/reporte', label: 'Reportes' }]
     });
   }
 
@@ -256,25 +252,26 @@ const Portal = () => {
                   {modulo.descripcion}
                 </p>
                 
-                <div className="flex flex-wrap items-center gap-3">
-                  <Link
-                    to={modulo.link}
-                    className={`flex items-center gap-2 ${modulo.textColor} font-medium text-sm hover:underline`}
-                  >
-                    <span>Acceder</span>
-                    <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
-                  </Link>
-                  {(modulo.extraLinks || []).map((el) => (
+                <div className="flex flex-wrap items-center justify-between gap-y-3 gap-x-4">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <Link
-                      key={el.to}
-                      to={el.to}
-                      className="flex items-center gap-1 text-sm font-medium text-violet-600 hover:text-violet-800 hover:underline"
+                      to={modulo.link}
+                      className={`flex items-center gap-2 ${modulo.textColor} font-medium text-sm hover:underline`}
                     >
-                      {el.label}
+                      <span>Acceder</span>
+                      <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
                     </Link>
-                  ))}
-                  
-                  {/* Botón de gestión: reintegros solo aprobador o admin */}
+                    {(modulo.extraLinks || []).map((el) => (
+                      <Link
+                        key={el.to}
+                        to={el.to}
+                        className={`text-sm font-medium ${modulo.textColor} hover:opacity-80 hover:underline`}
+                      >
+                        {el.label}
+                      </Link>
+                    ))}
+                  </div>
+
                   {modulo.adminLink &&
                     (modulo.id === 'reembolsos'
                       ? esAdmin() || esAprobadorReembolsos()
@@ -285,7 +282,7 @@ const Portal = () => {
                           : esAdmin() || esContadora()) && (
                     <Link
                       to={modulo.adminLink}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors shrink-0"
                     >
                       <Cog6ToothIcon className="w-3.5 h-3.5" />
                       Gestionar

@@ -581,7 +581,7 @@ class PDFService {
           doc.fontSize(12).font('Helvetica-Bold').fillColor('#0d9488').text('PRAYAGA', m, y + 8);
         }
         doc.fontSize(8).font('Helvetica').fillColor('#64748b')
-          .text('Portal Prayaga · Control de proyectos · Actividades / registro de horas', m + 96, y + 22);
+          .text('Portal Prayaga · Bolsa de Horas · Actividades / registro de horas', m + 96, y + 22);
         y += 72;
 
         doc.fontSize(14).font('Helvetica-Bold').fillColor('#0f172a')

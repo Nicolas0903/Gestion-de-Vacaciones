@@ -339,7 +339,7 @@ const ControlProyectos = () => {
             <FolderIcon className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Control de proyectos</h1>
+            <h1 className="text-2xl font-bold text-slate-800">Bolsa de Horas</h1>
             <p className="text-sm text-slate-500 mt-1">Proyectos, registro de horas y costos (admin).</p>
           </div>
         </div>
@@ -355,7 +355,7 @@ const ControlProyectos = () => {
           to="/control-proyectos/reporte"
           className="text-sm font-medium text-violet-700 hover:text-violet-900 bg-violet-50 px-4 py-2 rounded-xl border border-violet-100"
         >
-          Reporte BI
+          Reportes
         </Link>
       </div>
 

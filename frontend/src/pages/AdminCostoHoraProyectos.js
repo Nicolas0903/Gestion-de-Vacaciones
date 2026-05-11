@@ -137,7 +137,7 @@ const AdminCostoHoraProyectos = () => {
           to="/control-proyectos"
           className="inline-block mt-6 text-sm font-medium text-indigo-600 hover:underline"
         >
-          Ir a Control de Proyectos →
+          Ir a Bolsa de Horas →
         </Link>
       </div>
     </div>
