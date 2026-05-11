@@ -23,8 +23,17 @@ const REQUERIDO_POR = new Set([
   'rodrigo_loayza',
   'juan_pena',
   'magali_sevillano',
-  'enrique_agapito'
+  'enrique_agapito',
+  'otros'
 ]);
+
+const REQ_OTROS_MAX_LEN = 280;
+
+function textoRequeridoPorOtrosValido(raw) {
+  const t = raw != null ? String(raw).trim() : '';
+  if (!t) return null;
+  return t.slice(0, REQ_OTROS_MAX_LEN);
+}
 const PRIORIDADES = new Set(['baja', 'media', 'alta']);
 const ESTADOS_ACT = new Set(['no_iniciado', 'en_progreso', 'cerrado']);
 const SIT_PAGO = new Set(['pagado', 'pendiente']);
@@ -34,10 +43,6 @@ function puedeGestionProyectos(u) {
   if (u.rol_nombre === 'admin') return true;
   const e = (u.email || '').toLowerCase().trim();
   return emailsGestionProyectosBolsaHoras().includes(e);
-}
-
-function puedeVerActividadesGlobales(u) {
-  return puedeGestionProyectos(u);
 }
 
 function parseNum(v, def = 0) {
@@ -284,7 +289,7 @@ const eliminarProyecto = async (req, res) => {
 const listarActividades = async (req, res) => {
   try {
     const proyectoId = req.query.proyecto_id ? parseInt(req.query.proyecto_id, 10) : null;
-    const verTodos = puedeVerActividadesGlobales(req.usuario);
+    const verTodos = req.usuario.rol_nombre === 'admin';
     const rows = await ControlProyecto.listarActividades({
       empleadoId: req.usuario.id,
       verTodos,
@@ -309,6 +314,7 @@ const crearActividad = async (req, res) => {
     const {
       proyecto_id,
       requerido_por,
+      requerido_por_otros: rpoRaw,
       descripcion_actividad,
       prioridad,
       fecha_hora_inicio: fhiRaw,
@@ -327,6 +333,15 @@ const crearActividad = async (req, res) => {
     }
     if (!REQUERIDO_POR.has(requerido_por)) {
       return res.status(400).json({ success: false, mensaje: 'Valor de «Requerido por» no válido.' });
+    }
+    let requerido_por_otros = null;
+    if (requerido_por === 'otros') {
+      requerido_por_otros = textoRequeridoPorOtrosValido(rpoRaw);
+      if (!requerido_por_otros) {
+        return res
+          .status(400)
+          .json({ success: false, mensaje: 'Indique el nombre cuando elige «Otros».' });
+      }
     }
     const prioridadVal = prioridad || 'media';
     if (!PRIORIDADES.has(prioridadVal)) {
@@ -368,6 +383,7 @@ const crearActividad = async (req, res) => {
     const id = await ControlProyecto.crearActividad({
       proyecto_id: pid,
       requerido_por,
+      requerido_por_otros,
       consultor_asignado_id,
       descripcion_actividad: String(descripcion_actividad).trim(),
       prioridad: prioridadVal,
@@ -399,6 +415,29 @@ const actualizarActividad = async (req, res) => {
     }
 
     const patch = { ...req.body };
+
+    const mergedReqRaw =
+      patch.requerido_por !== undefined && patch.requerido_por !== null ? String(patch.requerido_por).trim() : null;
+    const mergedReq = mergedReqRaw !== null && mergedReqRaw !== '' ? mergedReqRaw : prev.requerido_por;
+    if (!REQUERIDO_POR.has(mergedReq)) {
+      return res.status(400).json({ success: false, mensaje: 'Valor de «Requerido por» no válido.' });
+    }
+    if (mergedReq === 'otros') {
+      const rawOtros =
+        patch.requerido_por_otros !== undefined ? patch.requerido_por_otros : prev.requerido_por_otros;
+      const t = textoRequeridoPorOtrosValido(rawOtros);
+      if (!t) {
+        return res
+          .status(400)
+          .json({ success: false, mensaje: 'Indique el nombre cuando elige «Otros».' });
+      }
+      patch.requerido_por = mergedReq;
+      patch.requerido_por_otros = t;
+    } else {
+      patch.requerido_por = mergedReq;
+      patch.requerido_por_otros = null;
+    }
+
     if (patch.fecha_hora_inicio != null) {
       patch.fecha_hora_inicio = normalizaDatetimeMysql(String(patch.fecha_hora_inicio).trim());
     }

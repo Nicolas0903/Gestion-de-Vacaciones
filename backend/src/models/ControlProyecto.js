@@ -299,6 +299,7 @@ class ControlProyecto {
   static async crearActividad({
     proyecto_id,
     requerido_por,
+    requerido_por_otros,
     consultor_asignado_id,
     descripcion_actividad,
     prioridad,
@@ -315,12 +316,13 @@ class ControlProyecto {
     }
     const [r] = await pool.execute(
       `INSERT INTO cp_actividades
-       (proyecto_id, requerido_por, consultor_asignado_id, descripcion_actividad, prioridad,
+       (proyecto_id, requerido_por, requerido_por_otros, consultor_asignado_id, descripcion_actividad, prioridad,
         fecha_hora_inicio, fecha_hora_fin, horas_trabajadas, estado, comentarios, situacion_pago)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         proyecto_id,
         requerido_por,
+        requerido_por_otros ?? null,
         consultor_asignado_id,
         descripcion_actividad,
         prioridad,
@@ -341,6 +343,7 @@ class ControlProyecto {
     const map = {
       proyecto_id: patch.proyecto_id,
       requerido_por: patch.requerido_por,
+      requerido_por_otros: patch.requerido_por_otros,
       descripcion_actividad: patch.descripcion_actividad,
       prioridad: patch.prioridad,
       fecha_hora_inicio: patch.fecha_hora_inicio,
@@ -652,6 +655,7 @@ class ControlProyecto {
          p.empresa AS empresa_nombre,
          p.proyecto AS proyecto_nombre,
          a.requerido_por,
+         a.requerido_por_otros,
          a.descripcion_actividad,
          a.prioridad,
          a.fecha_hora_inicio,

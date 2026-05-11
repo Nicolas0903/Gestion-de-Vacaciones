@@ -705,7 +705,10 @@ class PDFService {
           const zebra = i % 2 === 0 ? '#f8fafc' : '#ffffff';
           doc.rect(colProj, y, contentW, rowH).fillAndStroke(zebra, '#e2e8f0');
 
-          const reqLbl = REQ[a.requerido_por] || a.requerido_por || '—';
+          const reqLbl =
+            a.requerido_por === 'otros' && String(a.requerido_por_otros || '').trim()
+              ? String(a.requerido_por_otros).trim()
+              : REQ[a.requerido_por] || a.requerido_por || '—';
           const priLbl = PRI[a.prioridad] || a.prioridad || '—';
           const estLbl = EST[a.estado_actividad] || a.estado_actividad || '—';
           doc.fontSize(6).font('Helvetica').fillColor('#0f172a');

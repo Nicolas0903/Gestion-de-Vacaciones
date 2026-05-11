@@ -19,7 +19,8 @@ const REQUERIDO_POR_OPTS = [
   { value: 'rodrigo_loayza', label: 'Rodrigo Loayza' },
   { value: 'juan_pena', label: 'Juan Peña' },
   { value: 'magali_sevillano', label: 'Magali Sevillano' },
-  { value: 'enrique_agapito', label: 'Enrique Agapito' }
+  { value: 'enrique_agapito', label: 'Enrique Agapito' },
+  { value: 'otros', label: 'Otros' }
 ];
 
 const PRIOR = [
@@ -170,7 +171,13 @@ const ControlProyectosReporteActividades = () => {
   const totalTablaHoras =
     Math.round(actividades.reduce((s, r) => s + (Number(r.horas_trabajadas) || 0), 0) * 100) / 100;
 
-  const labelReq = (k) => REQUERIDO_POR_OPTS.find((x) => x.value === k)?.label || k;
+  const labelReq = (a) => {
+    if (a?.requerido_por === 'otros') {
+      const t = String(a.requerido_por_otros || '').trim();
+      if (t) return t;
+    }
+    return REQUERIDO_POR_OPTS.find((x) => x.value === a?.requerido_por)?.label || a?.requerido_por;
+  };
   const labelPri = (k) => PRIOR.find((x) => x.value === k)?.label || k;
   const labelEst = (k) => EST_ACT.find((x) => x.value === k)?.label || k;
 
@@ -340,7 +347,7 @@ const ControlProyectosReporteActividades = () => {
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap max-w-[180px] truncate" title={a.proyecto_nombre}>
                       {a.proyecto_nombre}
                     </td>
-                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{labelReq(a.requerido_por)}</td>
+                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{labelReq(a)}</td>
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{a.consultor_nombre}</td>
                     <td className="px-3 py-2 text-slate-600 min-w-[260px] whitespace-normal align-top">{a.descripcion_actividad}</td>
                     <td className="px-3 py-2 text-slate-700">{labelPri(a.prioridad)}</td>

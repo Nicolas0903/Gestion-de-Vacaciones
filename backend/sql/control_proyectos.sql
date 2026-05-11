@@ -33,8 +33,10 @@ CREATE TABLE IF NOT EXISTS cp_actividades (
     'rodrigo_loayza',
     'juan_pena',
     'magali_sevillano',
-    'enrique_agapito'
+    'enrique_agapito',
+    'otros'
   ) NOT NULL,
+  requerido_por_otros VARCHAR(280) NULL COMMENT 'Nombre libre si requerido_por es otros',
   consultor_asignado_id INT NOT NULL,
   descripcion_actividad TEXT NOT NULL,
   prioridad ENUM('baja','media','alta') NOT NULL DEFAULT 'media',

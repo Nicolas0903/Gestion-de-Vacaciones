@@ -11,7 +11,8 @@ const REQUERIDO_POR_OPTS = [
   { value: 'rodrigo_loayza', label: 'Rodrigo Loayza' },
   { value: 'juan_pena', label: 'Juan Peña' },
   { value: 'magali_sevillano', label: 'Magali Sevillano' },
-  { value: 'enrique_agapito', label: 'Enrique Agapito' }
+  { value: 'enrique_agapito', label: 'Enrique Agapito' },
+  { value: 'otros', label: 'Otros' }
 ];
 
 const EST_PROY = [
@@ -74,6 +75,7 @@ const proyectoVacio = () => ({
 const actividadVacia = () => ({
   proyecto_id: '',
   requerido_por: 'ricardo_martinez',
+  requerido_por_otros: '',
   descripcion_actividad: '',
   prioridad: 'media',
   fecha_hora_inicio: '',
@@ -245,6 +247,16 @@ const ControlProyectos = () => {
         proyecto_id: parseInt(actForm.proyecto_id, 10),
         horas_trabajadas: horasPreviewAct != null ? horasPreviewAct : undefined
       };
+      if (body.requerido_por === 'otros') {
+        const t = String(body.requerido_por_otros || '').trim();
+        if (!t) {
+          toast.error('Indique el nombre cuando selecciona Otros.');
+          return;
+        }
+        body.requerido_por_otros = t.slice(0, 280);
+      } else {
+        body.requerido_por_otros = null;
+      }
       if (!body.proyecto_id) {
         toast.error('Seleccione un proyecto.');
         return;
@@ -319,6 +331,7 @@ const ControlProyectos = () => {
     setActForm({
       proyecto_id: String(a.proyecto_id),
       requerido_por: a.requerido_por,
+      requerido_por_otros: a.requerido_por === 'otros' ? a.requerido_por_otros || '' : '',
       descripcion_actividad: a.descripcion_actividad || '',
       prioridad: a.prioridad || 'media',
       fecha_hora_inicio: sqlADatetimeLocal(a.fecha_hora_inicio),
@@ -330,7 +343,14 @@ const ControlProyectos = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const labelReq = useCallback((key) => REQUERIDO_POR_OPTS.find((x) => x.value === key)?.label || key, []);
+  const labelReqActividad = useCallback((a) => {
+    if (!a) return '';
+    if (a.requerido_por === 'otros') {
+      const t = String(a.requerido_por_otros || '').trim();
+      if (t) return t;
+    }
+    return REQUERIDO_POR_OPTS.find((x) => x.value === a.requerido_por)?.label || a.requerido_por;
+  }, []);
   const labelEstProy = useCallback((key) => EST_PROY.find((x) => x.value === key)?.label || key, []);
 
   return (
@@ -636,7 +656,14 @@ const ControlProyectos = () => {
                     <select
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                       value={actForm.requerido_por}
-                      onChange={(e) => setActForm((f) => ({ ...f, requerido_por: e.target.value }))}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setActForm((f) => ({
+                          ...f,
+                          requerido_por: v,
+                          requerido_por_otros: v === 'otros' ? f.requerido_por_otros : ''
+                        }));
+                      }}
                     >
                       {REQUERIDO_POR_OPTS.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -644,6 +671,23 @@ const ControlProyectos = () => {
                         </option>
                       ))}
                     </select>
+                    {actForm.requerido_por === 'otros' && (
+                      <div className="mt-2">
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          Nombre (Otros) *
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={280}
+                          placeholder="Escriba quién requirió la actividad"
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          value={actForm.requerido_por_otros}
+                          onChange={(e) =>
+                            setActForm((f) => ({ ...f, requerido_por_otros: e.target.value }))
+                          }
+                        />
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Prioridad *</label>
@@ -756,7 +800,9 @@ const ControlProyectos = () => {
 
               <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-100">
-                  <h3 className="text-sm font-semibold text-slate-800">Mis actividades</h3>
+                  <h3 className="text-sm font-semibold text-slate-800">
+                    {esAdmin() ? 'Actividades (todas)' : 'Mis actividades'}
+                  </h3>
                   <select
                     className="rounded-xl border border-slate-200 px-3 py-2 text-xs"
                     value={filtroProyectoAct}
@@ -793,7 +839,7 @@ const ControlProyectos = () => {
                               <div className="font-medium truncate">{a.proyecto_nombre}</div>
                               <div className="text-xs text-slate-500 truncate">{a.empresa_nombre}</div>
                             </td>
-                            <td className="px-4 py-2 text-xs">{labelReq(a.requerido_por)}</td>
+                            <td className="px-4 py-2 text-xs">{labelReqActividad(a)}</td>
                             <td className="px-4 py-2 text-xs whitespace-nowrap">
                               {formatoFechaHoraDMY(a.fecha_hora_inicio)}
                               <br />
