@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { BanknotesIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { AyudaUbicacionFactura } from '../components/AyudaFacturaReembolso';
 import { useAuth } from '../context/AuthContext';
 import { reembolsoService } from '../services/api';
 import { REEMBOLSOS_MAX_UPLOAD_MB, REEMBOLSOS_MAX_FILE_BYTES } from '../config/reembolsosUpload';
@@ -281,7 +282,12 @@ const Reembolsos = () => {
             <>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">RUC *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <span className="inline-flex items-center gap-1">
+                      RUC *
+                      <AyudaUbicacionFactura />
+                    </span>
+                  </label>
                   <input
                     type="text"
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"
@@ -292,7 +298,12 @@ const Reembolsos = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">N° de documento *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <span className="inline-flex items-center gap-1">
+                      N° de documento *
+                      <AyudaUbicacionFactura />
+                    </span>
+                  </label>
                   <input
                     type="text"
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"

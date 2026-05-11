@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { REEMBOLSOS_MAX_UPLOAD_MB, REEMBOLSOS_MAX_FILE_BYTES } from '../config/reembolsosUpload';
 import { reembolsoService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
+import { AyudaUbicacionFactura } from '../components/AyudaFacturaReembolso';
 
 const metodoLabel = (m) =>
   ({ yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia' }[m] || m);
@@ -822,7 +823,12 @@ const GestionReembolsos = () => {
                 <>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-slate-600 mb-1">RUC *</label>
+                      <label className="block text-slate-600 mb-1">
+                        <span className="inline-flex items-center gap-1">
+                          RUC *
+                          <AyudaUbicacionFactura />
+                        </span>
+                      </label>
                       <input
                         className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
                         value={formEdit.ruc_proveedor}
@@ -831,7 +837,12 @@ const GestionReembolsos = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-600 mb-1">N° documento *</label>
+                      <label className="block text-slate-600 mb-1">
+                        <span className="inline-flex items-center gap-1">
+                          N° documento *
+                          <AyudaUbicacionFactura />
+                        </span>
+                      </label>
                       <input
                         className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
                         value={formEdit.numero_documento}
