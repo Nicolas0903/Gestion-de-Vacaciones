@@ -9,6 +9,7 @@ const EMAILS_REPORTE_ASISTENCIA = [
 /** Acceso a Caja chica aunque no sea admin/contadora (mapa portal o rol). */
 const EMAILS_MODULO_CAJA_CHICA = [
   'rocio.picon@prayaga.biz',
+  'asistente@prayaga.biz',
   'veronica.gonzales@prayaga.biz',
   'enrique.prayaga@prayaga.biz',
   'enrique.agapito@prayaga.biz',

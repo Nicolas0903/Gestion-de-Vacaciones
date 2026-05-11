@@ -86,7 +86,7 @@ const actividadVacia = () => ({
 const ControlProyectos = () => {
   const { usuario, puedeGestionarProyectosCp, esAdmin } = useAuth();
   const puedeProy = puedeGestionarProyectosCp();
-  const [tab, setTab] = useState('proyectos');
+  const [tab, setTab] = useState(puedeProy ? 'proyectos' : 'actividades');
   const [cargando, setCargando] = useState(true);
   const [proyectos, setProyectos] = useState([]);
   const [misProyectos, setMisProyectos] = useState([]);
@@ -147,6 +147,10 @@ const ControlProyectos = () => {
   }, [puedeProy, cargarMisProyectos, cargarProyectosTodos]);
 
   useEffect(() => {
+    if (!puedeProy && tab === 'proyectos') setTab('actividades');
+  }, [puedeProy, tab]);
+
+  useEffect(() => {
     let cancel = false;
     if (!puedeProy) {
       setConsultores([]);
@@ -193,6 +197,10 @@ const ControlProyectos = () => {
 
   const submitProyecto = async (e) => {
     e.preventDefault();
+    if (!puedeProy) {
+      toast.error('Solo pueden guardar proyectos el administrador o la cuenta corporativa autorizada.');
+      return;
+    }
     try {
       const body = {
         empresa: proyForm.empresa,
@@ -269,6 +277,7 @@ const ControlProyectos = () => {
   };
 
   const abrirEditProyecto = (p) => {
+    if (!puedeProy) return;
     setProyectoEditId(p.id);
     setFiltroConsultor('');
     setProyForm({
@@ -287,6 +296,7 @@ const ControlProyectos = () => {
   };
 
   const eliminarProyectoFila = async (p) => {
+    if (!puedeProy) return;
     const nombre = `${p.proyecto || '(sin nombre)'} — ${p.empresa || ''}`;
     const okConfirm = window.confirm(
       `¿Eliminar este proyecto?\n\n${nombre}\n\nSe eliminarán también las horas/actividades registradas para este proyecto. Esta acción no se puede deshacer.`
@@ -340,7 +350,12 @@ const ControlProyectos = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Bolsa de Horas</h1>
-            <p className="text-sm text-slate-500 mt-1">Proyectos, registro de horas y costos (admin).</p>
+            <p className="text-sm text-slate-500 mt-1">
+              Crear proyectos y ver el listado global solo pueden el{' '}
+              <span className="font-medium text-slate-700">administrador</span> y la cuenta de gestión de bolsa (
+              habitualmente asistente@prayaga.biz). El equipo registra{' '}
+              <span className="font-medium text-slate-700">Actividades</span>.
+            </p>
           </div>
         </div>
         {esAdmin() && (
@@ -360,13 +375,15 @@ const ControlProyectos = () => {
       </div>
 
       <div className="flex gap-2 mb-6">
-        <button
-          type="button"
-          onClick={() => setTab('proyectos')}
-          className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${tab === 'proyectos' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-        >
-          Proyectos
-        </button>
+        {puedeProy && (
+          <button
+            type="button"
+            onClick={() => setTab('proyectos')}
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${tab === 'proyectos' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+          >
+            Proyectos
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setTab('actividades')}
@@ -381,14 +398,9 @@ const ControlProyectos = () => {
         <p className="text-slate-500">Cargando…</p>
       ) : (
         <>
-          {tab === 'proyectos' && (
+          {tab === 'proyectos' && puedeProy ? (
             <>
-              {!puedeProy ? (
-                <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  Solo <strong>administrador</strong> o <strong>Verónica Gonzales</strong> pueden crear o editar proyectos aquí.
-                </div>
-              ) : (
-                <form onSubmit={submitProyecto} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-6 mb-8 space-y-4">
+              <form onSubmit={submitProyecto} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-6 mb-8 space-y-4">
                   <h2 className="text-lg font-semibold text-slate-800">
                     {proyectoEditId ? `Editar proyecto #${proyectoEditId}` : 'Nuevo proyecto'}
                   </h2>
@@ -537,12 +549,9 @@ const ControlProyectos = () => {
                     )}
                   </div>
                 </form>
-              )}
               <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-x-auto">
                 <h3 className="text-sm font-semibold text-slate-800 px-6 pt-6 pb-2">Listado de proyectos</h3>
-                {!puedeProy ? (
-                  <p className="px-6 pb-6 text-sm text-slate-500">No tienes permiso para ver todos los proyectos.</p>
-                ) : proyectos.length === 0 ? (
+                {proyectos.length === 0 ? (
                   <p className="px-6 pb-6 text-sm text-slate-500">Sin proyectos cargados.</p>
                 ) : (
                   <table className="min-w-full text-sm">
@@ -554,11 +563,7 @@ const ControlProyectos = () => {
                         <th className="px-4 py-2 text-left">Consultores</th>
                         <th className="px-4 py-2 text-right">Hrs.</th>
                         <th className="px-4 py-2 text-left">Estado</th>
-                        {puedeProy && (
-                          <th className="px-4 py-2 text-left whitespace-nowrap min-w-[8.5rem]">
-                            Acción
-                          </th>
-                        )}
+                        <th className="px-4 py-2 text-left whitespace-nowrap min-w-[8.5rem]">Acción</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -572,26 +577,24 @@ const ControlProyectos = () => {
                           <td className="px-4 py-2 text-xs max-w-xs">{p.consultores_nombres || '—'}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{Number(p.horas_asignadas).toFixed(2)}</td>
                           <td className="px-4 py-2">{labelEstProy(p.estado)}</td>
-                          {puedeProy && (
-                            <td className="px-4 py-2">
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <button
-                                  type="button"
-                                  className="text-indigo-600 text-xs font-medium hover:underline"
-                                  onClick={() => abrirEditProyecto(p)}
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  type="button"
-                                  className="text-rose-600 text-xs font-medium hover:underline"
-                                  onClick={() => eliminarProyectoFila(p)}
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            </td>
-                          )}
+                          <td className="px-4 py-2">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <button
+                                type="button"
+                                className="text-indigo-600 text-xs font-medium hover:underline"
+                                onClick={() => abrirEditProyecto(p)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                className="text-rose-600 text-xs font-medium hover:underline"
+                                onClick={() => eliminarProyectoFila(p)}
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

@@ -96,6 +96,7 @@ export const AuthProvider = ({ children }) => {
 
   const EMAILS_MODULO_CAJA_CHICA = [
     'rocio.picon@prayaga.biz',
+    'asistente@prayaga.biz',
     'veronica.gonzales@prayaga.biz',
     'enrique.prayaga@prayaga.biz',
     'enrique.agapito@prayaga.biz',
@@ -124,11 +125,27 @@ export const AuthProvider = ({ children }) => {
   /**
    * Si hay mapa modulos_portal guardado, solo módulos con true. Si no, lógica histórica por rol/correo.
    */
-  /** Admin o Verónica: pueden crear/editar proyectos en Control de Proyectos */
+  /** Admin o cuenta de gestión (por defecto asistente@prayaga.biz): CRUD proyectos en Bolsa de Horas */
+  const emailsGestionBolsaHorasCp = () => {
+    const multi = process.env.REACT_APP_CONTROL_PROYECTOS_GESTORES_EMAIL;
+    if (multi && String(multi).trim()) {
+      return String(multi)
+        .split(',')
+        .map((x) => x.trim().toLowerCase())
+        .filter(Boolean);
+    }
+    return [
+      (process.env.REACT_APP_CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz')
+        .toLowerCase()
+        .trim()
+    ];
+  };
+
   const puedeGestionarProyectosCp = () => {
     if (!usuario) return false;
     if (esAdmin()) return true;
-    return (usuario.email || '').toLowerCase().trim() === 'veronica.gonzales@prayaga.biz';
+    const em = (usuario.email || '').toLowerCase().trim();
+    return emailsGestionBolsaHorasCp().includes(em);
   };
 
   const puedeAccederModuloPortal = (moduloId) => {

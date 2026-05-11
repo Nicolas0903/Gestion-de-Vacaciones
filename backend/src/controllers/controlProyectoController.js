@@ -1,8 +1,21 @@
 const ControlProyecto = require('../models/ControlProyecto');
 const PDFService = require('../services/pdfService');
 
-const EMAIL_VERONICA_CP =
-  (process.env.CONTROL_PROYECTOS_VERONICA_EMAIL || 'veronica.gonzales@prayaga.biz').toLowerCase().trim();
+/** Emails que pueden crear/editar/eliminar proyectos además del rol admin. Por defecto: asistente@prayaga.biz */
+function emailsGestionProyectosBolsaHoras() {
+  const lista = process.env.CONTROL_PROYECTOS_GESTORES_EMAIL;
+  if (lista && String(lista).trim()) {
+    return String(lista)
+      .split(',')
+      .map((x) => x.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  return [
+    (process.env.CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz').toLowerCase().trim()
+  ];
+}
+
+const EMAIL_VERONICA_CP = emailsGestionProyectosBolsaHoras()[0] || '';
 
 const ESTADOS_PROYECTO = new Set(['finalizado', 'en_curso', 'pendiente', 'perdido']);
 const REQUERIDO_POR = new Set([
@@ -19,7 +32,8 @@ const SIT_PAGO = new Set(['pagado', 'pendiente']);
 function puedeGestionProyectos(u) {
   if (!u) return false;
   if (u.rol_nombre === 'admin') return true;
-  return (u.email || '').toLowerCase().trim() === EMAIL_VERONICA_CP;
+  const e = (u.email || '').toLowerCase().trim();
+  return emailsGestionProyectosBolsaHoras().includes(e);
 }
 
 function puedeVerActividadesGlobales(u) {
@@ -142,7 +156,10 @@ const consultoresParaProyectos = async (req, res) => {
 const listarProyectos = async (req, res) => {
   try {
     if (!puedeGestionProyectos(req.usuario)) {
-      return res.status(403).json({ success: false, mensaje: 'Solo administración puede ver todos los proyectos.' });
+      return res.status(403).json({
+        success: false,
+        mensaje: 'Solo el administrador o la cuenta corporativa autorizada pueden ver todos los proyectos.'
+      });
     }
     const rows = await ControlProyecto.listarProyectosTodos();
     res.json({ success: true, data: rows });
@@ -586,6 +603,7 @@ module.exports = {
   reporteProyectosVistaBi,
   reporteActividadesPdfCp,
   EMAIL_VERONICA_CP,
+  emailsGestionProyectosBolsaHoras,
   etiquetasCatalogo: () => ({
     estados_proyecto: [...ESTADOS_PROYECTO],
     requerido_por: [...REQUERIDO_POR],
