@@ -398,7 +398,7 @@ const ControlProyectos = () => {
         <p className="text-slate-500">Cargando…</p>
       ) : (
         <>
-          {tab === 'proyectos' && puedeProy ? (
+          {tab === 'proyectos' && puedeProy && (
             <>
               <form onSubmit={submitProyecto} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-6 mb-8 space-y-4">
                   <h2 className="text-lg font-semibold text-slate-800">
