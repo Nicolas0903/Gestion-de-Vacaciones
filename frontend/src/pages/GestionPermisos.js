@@ -91,7 +91,19 @@ const GestionPermisos = () => {
     }
   };
 
-  const handleAprobar = async (id) => {
+  const requiereEvidencia = (tipo) => tipo === 'descanso_medico';
+
+  const puedeAprobarConEvidencia = (permiso) =>
+    !(requiereEvidencia(permiso.tipo) && !(permiso.archivo_path != null && String(permiso.archivo_path).trim()));
+
+  const handleAprobar = async (permisoOrId) => {
+    const id = typeof permisoOrId === 'object' ? permisoOrId.id : permisoOrId;
+    if (typeof permisoOrId === 'object' && !puedeAprobarConEvidencia(permisoOrId)) {
+      toast.error(
+        'No se puede aprobar: falta evidencia/certificado médico. Rechace la solicitud o pida que el colaborador adjunte documento.'
+      );
+      return;
+    }
     try {
       setActionLoading(id);
       await permisoService.aprobar(id);
@@ -99,7 +111,7 @@ const GestionPermisos = () => {
       cargarDatos();
       cargarPermisos();
     } catch (error) {
-      toast.error('Error al aprobar');
+      toast.error(error.response?.data?.mensaje || 'Error al aprobar');
     } finally {
       setActionLoading(null);
     }
@@ -130,6 +142,11 @@ const GestionPermisos = () => {
   const handleCrear = async () => {
     if (!formData.empleado_id || !formData.tipo || !formData.fecha_inicio || !formData.fecha_fin || !formData.motivo) {
       toast.error('Complete todos los campos requeridos');
+      return;
+    }
+
+    if (requiereEvidencia(formData.tipo) && !formData.documento) {
+      toast.error('Para descanso médico debe adjuntar certificado o documento médico (evidencia).');
       return;
     }
 
@@ -251,13 +268,18 @@ const GestionPermisos = () => {
             {pendientes.map((permiso) => (
               <div key={permiso.id} className="bg-white rounded-xl p-4 flex items-center justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="font-medium text-slate-800">
                       {permiso.empleado_nombres} {permiso.empleado_apellidos}
                     </span>
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getTipoColor(permiso.tipo)}`}>
                       {getTipoLabel(permiso.tipo)}
                     </span>
+                    {requiereEvidencia(permiso.tipo) && !puedeAprobarConEvidencia(permiso) && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                        Sin evidencia adjunta
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-slate-600">{permiso.motivo}</p>
                   <p className="text-xs text-slate-400 mt-1">
@@ -286,9 +308,15 @@ const GestionPermisos = () => {
                   <Button
                     size="sm"
                     icon={CheckIcon}
-                    onClick={() => handleAprobar(permiso.id)}
+                    disabled={actionLoading === permiso.id || !puedeAprobarConEvidencia(permiso)}
+                    title={
+                      puedeAprobarConEvidencia(permiso)
+                        ? undefined
+                        : 'Falta certificado/evidencia médica adjunta para aprobar.'
+                    }
+                    onClick={() => handleAprobar(permiso)}
                     loading={actionLoading === permiso.id}
-                    className="!bg-emerald-500 hover:!bg-emerald-600"
+                    className={`!bg-emerald-500 hover:!bg-emerald-600 ${!puedeAprobarConEvidencia(permiso) ? '!opacity-50 !cursor-not-allowed' : ''}`}
                   >
                     Aprobar
                   </Button>
@@ -504,15 +532,28 @@ const GestionPermisos = () => {
 
               {/* Documento */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Documento (opcional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Documento {requiereEvidencia(formData.tipo) ? '*' : '(opcional)'}
+                </label>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  required={requiereEvidencia(formData.tipo)}
                   onChange={(e) => setFormData({ ...formData, documento: e.target.files[0] })}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-amber-50 file:text-amber-700"
                 />
+                <p className="text-xs text-slate-400 mt-1">PDF, imágenes o Word (máx. 10MB)</p>
               </div>
+
+              {requiereEvidencia(formData.tipo) && (
+                <div className="p-4 bg-rose-50 rounded-xl border border-rose-200">
+                  <p className="text-sm text-rose-800">
+                    <span className="font-semibold">Importante:</span> para descanso médico es obligatorio adjuntar
+                    certificado o evidencia médica (incluido al registrar como pendiente).
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 p-6 border-t border-slate-100">

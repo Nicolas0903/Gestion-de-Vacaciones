@@ -4,6 +4,11 @@ const emailService = require('../services/emailService');
 const path = require('path');
 const fs = require('fs').promises;
 
+/** Tipos para los que debe existir evidencia adjunta (certificado médico u homólogo). */
+function requiereDocumentoAdjunto(tipo) {
+  return tipo === 'descanso_medico';
+}
+
 // ============================================
 // FUNCIONES PARA EMPLEADOS
 // ============================================
@@ -58,11 +63,10 @@ const crear = async (req, res) => {
       });
     }
 
-    // Para descanso médico, el documento es obligatorio
-    if (tipo === 'descanso_medico' && !req.file) {
+    if (requiereDocumentoAdjunto(tipo) && !req.file) {
       return res.status(400).json({
         success: false,
-        mensaje: 'El documento médico es obligatorio para descansos médicos'
+        mensaje: 'Para descanso médico debe adjuntarse el certificado o documento médico (evidencia).'
       });
     }
 
@@ -339,6 +343,14 @@ const aprobar = async (req, res) => {
       });
     }
 
+    if (requiereDocumentoAdjunto(permiso.tipo) && !(permiso.archivo_path != null && String(permiso.archivo_path).trim())) {
+      return res.status(400).json({
+        success: false,
+        mensaje:
+          'No se puede aprobar un descanso médico sin documento adjunto. Rechace la solicitud indicando que falta la evidencia, o solicite al colaborador una nueva solicitud con el archivo.'
+      });
+    }
+
     await PermisoDescanso.aprobar(parseInt(id), req.usuario.id, comentarios);
     
     res.json({
@@ -455,6 +467,13 @@ const crearDesdeAdmin = async (req, res) => {
     const inicio = new Date(fecha_inicio);
     const fin = new Date(fecha_fin);
     const dias_totales = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
+
+    if (requiereDocumentoAdjunto(tipo) && !req.file) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Para descanso médico debe adjuntarse el certificado o documento médico (evidencia).'
+      });
+    }
 
     const permisoId = await PermisoDescanso.crear({
       empleado_id: parseInt(empleado_id),

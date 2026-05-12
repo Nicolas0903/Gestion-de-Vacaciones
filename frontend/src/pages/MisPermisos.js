@@ -76,7 +76,7 @@ const MisPermisos = () => {
     }
 
     if (formData.tipo === 'descanso_medico' && !formData.documento) {
-      toast.error('El documento médico es obligatorio para descansos médicos');
+      toast.error('Para descanso médico debe adjuntar certificado o documento médico (evidencia).');
       return;
     }
 
@@ -471,6 +471,7 @@ const MisPermisos = () => {
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  required={formData.tipo === 'descanso_medico'}
                   onChange={(e) => setFormData({ ...formData, documento: e.target.files[0] })}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-amber-50 file:text-amber-700 file:font-medium hover:file:bg-amber-100"
                 />
