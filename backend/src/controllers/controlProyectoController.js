@@ -351,9 +351,14 @@ const crearActividad = async (req, res) => {
     if (!ESTADOS_ACT.has(estadoVal)) {
       return res.status(400).json({ success: false, mensaje: 'Estado no válido.' });
     }
-    const sitVal = situacion_pago || 'pendiente';
-    if (!SIT_PAGO.has(sitVal)) {
-      return res.status(400).json({ success: false, mensaje: 'Situación de pago no válida.' });
+    const esAdminCp = req.usuario.rol_nombre === 'admin';
+    let sitVal = 'pendiente';
+    if (esAdminCp) {
+      const sitIn = situacion_pago || 'pendiente';
+      if (!SIT_PAGO.has(sitIn)) {
+        return res.status(400).json({ success: false, mensaje: 'Situación de pago no válida.' });
+      }
+      sitVal = sitIn;
     }
 
     const pid = parseInt(proyecto_id, 10);
@@ -456,6 +461,15 @@ const actualizarActividad = async (req, res) => {
     }
     if (patch.consultor_asignado_id != null && !gestor) {
       delete patch.consultor_asignado_id;
+    }
+
+    const esAdminCp = req.usuario.rol_nombre === 'admin';
+    if (esAdminCp) {
+      if (patch.situacion_pago !== undefined && !SIT_PAGO.has(patch.situacion_pago)) {
+        return res.status(400).json({ success: false, mensaje: 'Situación de pago no válida.' });
+      }
+    } else {
+      delete patch.situacion_pago;
     }
 
     const ok = await ControlProyecto.actualizarActividad(id, patch, { permiteCambiarConsultor: gestor });

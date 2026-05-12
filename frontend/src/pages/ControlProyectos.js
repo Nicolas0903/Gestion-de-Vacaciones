@@ -273,6 +273,9 @@ const ControlProyectos = () => {
         toast.error('La fecha y hora de fin debe ser posterior a la de inicio para calcular las horas.');
         return;
       }
+      if (!esAdmin()) {
+        delete body.situacion_pago;
+      }
       if (actividadEditId) {
         await controlProyectosService.actualizarActividad(actividadEditId, body);
         toast.success('Actividad actualizada.');
@@ -745,20 +748,24 @@ const ControlProyectos = () => {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Situación de pago *</label>
-                    <select
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                      value={actForm.situacion_pago}
-                      onChange={(e) => setActForm((f) => ({ ...f, situacion_pago: e.target.value }))}
-                    >
-                      {SIT_PAGO.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {esAdmin() && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Situación de pago (solo administración)
+                      </label>
+                      <select
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                        value={actForm.situacion_pago}
+                        onChange={(e) => setActForm((f) => ({ ...f, situacion_pago: e.target.value }))}
+                      >
+                        {SIT_PAGO.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-slate-600 mb-1">Descripción de actividad *</label>
                     <textarea
@@ -828,7 +835,7 @@ const ControlProyectos = () => {
                           <th className="px-4 py-2 text-left whitespace-nowrap">Inicio–Fin</th>
                           <th className="px-4 py-2 text-right">Hrs</th>
                           <th className="px-4 py-2 text-left">Estado</th>
-                          <th className="px-4 py-2 text-left">Pago</th>
+                          {esAdmin() && <th className="px-4 py-2 text-left">Pago</th>}
                           <th className="px-4 py-2 text-left">Acción</th>
                         </tr>
                       </thead>
@@ -847,7 +854,9 @@ const ControlProyectos = () => {
                             </td>
                             <td className="px-4 py-2 text-right tabular-nums">{Number(a.horas_trabajadas).toFixed(2)}</td>
                             <td className="px-4 py-2">{EST_ACT.find((x) => x.value === a.estado)?.label}</td>
-                            <td className="px-4 py-2">{SIT_PAGO.find((x) => x.value === a.situacion_pago)?.label}</td>
+                            {esAdmin() && (
+                              <td className="px-4 py-2">{SIT_PAGO.find((x) => x.value === a.situacion_pago)?.label}</td>
+                            )}
                             <td className="px-4 py-2">
                               <button
                                 type="button"
