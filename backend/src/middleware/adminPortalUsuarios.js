@@ -1,15 +1,22 @@
 /**
- * Solo correos listados en ADMIN_PORTAL_USUARIOS_EMAILS (o Enrique/Nicolás por defecto).
+ * Rol admin del sistema O correos en ADMIN_PORTAL_USUARIOS_EMAILS (por defecto incluye RRHH / contadora).
  */
 function emailsPermitidos() {
   return (process.env.ADMIN_PORTAL_USUARIOS_EMAILS ||
-    'enrique.agapito@prayaga.biz,nicolas.valdivia@prayaga.biz')
+    [
+      'enrique.agapito@prayaga.biz',
+      'nicolas.valdivia@prayaga.biz',
+      'rocio.picon@prayaga.biz'
+    ].join(','))
     .split(',')
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 }
 
 const verificarAdminPortalUsuarios = (req, res, next) => {
+  if (req.usuario?.rol_nombre === 'admin') {
+    return next();
+  }
   const email = (req.usuario?.email || '').toLowerCase().trim();
   if (!email || !emailsPermitidos().includes(email)) {
     return res.status(403).json({

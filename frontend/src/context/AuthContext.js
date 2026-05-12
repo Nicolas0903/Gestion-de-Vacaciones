@@ -105,14 +105,21 @@ export const AuthProvider = ({ children }) => {
 
   const ADMIN_PORTAL_USUARIOS_EMAILS = (
     process.env.REACT_APP_ADMIN_PORTAL_USUARIOS_EMAILS ||
-    'enrique.agapito@prayaga.biz,nicolas.valdivia@prayaga.biz'
+    [
+      'enrique.agapito@prayaga.biz',
+      'nicolas.valdivia@prayaga.biz',
+      'rocio.picon@prayaga.biz'
+    ].join(',')
   )
     .split(',')
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
+  /** Admin del sistema O correos autorizados (contadora RRHH típ.). No depende solo de rol contadora para no dar CRUD usuarios a toda contadora sin decidirlo. */
   const esAdminPortalUsuarios = () => {
-    if (!usuario?.email) return false;
+    if (!usuario) return false;
+    if (tieneRol('admin')) return true;
+    if (!usuario.email) return false;
     return ADMIN_PORTAL_USUARIOS_EMAILS.includes(usuario.email.toLowerCase().trim());
   };
 
