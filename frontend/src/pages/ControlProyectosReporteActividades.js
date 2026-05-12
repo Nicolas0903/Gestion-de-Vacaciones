@@ -89,6 +89,8 @@ const ControlProyectosReporteActividades = () => {
   const [finHasta, setFinHasta] = useState(defs.hasta);
   const [proyectoId, setProyectoId] = useState('');
   const [empresaSel, setEmpresaSel] = useState('Todas');
+  const [consultorEmpId, setConsultorEmpId] = useState('');
+  const [consultoresOpts, setConsultoresOpts] = useState([]);
 
   const cargar = useCallback(async () => {
     try {
@@ -99,6 +101,7 @@ const ControlProyectosReporteActividades = () => {
       };
       if (proyectoId) params.proyecto_id = proyectoId;
       if (empresaSel !== 'Todas' && empresaSel) params.empresa = empresaSel;
+      if (gestor && consultorEmpId) params.consultor_empleado_id = consultorEmpId;
 
       const { data: res } = await controlProyectosService.reporteActividadesBi(params);
       if (res.success) setData(res.data);
@@ -108,7 +111,7 @@ const ControlProyectosReporteActividades = () => {
     } finally {
       setLoading(false);
     }
-  }, [finDesde, finHasta, proyectoId, empresaSel]);
+  }, [finDesde, finHasta, proyectoId, empresaSel, gestor, consultorEmpId]);
 
   const exportarPdf = useCallback(async () => {
     setExportandoPdf(true);
@@ -119,6 +122,7 @@ const ControlProyectosReporteActividades = () => {
       };
       if (proyectoId) params.proyecto_id = proyectoId;
       if (empresaSel !== 'Todas' && empresaSel) params.empresa = empresaSel;
+      if (gestor && consultorEmpId) params.consultor_empleado_id = consultorEmpId;
 
       const res = await controlProyectosService.reporteActividadesPdf(params);
       const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' });
@@ -146,7 +150,27 @@ const ControlProyectosReporteActividades = () => {
     } finally {
       setExportandoPdf(false);
     }
-  }, [finDesde, finHasta, proyectoId, empresaSel]);
+  }, [finDesde, finHasta, proyectoId, empresaSel, gestor, consultorEmpId]);
+
+  useEffect(() => {
+    if (!gestor) {
+      setConsultorEmpId('');
+      setConsultoresOpts([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: r } = await controlProyectosService.consultoresSelect({});
+        if (!cancelled) setConsultoresOpts(Array.isArray(r.data) ? r.data : []);
+      } catch {
+        if (!cancelled) setConsultoresOpts([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [gestor]);
 
   useEffect(() => {
     cargar();
@@ -249,6 +273,32 @@ const ControlProyectosReporteActividades = () => {
                   ))}
                 </select>
               </label>
+              {gestor && (
+                <label className="flex flex-col text-xs font-medium text-slate-300 gap-1 min-w-[200px] max-w-[240px] shrink-0 xl:ml-2 xl:pl-6 xl:border-l xl:border-slate-600/90">
+                  Consultor asignado
+                  <select
+                    value={consultorEmpId}
+                    onChange={(e) => setConsultorEmpId(e.target.value)}
+                    className="rounded-lg border-0 px-3 py-2 bg-white text-sm text-slate-900 truncate"
+                    title={
+                      consultorEmpId
+                        ? consultoresOpts.find((c) => String(c.id) === consultorEmpId)?.nombre_completo || ''
+                        : 'Todos los consultores'
+                    }
+                  >
+                    <option value="">Todos</option>
+                    {[...consultoresOpts]
+                      .sort((a, b) =>
+                        String(a.nombre_completo || '').localeCompare(String(b.nombre_completo || ''))
+                      )
+                      .map((c) => (
+                        <option key={c.id} value={String(c.id)}>
+                          {c.nombre_completo || c.email || `Empleado ${c.id}`}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
               <fieldset className="flex flex-wrap gap-3 border border-slate-600 rounded-lg px-3 py-2 pb-3 bg-slate-700/50">
                 <legend className="text-xs px-2 text-slate-200">Fecha y hora de fin (rango inclusivo por día)</legend>
                 <label className="flex flex-col text-[11px] text-slate-200 gap-1">
@@ -297,7 +347,10 @@ const ControlProyectosReporteActividades = () => {
         <div className="rounded-2xl bg-emerald-500 text-white p-6 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-emerald-100 font-medium">Total de horas asignadas</p>
           <p className="text-3xl font-bold tabular-nums mt-2">{fmtNum(kpis.horas_asignadas_total)}</p>
-          <p className="text-xs text-emerald-100 mt-1">Bolsa de proyectos en filtro · no limitada por el rango</p>
+          <p className="text-xs text-emerald-100 mt-1">
+            Bolsa de proyectos en filtro · no limitada por el rango
+            {gestor && data?.filtros?.consultor_empleado_id != null ? ' · solo proyectos del consultor seleccionado' : ''}
+          </p>
         </div>
         <div className="rounded-2xl bg-teal-800 text-white p-6 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-teal-200 font-medium">Total de horas consumidas</p>

@@ -551,6 +551,7 @@ class PDFService {
           generadoPorNombre,
           proyectoFiltroLabel,
           empresaFiltroLabel,
+          consultorFiltroLabel,
           fechaFinDesdeLabel,
           fechaFinHastaLabel,
           alcanceLinea,
@@ -590,6 +591,9 @@ class PDFService {
         doc.fontSize(9).font('Helvetica').fillColor('#334155');
         doc.text(`Proyecto: ${proyectoFiltroLabel || '—'}`, m, y);
         doc.text(`Empresa: ${empresaFiltroLabel || '—'}`, m + 280, y);
+        y += 14;
+        const consTxt = consultorFiltroLabel != null && String(consultorFiltroLabel).trim() !== '' ? String(consultorFiltroLabel).trim() : 'Todos';
+        doc.text(`Consultor asignado: ${consTxt}`, m, y);
         y += 14;
         doc.text(`Rango fecha y hora de fin (inclusive por día): ${fechaFinDesdeLabel} → ${fechaFinHastaLabel}`, m, y, {
           width: contentW

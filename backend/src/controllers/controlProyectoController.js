@@ -130,7 +130,15 @@ function parseQueryReporteActividades(req) {
 
   const empresaTrim = req.query.empresa != null ? String(req.query.empresa).trim() : '';
 
-  return { desde, hasta, proyectoId, empresaTrim };
+  const rawCid = req.query.consultor_empleado_id;
+  const consultorParsed =
+    rawCid !== undefined && rawCid !== null && String(rawCid).trim() !== ''
+      ? parseInt(String(rawCid), 10)
+      : null;
+  const consultorEmpleadoId =
+    Number.isFinite(consultorParsed) && consultorParsed > 0 ? consultorParsed : null;
+
+  return { desde, hasta, proyectoId, empresaTrim, consultorEmpleadoId };
 }
 
 function formatoFechaReporteDdMmYyyy(ymd) {
@@ -537,16 +545,19 @@ async function responderReporteCp(req, res, modo) {
 
 const reporteActividadesCp = async (req, res) => {
   try {
-    const { desde, hasta, proyectoId: proyectoIdFinal, empresaTrim } = parseQueryReporteActividades(req);
+    const { desde, hasta, proyectoId: proyectoIdFinal, empresaTrim, consultorEmpleadoId } =
+      parseQueryReporteActividades(req);
 
     const verTodo = puedeGestionProyectos(req.usuario);
+    const consultorFiltrado = verTodo ? consultorEmpleadoId : null;
     const data = await ControlProyecto.reporteActividadesVistaBi({
       verTodo,
       empleadoId: req.usuario.id,
       proyectoId: proyectoIdFinal,
       empresa: empresaTrim === '' ? null : empresaTrim,
       fechaFinDesde: desde,
-      fechaFinHasta: hasta
+      fechaFinHasta: hasta,
+      consultorEmpleadoId: consultorFiltrado
     });
     res.json({ success: true, data });
   } catch (e) {
@@ -564,16 +575,19 @@ const reporteActividadesCp = async (req, res) => {
 
 const reporteActividadesPdfCp = async (req, res) => {
   try {
-    const { desde, hasta, proyectoId, empresaTrim } = parseQueryReporteActividades(req);
+    const { desde, hasta, proyectoId, empresaTrim, consultorEmpleadoId } =
+      parseQueryReporteActividades(req);
 
     const verTodo = puedeGestionProyectos(req.usuario);
+    const consultorFiltrado = verTodo ? consultorEmpleadoId : null;
     const data = await ControlProyecto.reporteActividadesVistaBi({
       verTodo,
       empleadoId: req.usuario.id,
       proyectoId,
       empresa: empresaTrim === '' ? null : empresaTrim,
       fechaFinDesde: desde,
-      fechaFinHasta: hasta
+      fechaFinHasta: hasta,
+      consultorEmpleadoId: consultorFiltrado
     });
 
     let proyectoFiltroLabel = 'Todas';
@@ -582,6 +596,8 @@ const reporteActividadesPdfCp = async (req, res) => {
       proyectoFiltroLabel = p ? `${p.empresa} — ${p.proyecto}` : `Proyecto id ${proyectoId}`;
     }
     const empresaFiltroLabel = empresaTrim === '' ? 'Todas' : empresaTrim;
+    const consultorFiltroLabel =
+      data?.filtros?.consultor_empleado_id != null ? data.filtros.consultor_nombre || `Id ${data.filtros.consultor_empleado_id}` : 'Todos';
 
     const u = req.usuario;
     const generadoPorNombre =
@@ -599,6 +615,7 @@ const reporteActividadesPdfCp = async (req, res) => {
       generadoPorNombre,
       proyectoFiltroLabel,
       empresaFiltroLabel,
+      consultorFiltroLabel,
       fechaFinDesdeLabel: formatoFechaReporteDdMmYyyy(desde),
       fechaFinHastaLabel: formatoFechaReporteDdMmYyyy(hasta),
       alcanceLinea,

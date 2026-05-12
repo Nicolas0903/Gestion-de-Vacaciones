@@ -575,8 +575,9 @@ class ControlProyecto {
 
   /**
    * Reporte detallado de actividades (registro de horas).
-   * Filtros: rango inclusivo sobre DATE(a.fecha_hora_fin); opcional proyecto y empresa.
+   * Filtros: rango inclusivo sobre DATE(a.fecha_hora_fin); opcional proyecto, empresa y consultor asignado.
    * Alcance: gestión = todas las actividades de proyectos en alcance; colaborador = solo sus actividades en esos proyectos.
+   * `consultorEmpleadoId` solo aplica cuando `verTodo` es verdadero (administración).
    */
   static async reporteActividadesVistaBi({
     verTodo,
@@ -584,10 +585,16 @@ class ControlProyecto {
     proyectoId,
     empresa,
     fechaFinDesde,
-    fechaFinHasta
+    fechaFinHasta,
+    consultorEmpleadoId: consultorRaw
   }) {
     const scope = verTodo ? 1 : 0;
     const emp = empleadoId;
+    let consultorFiltro = null;
+    if (verTodo && consultorRaw != null && consultorRaw !== undefined) {
+      const n = Number(consultorRaw);
+      if (Number.isFinite(n) && n > 0) consultorFiltro = Math.trunc(n);
+    }
 
     const filtroProyecto = `(
       ? = 1 OR EXISTS (
@@ -611,25 +618,48 @@ class ControlProyecto {
     }
     const filtroExtraProySuffix = filtroExtraProySql.length ? `AND ${filtroExtraProySql.join(' AND ')}` : '';
 
+    let bolsaConsultorSuffix = '';
+    const bolsaConsultorParams = [];
+    if (consultorFiltro != null) {
+      bolsaConsultorSuffix = ` AND EXISTS (
+        SELECT 1 FROM cp_proyecto_consultores pcq
+        WHERE pcq.proyecto_id = p.id AND pcq.empleado_id = ?
+      )`;
+      bolsaConsultorParams.push(consultorFiltro);
+    }
+
+    let clauseConsultorActs = '';
+    if (!verTodo) {
+      clauseConsultorActs = ' AND a.consultor_asignado_id = ?';
+    } else if (consultorFiltro != null) {
+      clauseConsultorActs = ' AND a.consultor_asignado_id = ?';
+    }
+
     const condicionesActividades = `
       ${filtroProyecto}
       ${filtroExtraProySuffix}
       AND DATE(a.fecha_hora_fin) BETWEEN ? AND ?
       AND a.fecha_hora_fin IS NOT NULL
-      ${verTodo ? '' : 'AND a.consultor_asignado_id = ?'}
+      ${clauseConsultorActs}
     `;
 
     const paramsBolsa = [scope, emp, ...filtroExtraProyParams];
+    const paramsBolsaFull = [...paramsBolsa, ...bolsaConsultorParams];
     const paramsActs = [...paramsBolsa, fechaFinDesde, fechaFinHasta];
-    if (!verTodo) paramsActs.push(emp);
+    if (!verTodo) {
+      paramsActs.push(emp);
+    } else if (consultorFiltro != null) {
+      paramsActs.push(consultorFiltro);
+    }
 
-    /* Horas bolsa (proyectos que cumplen proyecto/empresa y alcance) */
+    /* Horas bolsa (proyectos en alcance; si hay filtro consultor: solo proyectos donde está en equipo) */
     const [bolsaRow] = await pool.execute(
       `SELECT CAST(COALESCE(SUM(p.horas_asignadas), 0) AS DECIMAL(16, 4)) AS horas_asignadas_total
        FROM cp_proyectos p
        WHERE ${filtroProyecto}
-       ${filtroExtraProySuffix}`,
-      paramsBolsa
+       ${filtroExtraProySuffix}
+       ${bolsaConsultorSuffix}`,
+      paramsBolsaFull
     );
 
     const [aggRow] = await pool.execute(
@@ -679,6 +709,15 @@ class ControlProyecto {
       [scope, emp]
     );
 
+    let consultorNombreFiltro = null;
+    if (consultorFiltro != null) {
+      const [cn] = await pool.execute(
+        `SELECT CONCAT(TRIM(nombres), ' ', TRIM(apellidos)) AS nombre FROM empleados WHERE id = ?`,
+        [consultorFiltro]
+      );
+      consultorNombreFiltro = cn[0]?.nombre ? String(cn[0].nombre).trim() : null;
+    }
+
     const bolsaTotal = bolsaRow[0] != null ? Number(bolsaRow[0].horas_asignadas_total) || 0 : 0;
     const consTotal = aggRow[0] != null ? Number(aggRow[0].horas_consumidas_total) || 0 : 0;
     const diasConActividad =
@@ -692,7 +731,9 @@ class ControlProyecto {
         fecha_fin_desde: fechaFinDesde,
         fecha_fin_hasta: fechaFinHasta,
         proyecto_id: proyectoIdSql,
-        empresa: empresaNorm
+        empresa: empresaNorm,
+        consultor_empleado_id: consultorFiltro,
+        consultor_nombre: consultorNombreFiltro
       },
       kpis: {
         horas_asignadas_total: bolsaTotal,
