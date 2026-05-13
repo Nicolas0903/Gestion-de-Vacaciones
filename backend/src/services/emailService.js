@@ -967,6 +967,100 @@ const notificarPermisoPendienteContadora = async (permiso, empleado, contadora) 
 };
 
 /**
+ * Bolsa de horas: avisar al encargado del proyecto cuando se registra o modifica una actividad (horas).
+ */
+const notificarActividadBolsaHorasEncargado = async ({
+  encargadoEmail,
+  encargadoNombre,
+  modo,
+  empresa,
+  proyectoNombre,
+  actividadId,
+  descripcionResumen,
+  horasTrabajadas,
+  consultorNombre,
+  usuarioNombre,
+  usuarioEmail
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('Email no configurado — aviso bolsa horas encargado omitido');
+    return false;
+  }
+  const to = encargadoEmail != null ? String(encargadoEmail).trim().toLowerCase() : '';
+  if (!to) return false;
+
+  const verboTitulo =
+    modo === 'creada' ? 'Nuevo registro de horas' : 'Registro de horas actualizado';
+  const empresaEsc = escapeHtml(empresa);
+  const proyectoEsc = escapeHtml(proyectoNombre);
+  const descr = descripcionResumen != null ? String(descripcionResumen).trim().slice(0, 380) : '';
+  const descrEsc = escapeHtml(descr);
+  const consultorEsc = escapeHtml(consultorNombre || '—');
+  const usuarioEsc = escapeHtml(usuarioNombre || usuarioEmail || '—');
+  const mailEsc = escapeHtml(usuarioEmail || '');
+  const horasN = horasTrabajadas != null ? Number(horasTrabajadas) : null;
+  const horasLbl = Number.isFinite(horasN) ? String(Math.round(horasN * 100) / 100) : '—';
+
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(encargadoNombre || 'encargado')}</strong>,</p>
+    <p>Hubo una <strong>${modo === 'creada' ? 'alta' : 'modificación'}</strong> en el registro de horas del proyecto donde figura como encargado/a.</p>
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">Empresa:</span>
+        <span class="info-value">${empresaEsc}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Proyecto:</span>
+        <span class="info-value">${proyectoEsc}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Id actividad:</span>
+        <span class="info-value">${escapeHtml(String(actividadId ?? '—'))}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Horas:</span>
+        <span class="info-value">${horasLbl}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Consultor:</span>
+        <span class="info-value">${consultorEsc}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Quien registró / editó:</span>
+        <span class="info-value">${usuarioEsc}${mailEsc ? ` (${mailEsc})` : ''}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Descripción:</span>
+        <span class="info-value">${descrEsc || '—'}</span>
+      </div>
+    </div>
+    <center>
+      <a href="${FRONTEND_URL}/control-proyectos" class="button">Abrir bolsa de horas</a>
+    </center>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Bolsa de Horas · Prayaga" <${process.env.SMTP_USER}>`,
+      to,
+      subject: `${verboTitulo} · ${proyectoNombre ? String(proyectoNombre).slice(0, 60) : 'Proyecto'}`,
+      html: plantillaBase(
+        contenido,
+        verboTitulo,
+        'Bolsa de horas · Control de proyectos',
+        'Este mensaje es automático ante cambios en actividades/registro de horas del proyecto.'
+      )
+    });
+    console.log(`Email bolsa horas encargado → ${to} (actividad ${actividadId})`);
+    return true;
+  } catch (error) {
+    console.error('Error al enviar email bolsa horas encargado:', error.message);
+    return false;
+  }
+};
+
+/**
  * Enviar email de prueba para verificar configuración
  */
 const codigoTicketReembolso = (row) => {
@@ -1416,6 +1510,7 @@ module.exports = {
   notificarRegistroAprobado,
   notificarRegistroRechazado,
   notificarPermisoPendienteContadora,
+  notificarActividadBolsaHorasEncargado,
   notificarNuevaSolicitudReembolsoAprobador,
   notificarReembolsoResueltoEmpleado,
   enviarCajaChicaResumenRocio

@@ -7,6 +7,30 @@ function horasDesdeDatetime(inicio, fin) {
   return Math.round(((b - a) / (1000 * 60 * 60)) * 100) / 100;
 }
 
+async function mapaEncargadosPorProyectos(proyectoIds) {
+  if (!proyectoIds.length) return new Map();
+  const placeholders = proyectoIds.map(() => '?').join(',');
+  const [rows] = await pool.execute(
+    `SELECT p.id AS proyecto_id,
+        p.encargado_empleado_id AS enc_id,
+        TRIM(CONCAT(TRIM(IFNULL(e.nombres,'')), ' ', TRIM(IFNULL(e.apellidos,'')))) AS enc_nombre,
+        IFNULL(TRIM(e.email),'') AS enc_email
+      FROM cp_proyectos p
+      LEFT JOIN empleados e ON e.id = p.encargado_empleado_id
+      WHERE p.id IN (${placeholders})`,
+    proyectoIds
+  );
+  const map = new Map();
+  for (const r of rows) {
+    map.set(r.proyecto_id, {
+      encargado_empleado_id: r.enc_id,
+      encargado_nombre: r.enc_nombre && String(r.enc_nombre).trim() ? String(r.enc_nombre).trim() : null,
+      encargado_email: r.enc_email && String(r.enc_email).trim() ? String(r.enc_email).trim().toLowerCase() : null
+    });
+  }
+  return map;
+}
+
 async function mapaConsultoresPorProyectos(proyectoIds) {
   if (!proyectoIds.length) return new Map();
   const placeholders = proyectoIds.map(() => '?').join(',');
@@ -36,14 +60,20 @@ async function mapaConsultoresPorProyectos(proyectoIds) {
 async function enriquecerProyectos(rows) {
   if (!rows.length) return [];
   const ids = rows.map((r) => r.id);
-  const map = await mapaConsultoresPorProyectos(ids);
+  const mapConsult = await mapaConsultoresPorProyectos(ids);
+  const mapEnc = await mapaEncargadosPorProyectos(ids);
   return rows.map((p) => {
-    const consultores = map.get(p.id) || [];
+    const consultores = mapConsult.get(p.id) || [];
+    const enc = mapEnc.get(p.id);
+    const encNome = enc?.encargado_nombre ?? null;
+    const encMail = enc?.encargado_email ?? null;
     return {
       ...p,
       consultores,
       consultores_empleado_ids: consultores.map((c) => c.id),
-      consultores_nombres: consultores.map((c) => c.nombre_completo).join(', ')
+      consultores_nombres: consultores.map((c) => c.nombre_completo).join(', '),
+      encargado_nombre: encNome,
+      encargado_email: encMail
     };
   });
 }
@@ -87,7 +117,25 @@ class ControlProyecto {
     return rows;
   }
 
-  /** Valida que todos los IDs puedan quedar asignados (crear: solo catálogo; editar: catálogo o ya en el proyecto). */
+  /** Encargado: empleado activo con correo para notificaciones por actividades/hrs del proyecto */
+  static async assertEncargadoValido(empleadoId) {
+    const id = parseInt(String(empleadoId), 10);
+    if (!Number.isFinite(id) || id < 1) {
+      throw new Error('Indique un encargado del proyecto válido.');
+    }
+    const [rows] = await pool.execute(
+      `SELECT id FROM empleados
+       WHERE id = ? AND activo = 1 AND IFNULL(TRIM(email), '') <> ''
+       LIMIT 1`,
+      [id]
+    );
+    if (!rows.length) {
+      throw new Error(
+        'El encargado debe ser un usuario activo con correo en el sistema (Administración / portal).'
+      );
+    }
+  }
+
   static async assertConsultoresPermitidos(empleadoIds, proyectoIdExistente) {
     const ids = [...new Set(empleadoIds.map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n) && n > 0))];
     if (!ids.length) {
@@ -172,7 +220,7 @@ class ControlProyecto {
   }
 
   static async crearProyectoConConsultores(
-    { empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles },
+    { empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles, encargado_empleado_id },
     consultoresIds
   ) {
     const uniq = [...new Set(consultoresIds.map((x) => parseInt(x, 10)).filter((n) => Number.isFinite(n) && n > 0))];
@@ -180,14 +228,16 @@ class ControlProyecto {
       throw new Error('Debe indicar al menos un consultor asignado del portal');
     }
     await ControlProyecto.assertConsultoresPermitidos(uniq, null);
+    const encId = parseInt(String(encargado_empleado_id), 10);
+    await ControlProyecto.assertEncargadoValido(encId);
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
       const [r] = await conn.execute(
         `INSERT INTO cp_proyectos
-         (empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles || null]
+         (empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles, encargado_empleado_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles || null, encId]
       );
       const id = r.insertId;
       await ControlProyecto.reemplazarConsultoresProyecto(id, uniq, conn);
@@ -202,12 +252,25 @@ class ControlProyecto {
   }
 
   static async actualizarProyectoYConsultores(id, patch, consultoresIds) {
-    const allowed = ['empresa', 'proyecto', 'fecha_inicio', 'fecha_fin', 'horas_asignadas', 'estado', 'detalles'];
+    const allowed = [
+      'empresa',
+      'proyecto',
+      'fecha_inicio',
+      'fecha_fin',
+      'horas_asignadas',
+      'estado',
+      'detalles',
+      'encargado_empleado_id'
+    ];
     const keys = allowed.filter((k) => patch[k] !== undefined);
     if (!keys.length && consultoresIds == null) return false;
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
+      if (patch.encargado_empleado_id !== undefined) {
+        const encIdUpd = parseInt(String(patch.encargado_empleado_id), 10);
+        await ControlProyecto.assertEncargadoValido(encIdUpd);
+      }
       if (keys.length) {
         const sets = keys.map((k) => `${k} = ?`).join(', ');
         const vals = keys.map((k) => patch[k]);
@@ -243,9 +306,21 @@ class ControlProyecto {
 
   /** compat: actualizar solo campos de proyecto sin tocar consultores */
   static async actualizarProyecto(id, patch) {
-    const allowed = ['empresa', 'proyecto', 'fecha_inicio', 'fecha_fin', 'horas_asignadas', 'estado', 'detalles'];
+    const allowed = [
+      'empresa',
+      'proyecto',
+      'fecha_inicio',
+      'fecha_fin',
+      'horas_asignadas',
+      'estado',
+      'detalles',
+      'encargado_empleado_id'
+    ];
     const keys = allowed.filter((k) => patch[k] !== undefined);
     if (!keys.length) return false;
+    if (patch.encargado_empleado_id !== undefined) {
+      await ControlProyecto.assertEncargadoValido(patch.encargado_empleado_id);
+    }
     const sets = keys.map((k) => `${k} = ?`).join(', ');
     const vals = keys.map((k) => patch[k]);
     const [r] = await pool.execute(`UPDATE cp_proyectos SET ${sets} WHERE id = ?`, [...vals, id]);

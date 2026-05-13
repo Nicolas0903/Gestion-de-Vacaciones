@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, FolderIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { controlProyectosService } from '../services/api';
+import { controlProyectosService, empleadoService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatoFechaDMY, formatoFechaHoraDMY } from '../utils/dateUtils';
 
@@ -69,6 +69,7 @@ const proyectoVacio = () => ({
   consultores_empleado_ids: [],
   horas_asignadas: '',
   estado: 'pendiente',
+  encargado_empleado_id: '',
   detalles: ''
 });
 
@@ -101,6 +102,7 @@ const ControlProyectos = () => {
   const [actForm, setActForm] = useState(actividadVacia);
   const [filtroProyectoAct, setFiltroProyectoAct] = useState('');
   const nombreUsuario = `${usuario?.nombres || ''} ${usuario?.apellidos || ''}`.trim();
+  const [empleadosEncargado, setEmpleadosEncargado] = useState([]);
 
   const cargarMisProyectos = useCallback(async () => {
     const { data } = await controlProyectosService.misProyectos();
@@ -173,6 +175,28 @@ const ControlProyectos = () => {
   }, [puedeProy, proyectoEditId]);
 
   useEffect(() => {
+    if (!puedeProy) {
+      setEmpleadosEncargado([]);
+      return undefined;
+    }
+    let cancel = false;
+    (async () => {
+      try {
+        const { data } = await empleadoService.listar({ activo: true });
+        const rows = Array.isArray(data.data)
+          ? data.data.filter((e) => e.email && String(e.email).trim())
+          : [];
+        if (!cancel) setEmpleadosEncargado(rows);
+      } catch {
+        if (!cancel) toast.error('Error al cargar listado para encargado del proyecto.');
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [puedeProy]);
+
+  useEffect(() => {
     let cancel = false;
     (async () => {
       try {
@@ -212,12 +236,17 @@ const ControlProyectos = () => {
         horas_asignadas: parseFloat(String(proyForm.horas_asignadas).replace(',', '.')) || 0,
         estado: proyForm.estado,
         detalles: proyForm.detalles,
+        encargado_empleado_id: parseInt(String(proyForm.encargado_empleado_id), 10),
         consultores_empleado_ids: Array.isArray(proyForm.consultores_empleado_ids)
           ? normalizaIdsConsultores(proyForm.consultores_empleado_ids)
           : []
       };
       if (!body.empresa.trim() || !body.proyecto.trim() || !body.fecha_inicio || !body.fecha_fin) {
         toast.error('Complete los campos obligatorios del proyecto.');
+        return;
+      }
+      if (!Number.isFinite(body.encargado_empleado_id) || body.encargado_empleado_id < 1) {
+        toast.error('Seleccione el encargado del proyecto (recibirá correos ante cambios en el registro de horas).');
         return;
       }
       if (!body.consultores_empleado_ids.length) {
@@ -303,9 +332,13 @@ const ControlProyectos = () => {
         consultores_empleado_ids: normalizaIdsConsultores(
           p.consultores_empleado_ids || p.consultores?.map((c) => c.id) || []
         ),
-      horas_asignadas: String(p.horas_asignadas ?? ''),
-      estado: p.estado || 'pendiente',
-      detalles: p.detalles || ''
+        horas_asignadas: String(p.horas_asignadas ?? ''),
+        estado: p.estado || 'pendiente',
+        encargado_empleado_id:
+          p.encargado_empleado_id != null && p.encargado_empleado_id !== ''
+            ? String(p.encargado_empleado_id)
+            : '',
+        detalles: p.detalles || ''
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -551,6 +584,33 @@ const ControlProyectos = () => {
                         ))}
                       </select>
                     </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Encargado del proyecto *{' '}
+                        <span className="text-slate-400 font-normal">(avisos por correo)</span>
+                      </label>
+                      <select
+                        required
+                        className="w-full max-w-xl rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                        value={proyForm.encargado_empleado_id}
+                        onChange={(e) =>
+                          setProyForm((f) => ({ ...f, encargado_empleado_id: e.target.value }))
+                        }
+                      >
+                        <option value="">Seleccionar persona…</option>
+                        {empleadosEncargado.map((em) => (
+                          <option key={em.id} value={em.id}>
+                            {[em.apellidos, em.nombres].filter(Boolean).join(', ') || em.email} ({em.email})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Esta persona recibirá un correo cuando alguien{' '}
+                        <strong>cree o edite</strong> un registro de horas (actividades) de este proyecto. Puede ser un
+                        gerente u otro usuario activo del portal con correo, no tiene que estar en la lista de
+                        consultores.
+                      </p>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Detalles o comentarios</label>
@@ -583,6 +643,7 @@ const ControlProyectos = () => {
                         <th className="px-4 py-2 text-left">Empresa</th>
                         <th className="px-4 py-2 text-left">Proyecto</th>
                         <th className="px-4 py-2 text-left whitespace-nowrap">Inicio–Fin</th>
+                        <th className="px-4 py-2 text-left">Encargado</th>
                         <th className="px-4 py-2 text-left">Consultores</th>
                         <th className="px-4 py-2 text-right">Hrs.</th>
                         <th className="px-4 py-2 text-left">Estado</th>
@@ -596,6 +657,9 @@ const ControlProyectos = () => {
                           <td className="px-4 py-2 font-medium">{p.proyecto}</td>
                           <td className="px-4 py-2 whitespace-nowrap text-xs">
                             {formatoFechaDMY(p.fecha_inicio)} – {formatoFechaDMY(p.fecha_fin)}
+                          </td>
+                          <td className="px-4 py-2 text-xs max-w-[9rem]" title={p.encargado_email || ''}>
+                            {p.encargado_nombre || '—'}
                           </td>
                           <td className="px-4 py-2 text-xs max-w-xs">{p.consultores_nombres || '—'}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{Number(p.horas_asignadas).toFixed(2)}</td>

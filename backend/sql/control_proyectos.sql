@@ -13,8 +13,10 @@ CREATE TABLE IF NOT EXISTS cp_proyectos (
   horas_asignadas DECIMAL(10,2) NOT NULL DEFAULT 0,
   estado ENUM('finalizado','en_curso','pendiente','perdido') NOT NULL DEFAULT 'pendiente',
   detalles TEXT NULL,
+  encargado_empleado_id INT NULL COMMENT 'Notificado ante cambios en actividades/registro horas del proyecto',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_cp_proy_encargado FOREIGN KEY (encargado_empleado_id) REFERENCES empleados(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS cp_proyecto_consultores (

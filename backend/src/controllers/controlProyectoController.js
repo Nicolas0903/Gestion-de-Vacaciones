@@ -1,5 +1,6 @@
 const ControlProyecto = require('../models/ControlProyecto');
 const PDFService = require('../services/pdfService');
+const emailService = require('../services/emailService');
 
 /** Emails que pueden crear/editar/eliminar proyectos además del rol admin. Por defecto: asistente@prayaga.biz */
 function emailsGestionProyectosBolsaHoras() {
@@ -61,6 +62,40 @@ function normalizaDatetimeMysql(v) {
   return s.slice(0, 19);
 }
 
+function nombreUsuarioPortal(u) {
+  if (!u) return '';
+  const n = [u.nombres, u.apellidos].filter(Boolean).join(' ').trim();
+  return n || u.email || '';
+}
+
+/** Notifica por correo al encargado del proyecto (si existe y no es quien ejecutó la acción). */
+async function intentarCorreoEncargadoPorActividad({ proyecto, actividad, modo, usuarioQueActua }) {
+  try {
+    if (!proyecto || !actividad || !usuarioQueActua?.id) return;
+    const encId = proyecto.encargado_empleado_id != null ? parseInt(String(proyecto.encargado_empleado_id), 10) : NaN;
+    if (!Number.isFinite(encId) || encId < 1) return;
+    if (encId === usuarioQueActua.id) return;
+    const mail = proyecto.encargado_email;
+    if (!mail || !String(mail).trim()) return;
+    const nombreEnc = proyecto.encargado_nombre || 'Encargado';
+    await emailService.notificarActividadBolsaHorasEncargado({
+      encargadoEmail: mail,
+      encargadoNombre: nombreEnc,
+      modo,
+      empresa: proyecto.empresa || '',
+      proyectoNombre: proyecto.proyecto || '',
+      actividadId: actividad.id,
+      descripcionResumen: actividad.descripcion_actividad || '',
+      horasTrabajadas: actividad.horas_trabajadas,
+      consultorNombre: actividad.consultor_nombre || '—',
+      usuarioNombre: nombreUsuarioPortal(usuarioQueActua),
+      usuarioEmail: usuarioQueActua.email || ''
+    });
+  } catch (e) {
+    console.warn('intentarCorreoEncargadoPorActividad:', e.message);
+  }
+}
+
 function parseConsultoresEmpleadoIds(body) {
   const raw = body.consultores_empleado_ids;
   if (Array.isArray(raw)) {
@@ -81,6 +116,11 @@ function sqlMissing(msg) {
       (msg.includes('cp_proyectos') && msg.includes("doesn't exist")) ||
       (msg.includes('cp_proyecto_consultores') && msg.includes("doesn't exist")))
   );
+}
+
+function sqlMigracionEncargadoCp(msg) {
+  const m = typeof msg === 'string' ? msg : '';
+  return m.includes('encargado_empleado_id') && (m.includes('Unknown column') || m.includes('does not exist'));
 }
 
 /** YYYY-MM-DD */
@@ -211,8 +251,18 @@ const crearProyecto = async (req, res) => {
     return res.status(403).json({ success: false, mensaje: 'Sin permiso para crear proyectos.' });
   }
   try {
-    const { empresa, proyecto, fecha_inicio, fecha_fin, horas_asignadas, estado, detalles } = req.body;
+    const {
+      empresa,
+      proyecto,
+      fecha_inicio,
+      fecha_fin,
+      horas_asignadas,
+      estado,
+      detalles,
+      encargado_empleado_id: rawEncargado
+    } = req.body;
     const consultoresIds = parseConsultoresEmpleadoIds(req.body);
+    const encargadoParsed = parseInt(rawEncargado != null ? String(rawEncargado) : '', 10);
     if (!empresa || !proyecto || !fecha_inicio || !fecha_fin) {
       return res.status(400).json({ success: false, mensaje: 'Complete empresa, proyecto y fechas.' });
     }
@@ -220,6 +270,12 @@ const crearProyecto = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, mensaje: 'Seleccione al menos un consultor asignado (del portal).' });
+    }
+    if (!Number.isFinite(encargadoParsed) || encargadoParsed < 1) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Seleccione el encargado del proyecto (recibirá avisos por correo ante cambios en el registro de horas).'
+      });
     }
     if (!ESTADOS_PROYECTO.has(estado || '')) {
       return res.status(400).json({ success: false, mensaje: 'Estado de proyecto no válido.' });
@@ -232,7 +288,8 @@ const crearProyecto = async (req, res) => {
         fecha_fin,
         horas_asignadas: parseNum(horas_asignadas, 0),
         estado,
-        detalles: detalles != null ? String(detalles) : null
+        detalles: detalles != null ? String(detalles) : null,
+        encargado_empleado_id: encargadoParsed
       },
       consultoresIds
     );
@@ -240,6 +297,14 @@ const crearProyecto = async (req, res) => {
     res.status(201).json({ success: true, data: row });
   } catch (e) {
     console.error(e);
+    const diag = `${e.sqlMessage || ''} ${e.message || ''}`;
+    if (sqlMigracionEncargadoCp(diag)) {
+      return res.status(503).json({
+        success: false,
+        mensaje:
+          'Falta la columna «encargado» en proyectos de bolsa de horas. Ejecute backend/sql/20260507_cp_proyectos_encargado.sql en la base de datos.'
+      });
+    }
     res.status(400).json({ success: false, mensaje: e.message || 'Error al crear proyecto.' });
   }
 };
@@ -254,6 +319,22 @@ const actualizarProyecto = async (req, res) => {
       req.body.consultores_empleado_ids !== undefined ? parseConsultoresEmpleadoIds(req.body) : null;
     const patch = { ...req.body };
     delete patch.consultores_empleado_ids;
+    if (patch.encargado_empleado_id !== undefined) {
+      if (patch.encargado_empleado_id === '' || patch.encargado_empleado_id === null) {
+        return res.status(400).json({
+          success: false,
+          mensaje: 'Seleccione el encargado del proyecto (recibirá avisos por correo ante cambios en el registro de horas).'
+        });
+      }
+      const enc = parseInt(String(patch.encargado_empleado_id), 10);
+      patch.encargado_empleado_id = enc;
+      if (!Number.isFinite(enc) || enc < 1) {
+        return res.status(400).json({
+          success: false,
+          mensaje: 'El encargado del proyecto debe ser un empleado activo válido.'
+        });
+      }
+    }
     if (patch.estado && !ESTADOS_PROYECTO.has(patch.estado)) {
       return res.status(400).json({ success: false, mensaje: 'Estado inválido.' });
     }
@@ -263,6 +344,14 @@ const actualizarProyecto = async (req, res) => {
     res.json({ success: true, data: row });
   } catch (e) {
     console.error(e);
+    const diag = `${e.sqlMessage || ''} ${e.message || ''}`;
+    if (sqlMigracionEncargadoCp(diag)) {
+      return res.status(503).json({
+        success: false,
+        mensaje:
+          'Falta la columna «encargado» en proyectos de bolsa de horas. Ejecute backend/sql/20260507_cp_proyectos_encargado.sql en la base de datos.'
+      });
+    }
     res.status(400).json({ success: false, mensaje: e.message || 'Error al actualizar.' });
   }
 };
@@ -408,6 +497,13 @@ const crearActividad = async (req, res) => {
       horas_trabajadas: horasCalculadasOpcional
     });
     const row = await ControlProyecto.obtenerActividad(id);
+    const proyectoCompleto = await ControlProyecto.obtenerProyecto(pid);
+    void intentarCorreoEncargadoPorActividad({
+      proyecto: proyectoCompleto,
+      actividad: row,
+      modo: 'creada',
+      usuarioQueActua: req.usuario
+    });
     res.status(201).json({ success: true, data: row });
   } catch (e) {
     console.error(e);
@@ -486,6 +582,13 @@ const actualizarActividad = async (req, res) => {
     /* Recalcular proyecto si cambió horas/fechas desde modelo actualizar ya recalcula */
 
     const row = await ControlProyecto.obtenerActividad(id);
+    const proyectoCompleto = await ControlProyecto.obtenerProyecto(row.proyecto_id);
+    void intentarCorreoEncargadoPorActividad({
+      proyecto: proyectoCompleto,
+      actividad: row,
+      modo: 'actualizada',
+      usuarioQueActua: req.usuario
+    });
     res.json({ success: true, data: row });
   } catch (e) {
     console.error(e);
