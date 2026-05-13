@@ -628,7 +628,7 @@ class PDFService {
           {
             tit: 'TOTAL DE HORAS RESTANTES',
             val: fmtN2(kpis?.horas_restantes_total),
-            sub: 'Asignadas − consumidas (mismo criterio de KPIs)',
+            sub: 'Bolsa − consumidas acumuladas del proyecto (sin filtro de fechas)',
             fill: '#14b8a6'
           },
           {

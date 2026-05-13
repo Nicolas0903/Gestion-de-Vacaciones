@@ -360,7 +360,9 @@ const ControlProyectosReporteActividades = () => {
         <div className="rounded-2xl bg-teal-500 text-white p-6 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-teal-100 font-medium">Total de horas restantes</p>
           <p className="text-3xl font-bold tabular-nums mt-2">{fmtNum(kpis.horas_restantes_total)}</p>
-          <p className="text-xs text-teal-100 mt-1">Asignadas − consumidas (mismo criterio de KPIs)</p>
+          <p className="text-xs text-teal-100 mt-1">
+            Bolsa − consumidas acumuladas del proyecto (sin filtro de fechas; mismo alcance que bolsa de horas)
+          </p>
         </div>
         <div className="rounded-2xl bg-sky-600 text-white p-6 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-sky-100 font-medium">Horas promedio trabajadas por día</p>

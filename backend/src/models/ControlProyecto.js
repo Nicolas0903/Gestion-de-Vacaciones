@@ -653,6 +653,7 @@ class ControlProyecto {
    * Filtros: rango inclusivo sobre DATE(a.fecha_hora_fin); opcional proyecto, empresa y consultor asignado.
    * Alcance: gestión = todas las actividades de proyectos en alcance; colaborador = solo sus actividades en esos proyectos.
    * `consultorEmpleadoId` solo aplica cuando `verTodo` es verdadero (administración).
+   * Las horas restantes del KPI usan consumo acumulado del proyecto (sin filtro de fechas), no el consumo del solo período.
    */
   static async reporteActividadesVistaBi({
     verTodo,
@@ -745,6 +746,22 @@ class ControlProyecto {
       paramsActs
     );
 
+    /** Consumidas en todos los períodos (mismo alcance de proyectos que la bolsa); sirve para horas restantes por proyecto */
+    const condicionesConsumoAcumuladoProyecto = `
+      ${filtroProyecto}
+      ${filtroExtraProySuffix}
+      ${bolsaConsultorSuffix}
+      AND a.fecha_hora_fin IS NOT NULL
+    `;
+
+    const [aggAcumRow] = await pool.execute(
+      `SELECT CAST(COALESCE(SUM(a.horas_trabajadas), 0) AS DECIMAL(16, 4)) AS horas_consumidas_acumulado_total
+       FROM cp_actividades a
+       INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
+       WHERE ${condicionesConsumoAcumuladoProyecto.trim()}`,
+      paramsBolsaFull
+    );
+
     const [diasRow] = await pool.execute(
       `SELECT COUNT(DISTINCT DATE(a.fecha_hora_fin)) AS dias_distintos_fin
        FROM cp_actividades a
@@ -795,6 +812,8 @@ class ControlProyecto {
 
     const bolsaTotal = bolsaRow[0] != null ? Number(bolsaRow[0].horas_asignadas_total) || 0 : 0;
     const consTotal = aggRow[0] != null ? Number(aggRow[0].horas_consumidas_total) || 0 : 0;
+    const consTotalAcumProyecto =
+      aggAcumRow[0] != null ? Number(aggAcumRow[0].horas_consumidas_acumulado_total) || 0 : 0;
     const diasConActividad =
       diasRow[0] != null ? parseInt(String(diasRow[0].dias_distintos_fin), 10) || 0 : 0;
     const horasPromDia =
@@ -813,7 +832,9 @@ class ControlProyecto {
       kpis: {
         horas_asignadas_total: bolsaTotal,
         horas_consumidas_total: consTotal,
-        horas_restantes_total: Math.round((bolsaTotal - consTotal) * 100) / 100,
+        horas_consumidas_acumulado_total: Math.round(consTotalAcumProyecto * 100) / 100,
+        horas_restantes_total:
+          Math.round((bolsaTotal - consTotalAcumProyecto) * 100) / 100,
         horas_promedio_trabajadas_por_dia: horasPromDia,
         dias_con_actividad_en_rango: diasConActividad
       },
