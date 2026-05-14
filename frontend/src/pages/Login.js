@@ -47,7 +47,7 @@ const Login = () => {
         <div className="relative z-10 text-center max-w-sm">
           <div className="inline-block p-4 rounded-2xl bg-white mb-8 shadow-xl">
             <LogoTransparente 
-              src="/gestion-vacaciones/logotipo-prayaga.png" 
+              src="/logotipo-prayaga.png" 
               alt="Prayaga" 
               className="h-14 mx-auto object-contain drop-shadow-lg"
             />
@@ -113,7 +113,7 @@ const Login = () => {
           {/* Mobile branding */}
           <div className="lg:hidden text-center mb-8">
             <LogoTransparente 
-              src="/gestion-vacaciones/logotipo-prayaga.png" 
+              src="/logotipo-prayaga.png" 
               alt="Prayaga" 
               className="h-12 mx-auto mb-3 object-contain"
             />

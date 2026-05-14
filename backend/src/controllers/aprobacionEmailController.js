@@ -328,7 +328,7 @@ function generarHtmlRespuesta(titulo, mensaje, tipo) {
     <div class="icon">${config.icon}</div>
     <h1>${titulo}</h1>
     <p>${mensaje}</p>
-    <a href="http://96.126.124.60/gestion-vacaciones/vacaciones/aprobaciones" class="btn">Ir al Sistema</a>
+    <a href="http://96.126.124.60/vacaciones/aprobaciones" class="btn">Ir al Sistema</a>
   </div>
 </body>
 </html>
@@ -447,7 +447,7 @@ function generarFormularioRechazo(token, tokenData) {
       <textarea name="motivo" id="motivo" required placeholder="Explica brevemente el motivo del rechazo..."></textarea>
       
       <div class="buttons">
-        <a href="http://96.126.124.60/gestion-vacaciones/vacaciones/aprobaciones" class="btn btn-cancel">Cancelar</a>
+        <a href="http://96.126.124.60/vacaciones/aprobaciones" class="btn btn-cancel">Cancelar</a>
         <button type="submit" class="btn btn-reject">Confirmar Rechazo</button>
       </div>
     </form>

@@ -296,7 +296,7 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <Router basename="/gestion-vacaciones">
+      <Router basename="/">
         <Toaster 
           position="top-right"
           toastOptions={{

@@ -33,7 +33,7 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       localStorage.removeItem('usuario');
       // Usar la ruta correcta con el basename
-      const basePath = process.env.PUBLIC_URL || '/gestion-vacaciones';
+      const basePath = process.env.PUBLIC_URL || '';
       window.location.href = `${basePath}/login`;
     }
     return Promise.reject(error);

@@ -2,7 +2,7 @@
   "name": "gestor-vacaciones-frontend",
   "version": "1.0.0",
   "private": true,
-  "homepage": "/gestion-vacaciones",
+  "homepage": "/",
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.1.1",

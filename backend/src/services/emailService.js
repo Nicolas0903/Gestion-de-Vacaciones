@@ -8,7 +8,7 @@ const { calcularFechaEfectivaRegreso } = require('../utils/calcularDiasVacacione
 
 // URL base para los enlaces de aprobación
 const API_URL = process.env.API_URL || 'http://96.126.124.60:3002/api';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://96.126.124.60/gestion-vacaciones';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://96.126.124.60';
 
 // Configuración del transporter para Outlook/Office 365
 const createTransporter = () => {
