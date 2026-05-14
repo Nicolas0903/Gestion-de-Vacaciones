@@ -48,13 +48,33 @@ REGLAS GENERALES:
 - Si te preguntan algo fuera del dominio (chistes, clima, código, etc.), redirige al tema.
 
 CÓMO TRABAJAR:
-1. Cuando el usuario mencione un empleado por nombre o apellido, llama PRIMERO a "buscarEmpleado" para resolver el id.
-2. Si hay varios resultados, MUESTRA la lista al usuario y pregunta cuál.
-3. Si la búsqueda no devuelve resultados, dilo claramente y sugiere alternativas (revisar acentos, nombre completo, etc.).
+1. Cuando el usuario mencione un empleado por nombre o apellido, llama PRIMERO a "buscarEmpleado" para resolver el id. La búsqueda es TOLERANTE a tildes y mayúsculas (interna), así que NO le pidas al usuario que reescriba el nombre solo por acentos.
+2. Si la búsqueda devuelve VARIOS resultados, lista los nombres y pregunta cuál.
+3. Si la búsqueda devuelve CERO resultados con un nombre, NO le pidas al usuario el DNI o código de inmediato: primero intenta otra variante (apellido solo, nombre solo) y SOLO si tampoco funciona, pídele el DNI o código.
 4. Con el id resuelto, llama a la función adecuada para obtener la información.
-5. Presenta los resultados con tablas markdown o listas, fácil de leer.
-6. Para fechas, formato dd/mm/yyyy.
-7. Si el usuario pregunta sobre "días de vacaciones" sin más, ofrece tanto el resumen como el detalle por período.
+5. Para fechas, formato dd/mm/yyyy.
+6. Si el usuario pregunta sobre "días de vacaciones" sin más, ofrece tanto el resumen como el detalle por período.
+
+FORMATO DE RESPUESTA (importante):
+- Responde en TEXTO NATURAL, conversacional, en español. NO uses tablas markdown con caracteres "|" porque no se renderizan en el chat.
+- Para listas usa viñetas con guiones "-" o números.
+- Usa **negritas** (markdown estándar) solo para destacar datos clave.
+- Para mostrar varios períodos o registros, usa una lista con viñetas y saltos de línea, no tabla.
+- Mantén las respuestas concisas. Si hay muchos datos, resume y ofrece dar más detalle si lo piden.
+
+EJEMPLO DE RESPUESTA CORRECTA (períodos de vacaciones):
+"Acá están los períodos de **Nicolás Valdivia** (DNI 75464668):
+
+- **2024-2025** (02/05/2024 → 01/05/2025): 15 asignados, 10 gozados, **5 pendientes** — Parcial
+- **2025-2026** (02/05/2025 → 01/05/2026): 15 asignados, 0 gozados, **15 pendientes** — Pendiente
+- **2026-2027** (02/05/2026 → 01/05/2027): 15 asignados, 0 gozados, **15 pendientes** — Pendiente
+
+Total: 35 días pendientes."
+
+NO HAGAS ASÍ (mala):
+"| Período | Días | Estado |
+|---|---|---|
+| 2024-2025 | 15 | Parcial |"
 
 PERÍODOS DE VACACIONES:
 - Cada período tiene: fecha_inicio_periodo, fecha_fin_periodo, dias_correspondientes (asignados), dias_gozados, dias_pendientes, estado.
@@ -69,15 +89,61 @@ PERMISOS:
 // HANDLERS — Funciones reales que ejecutan consultas a la BD.
 // ============================================================
 
+/** Quita tildes/acentos y pasa a minúscula para comparar de forma tolerante. */
+function _normalizar(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 const HANDLERS = {
-  /** Busca empleados por nombre, apellido, DNI, código o email. */
+  /**
+   * Busca empleados de forma TOLERANTE a tildes, mayúsculas y orden de palabras.
+   * Estrategia:
+   *   1. Intenta la búsqueda directa (puede fallar si hay tildes).
+   *   2. Si no hay resultados, tokeniza el query, busca cada token, y filtra
+   *      empleados que contengan TODOS los tokens normalizados.
+   */
   async buscarEmpleado({ query, soloActivos = true }) {
     if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return { ok: false, mensaje: 'El query debe tener al menos 2 caracteres.' };
     }
-    const filtros = { busqueda: query.trim() };
-    if (soloActivos) filtros.activo = 1;
-    const lista = await Empleado.listarTodos(filtros);
+    const q = query.trim();
+    const baseFiltros = soloActivos ? { activo: 1 } : {};
+
+    // 1) Intento directo (LIKE %query%): rápido y suele alcanzar.
+    let lista = await Empleado.listarTodos({ ...baseFiltros, busqueda: q });
+
+    // 2) Fallback fuzzy: tokenizo, busco cada token, filtro por intersección normalizada.
+    if (!lista || lista.length === 0) {
+      const tokens = q
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 2);
+
+      if (tokens.length === 0) {
+        return { ok: true, total: 0, resultados: [] };
+      }
+
+      // Recupero candidatos por cada token (LIKE) y junto sin duplicar.
+      const mapa = new Map();
+      for (const tk of tokens) {
+        const parciales = await Empleado.listarTodos({ ...baseFiltros, busqueda: tk });
+        for (const e of parciales) mapa.set(e.id, e);
+      }
+
+      const tokensNormalizados = tokens.map(_normalizar);
+      // Filtro: el candidato debe contener TODOS los tokens (normalizando tildes).
+      lista = Array.from(mapa.values()).filter((e) => {
+        const blob = _normalizar(
+          `${e.nombres} ${e.apellidos} ${e.email || ''} ${e.codigo_empleado || ''} ${e.dni || ''}`
+        );
+        return tokensNormalizados.every((tk) => blob.includes(tk));
+      });
+    }
+
     return {
       ok: true,
       total: lista.length,
@@ -85,6 +151,7 @@ const HANDLERS = {
         id: e.id,
         codigo: e.codigo_empleado,
         nombre_completo: `${e.nombres} ${e.apellidos}`,
+        dni: e.dni,
         email: e.email,
         cargo: e.cargo,
         rol: e.rol_nombre,

@@ -20,29 +20,160 @@ import { asistenteIaService } from '../services/api';
 const STORAGE_KEY = 'asistenteIa.historial';
 const MAX_HISTORIAL_LOCAL = 40; // pares user/model
 
+/**
+ * Render simple de markdown ligero:
+ *   - **negritas** y *cursivas*
+ *   - Listas con `- ` o `* ` al inicio de línea
+ *   - Listas numeradas `1. `, `2. ` ...
+ *   - Encabezados ## y ###
+ *   - Saltos de línea preservados
+ *   - Las "tablas" tipo `| A | B |` se filtran como párrafos normales (Gemini ya
+ *     no debería emitirlas con el nuevo system prompt, pero por las dudas).
+ */
+function renderInline(texto, keyPrefix = '') {
+  if (texto == null) return null;
+  /* Procesa **bold** y *italic* en una sola pasada. */
+  const partes = [];
+  const regex = /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|_[^_\n]+_)/g;
+  let lastIdx = 0;
+  let m;
+  let i = 0;
+  while ((m = regex.exec(texto)) !== null) {
+    if (m.index > lastIdx) partes.push(texto.slice(lastIdx, m.index));
+    const tk = m[0];
+    if (tk.startsWith('**')) {
+      partes.push(
+        <strong key={`${keyPrefix}-b-${i++}`} className="font-semibold text-slate-900">
+          {tk.slice(2, -2)}
+        </strong>
+      );
+    } else if (tk.startsWith('*') || tk.startsWith('_')) {
+      partes.push(
+        <em key={`${keyPrefix}-i-${i++}`} className="italic">
+          {tk.slice(1, -1)}
+        </em>
+      );
+    }
+    lastIdx = m.index + tk.length;
+  }
+  if (lastIdx < texto.length) partes.push(texto.slice(lastIdx));
+  return partes;
+}
+
 function renderTexto(texto) {
-  /* Render simple de markdown ligero: **negritas**, saltos de línea y listas.
-   * No usamos una lib externa para no inflar el bundle. */
   if (!texto) return null;
   const lineas = String(texto).split('\n');
-  return lineas.map((linea, i) => {
-    const partes = linea.split(/(\*\*[^*]+\*\*)/g).map((p, j) => {
-      if (p.startsWith('**') && p.endsWith('**')) {
-        return (
-          <strong key={j} className="font-semibold">
-            {p.slice(2, -2)}
-          </strong>
-        );
-      }
-      return <React.Fragment key={j}>{p}</React.Fragment>;
-    });
-    return (
-      <React.Fragment key={i}>
-        {partes}
-        {i < lineas.length - 1 && <br />}
-      </React.Fragment>
+  const bloques = [];
+  let listaActual = null; // { tipo: 'ul'|'ol', items: [] }
+
+  const cerrarLista = () => {
+    if (!listaActual) return;
+    const Tag = listaActual.tipo === 'ol' ? 'ol' : 'ul';
+    bloques.push(
+      <Tag
+        key={`l-${bloques.length}`}
+        className={
+          Tag === 'ol'
+            ? 'list-decimal pl-5 my-1 space-y-0.5'
+            : 'list-disc pl-5 my-1 space-y-0.5'
+        }
+      >
+        {listaActual.items.map((it, idx) => (
+          <li key={idx}>{renderInline(it, `li-${idx}`)}</li>
+        ))}
+      </Tag>
     );
-  });
+    listaActual = null;
+  };
+
+  for (let idx = 0; idx < lineas.length; idx++) {
+    const linea = lineas[idx];
+    const recortada = linea.replace(/\s+$/, '');
+    const limpio = recortada.replace(/^\s+/, '');
+
+    // Saltar separadores de tabla tipo "|---|---|"
+    if (/^[\s|:-]+$/.test(limpio) && /\|/.test(limpio)) continue;
+
+    // Encabezado ###
+    if (/^###\s+/.test(limpio)) {
+      cerrarLista();
+      bloques.push(
+        <p key={`h3-${idx}`} className="font-semibold text-slate-800 mt-1">
+          {renderInline(limpio.replace(/^###\s+/, ''))}
+        </p>
+      );
+      continue;
+    }
+    if (/^##\s+/.test(limpio)) {
+      cerrarLista();
+      bloques.push(
+        <p key={`h2-${idx}`} className="font-semibold text-slate-900 mt-1.5 text-[15px]">
+          {renderInline(limpio.replace(/^##\s+/, ''))}
+        </p>
+      );
+      continue;
+    }
+
+    // Lista no ordenada: "- texto" o "* texto"
+    const mUl = /^[-*]\s+(.*)$/.exec(limpio);
+    if (mUl) {
+      if (!listaActual || listaActual.tipo !== 'ul') {
+        cerrarLista();
+        listaActual = { tipo: 'ul', items: [] };
+      }
+      listaActual.items.push(mUl[1]);
+      continue;
+    }
+
+    // Lista ordenada: "1. texto", "2. texto"
+    const mOl = /^\d+\.\s+(.*)$/.exec(limpio);
+    if (mOl) {
+      if (!listaActual || listaActual.tipo !== 'ol') {
+        cerrarLista();
+        listaActual = { tipo: 'ol', items: [] };
+      }
+      listaActual.items.push(mOl[1]);
+      continue;
+    }
+
+    // Línea vacía → quiebre de párrafo
+    if (limpio === '') {
+      cerrarLista();
+      bloques.push(<div key={`sp-${idx}`} className="h-1.5" />);
+      continue;
+    }
+
+    // Tabla markdown horizontal "| col | col |" → la convertimos a línea simple
+    if (/^\|.*\|$/.test(limpio)) {
+      cerrarLista();
+      const celdas = limpio
+        .slice(1, -1)
+        .split('|')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      bloques.push(
+        <p key={`tr-${idx}`} className="my-0.5">
+          {celdas.map((c, j) => (
+            <React.Fragment key={j}>
+              {j > 0 && <span className="text-slate-300 mx-1.5">·</span>}
+              {renderInline(c, `tr-${idx}-${j}`)}
+            </React.Fragment>
+          ))}
+        </p>
+      );
+      continue;
+    }
+
+    // Párrafo común
+    cerrarLista();
+    bloques.push(
+      <p key={`p-${idx}`} className="my-0.5">
+        {renderInline(limpio)}
+      </p>
+    );
+  }
+  cerrarLista();
+  return bloques;
 }
 
 const SUGERENCIAS = [
@@ -239,9 +370,9 @@ export default function AsistenteIaBubble() {
                   className={`flex ${esUsuario ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                    className={`max-w-[85%] px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words ${
                       esUsuario
-                        ? 'bg-teal-600 text-white rounded-br-sm'
+                        ? 'bg-teal-600 text-white rounded-br-sm whitespace-pre-wrap'
                         : 'bg-white text-slate-700 border border-slate-200 rounded-bl-sm shadow-sm'
                     }`}
                   >
