@@ -3,13 +3,13 @@ const asistenteIaService = require('../services/asistenteIaService');
 /**
  * El frontend envía:
  *   - mensaje: string del usuario (turno actual)
- *   - historial: array opcional de mensajes anteriores (formato Gemini Content[])
+ *   - historial: array opcional de mensajes previos en formato OpenAI
+ *     `{ role: 'user'|'assistant', content: string }`.
  *
  * Devolvemos:
  *   - respuesta: texto final del bot
- *   - historial: el historial ACTUALIZADO (con el turn actual ya agregado para que
- *     el frontend pueda enviarlo en la siguiente request — chat sin estado en el server).
- *   - acciones: lista de funciones ejecutadas (para debug / auditoría liviana).
+ *   - historial: el historial ACTUALIZADO (incluye el turno actual)
+ *   - acciones: lista de funciones ejecutadas (para debug)
  */
 const enviarMensaje = async (req, res) => {
   try {
@@ -29,17 +29,16 @@ const enviarMensaje = async (req, res) => {
       });
     }
 
-    /* Sanitizamos el historial: solo aceptamos turnos con role y parts.text para
-     * evitar que el cliente envíe function-calls inventadas. El historial visible
-     * (para Gemini) es siempre de turnos user/model con texto plano. Los
-     * function-calls intermedios se generan dentro del servicio. */
+    /* Sanitizamos: solo aceptamos turnos de user/assistant con content string.
+     * No aceptamos tool_calls inyectados por el cliente. */
     const historialLimpio = (historial || [])
-      .filter((h) => h && (h.role === 'user' || h.role === 'model'))
+      .filter((h) => h && (h.role === 'user' || h.role === 'assistant'))
       .map((h) => ({
         role: h.role,
-        parts: [{ text: String(h.parts?.[0]?.text || h.text || '').slice(0, 4000) }]
+        content: String(h.content || '').slice(0, 4000)
       }))
-      .slice(-20); // máximo 20 turnos previos para acotar tokens
+      .filter((h) => h.content.length > 0)
+      .slice(-20); // últimos 20 turnos para acotar tokens
 
     const { texto, accionesEjecutadas } = await asistenteIaService.procesarMensaje(
       historialLimpio,
@@ -48,8 +47,8 @@ const enviarMensaje = async (req, res) => {
 
     const nuevoHistorial = [
       ...historialLimpio,
-      { role: 'user', parts: [{ text: mensaje.trim() }] },
-      { role: 'model', parts: [{ text: texto }] }
+      { role: 'user', content: mensaje.trim() },
+      { role: 'assistant', content: texto }
     ];
 
     res.json({
@@ -70,13 +69,14 @@ const enviarMensaje = async (req, res) => {
 };
 
 const estado = async (req, res) => {
-  const configurado = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+  const configurado = !!process.env.GROQ_API_KEY;
   res.json({
     success: true,
     data: {
       configurado,
-      modelo: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-      nivel: 'lectura' // En Nivel 1 solo soporta consultas
+      proveedor: 'groq',
+      modelo: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+      nivel: 'lectura'
     }
   });
 };

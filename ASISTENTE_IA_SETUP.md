@@ -1,15 +1,18 @@
 # Asistente IA del Admin — Setup
 
-Chat con IA (Google Gemini) embebido como burbuja flotante para que el admin pueda
+Chat con IA (Groq + Llama 3.3 70B) embebido como burbuja flotante para que el admin pueda
 consultar información del sistema en lenguaje natural. **Versión 1: solo lectura.**
 
 ## Qué hace
 
 El admin (Rocío, Nico, etc.) puede escribir cosas como:
 - *"¿Cuántos días le quedan a Nicolás Valdivia en el período 2024-2025?"*
-- *"Lista los permisos pendientes"*
-- *"Muéstrame los descansos médicos de mayo"*
-- *"¿Cuál es el email de Rocío Picón?"*
+- *"Lista los permisos pendientes de aprobar"*
+- *"Muéstrame los reembolsos pendientes"*
+- *"¿Qué hay pendiente en el sistema?"*
+- *"Lista los proyectos del módulo Bolsa de Horas de Verónica"*
+- *"¿Hay solicitudes de registro nuevas?"*
+- *"Detalle de caja chica del mes pasado"*
 
 El bot busca, consulta y responde formateado con datos reales de la BD.
 
@@ -19,20 +22,31 @@ el bot responde que esa funcionalidad llegará pronto.
 ## Quién lo ve
 
 - Solo usuarios con rol `admin`.
-- El componente está montado en `App.js` y se autocensura si el usuario no es admin.
-- El endpoint del backend valida el rol antes de procesar (`router.use(verificarToken, verificarRol('admin'))`).
+- Componente montado en `App.js`, se autocensura si el usuario no es admin.
+- El endpoint backend valida el rol antes de procesar (`router.use(verificarToken, verificarRol('admin'))`).
+
+---
+
+## Por qué Groq y no Gemini
+
+En 2026 Google redujo drásticamente el tier gratuito de Gemini (20 requests/día). Groq
+ofrece **1.000 req/día y 30 req/min** completamente gratis, sin tarjeta, suficiente para
+uso interno de varios admins. Además es ultra rápido (<500ms por respuesta).
+
+| Proveedor       | Requests/día (gratis) | RPM | Velocidad |
+|-----------------|----------------------|-----|-----------|
+| Gemini Free     | 20 ❌                 | 5   | 1-2 s     |
+| **Groq Free**   | **1.000** ✅          | 30  | <500ms    |
 
 ---
 
 ## Pasos para activarlo en el servidor
 
-### 1. Obtener la API key de Gemini (gratis, sin tarjeta)
+### 1. Obtener la API key de Groq (gratis, sin tarjeta)
 
-1. Entrar a https://aistudio.google.com/apikey con una cuenta de Google.
-2. Click en **"Create API key"** → seleccionar un proyecto o crear uno nuevo.
-3. Copiar la key (formato `AIzaSy...`).
-
-> **Tier gratuito:** 1.500 requests/día con Gemini 2.5 Flash. Sobra de más para uso interno.
+1. Entrar a https://console.groq.com con una cuenta Google/Github.
+2. Ir a **API Keys** → **Create API Key**.
+3. Copiar la key (formato `gsk_...`).
 
 ### 2. Pull del código en el servidor
 
@@ -41,128 +55,134 @@ cd /var/www/gestion-vacaciones
 git pull origin main
 ```
 
-### 3. Instalar la nueva dependencia del backend
+### 3. Instalar dependencias del backend (cambió la dep)
 
 ```bash
 cd backend
 npm install
 ```
 
-Esto instala `@google/genai` (SDK oficial de Gemini para Node.js).
+Esto **elimina** `@google/genai` (Gemini, ya no se usa) e **instala** `groq-sdk`.
 
-> **Requisito**: Node.js 20+. Verificalo con `node --version`. Si tu servidor tiene
-> una versión anterior, actualizá con `nvm install 20 && nvm use 20` o el método
-> que uses para gestionar Node.
+> **Requisito**: Node.js 20+. Verificalo con `node --version`.
 
-### 4. Agregar la API key al `.env` del backend
+### 4. Reemplazar la API key en `.env`
 
-Editá `/var/www/gestion-vacaciones/backend/.env` y agregá al final:
+Editá `/var/www/gestion-vacaciones/backend/.env`:
+
+- **Quitá** la línea vieja `GEMINI_API_KEY=...` (si la tenías).
+- **Agregá** la nueva línea:
 
 ```
-GEMINI_API_KEY=AIzaSy...la_key_que_copiaste
+GROQ_API_KEY=gsk_tu_key_de_groq
 ```
 
-(Opcional: `GEMINI_MODEL=gemini-2.5-flash` — el default ya es ese.)
-
-### 5. Reiniciar el backend con PM2
+### 5. Restart del backend
 
 ```bash
 pm2 restart gestor-vacaciones-backend --update-env
 pm2 save
 ```
 
-El flag `--update-env` hace que PM2 recargue las variables del `.env`.
-
-### 6. Build del frontend
+### 6. Rebuild del frontend
 
 ```bash
 cd ../frontend
-npm install   # por si hay deps nuevas (no las hay para este feature, pero por las dudas)
 npm run build
 ```
 
-Apache ya está sirviendo el directorio `frontend/build` (la VirtualHost no necesita
-ningún cambio).
+Apache ya está sirviendo `frontend/build`, sin cambios.
 
 ### 7. Verificación
 
-Entrar a `http://96.126.124.60` con un usuario **admin**. Tiene que aparecer una
-burbuja flotante en la esquina inferior derecha con el texto "Asistente IA" y un
-ícono de chispas. Al hacer click:
-- Se abre el panel de chat.
-- Muestra sugerencias clickeables.
-- Tipear: *"¿Cuántos días tiene asignados Nicolás Valdivia?"* → el bot busca y responde.
-
-Si la burbuja no aparece, verificar:
-- El usuario logueado es admin (`SELECT rol_nombre FROM ...`).
-- El frontend fue rebuilt y Apache lo está sirviendo.
-
-Si el chat se abre pero da error al enviar un mensaje:
-- Backend logs: `pm2 logs gestor-vacaciones-backend --lines 50`.
-- Probablemente la `GEMINI_API_KEY` está mal o faltó el restart con `--update-env`.
-
----
-
-## Endpoints expuestos
-
-| Método | Ruta                       | Auth          | Descripción                          |
-|--------|----------------------------|---------------|--------------------------------------|
-| GET    | `/api/asistente-ia/estado` | admin         | Estado del servicio (configurado, modelo, nivel). Útil para debug. |
-| POST   | `/api/asistente-ia/mensaje`| admin         | Body: `{ mensaje, historial }`. Devuelve `{ respuesta, historial, acciones }`. |
+Entrá a `http://96.126.124.60` con un usuario **admin**. La burbuja aparece abajo a la
+derecha. Tirá una consulta como *"¿Qué hay pendiente en el sistema?"* — el bot debería
+llamar `obtenerContextoSistema` y responder con un resumen general.
 
 ---
 
 ## Funciones (tools) disponibles al modelo
 
-El modelo Gemini puede invocar estas funciones internas según la pregunta:
+Total: **15 funciones**, todas **read-only**.
 
-| Función                       | Qué hace                                                |
-|-------------------------------|---------------------------------------------------------|
-| `buscarEmpleado`              | Busca por nombre/apellido/DNI/email                     |
-| `obtenerEmpleado`             | Datos completos de un empleado por id                   |
-| `listarPeriodosVacaciones`    | Todos los períodos de un empleado (con días gozados/pendientes) |
-| `obtenerResumenVacaciones`    | Resumen total ganados/gozados/pendientes                |
-| `listarPermisos`              | Permisos con filtros (empleado, estado, tipo, fechas)   |
-| `listarPermisosPendientes`    | Permisos pendientes de aprobación globalmente           |
-| `listarSolicitudesVacaciones` | Solicitudes con filtros (empleado, estado)              |
+| Función | Módulo | Para qué |
+|---|---|---|
+| `obtenerContextoSistema` | General | Foto general (empleados activos, pendientes por módulo) |
+| `buscarEmpleado` | Empleados | Búsqueda fuzzy por nombre/apellido/DNI/email |
+| `obtenerEmpleado` | Empleados | Datos completos de un empleado |
+| `listarEmpleadosTodos` | Empleados | Lista con filtro por rol (admin, contadora, etc.) |
+| `listarPeriodosVacaciones` | Vacaciones | Todos los períodos de un empleado |
+| `obtenerResumenVacaciones` | Vacaciones | Total ganados/gozados/pendientes |
+| `listarSolicitudesVacaciones` | Vacaciones | Solicitudes con filtros |
+| `listarPermisos` | Permisos | Permisos con filtros (estado, tipo, fechas) |
+| `listarPermisosPendientes` | Permisos | Backlog global de permisos pendientes |
+| `listarBoletas` | Boletas | Boletas de un empleado, opcional por año |
+| `listarReembolsos` | Reembolsos | Reembolsos con filtros (empleado, estado) |
+| `listarPeriodosCajaChica` | Caja Chica | Períodos disponibles |
+| `obtenerDetallesCajaChica` | Caja Chica | Ingresos detallados de un período |
+| `listarProyectosControl` | Proyectos | Proyectos del módulo Bolsa de Horas |
+| `listarSolicitudesRegistro` | Registros | Solicitudes pendientes de aprobación |
 
-Todas son **read-only**. Implementadas en `backend/src/services/asistenteIaService.js`.
+Todas en `backend/src/services/asistenteIaService.js`.
+
+---
+
+## Endpoints
+
+| Método | Ruta                       | Auth          | Descripción |
+|--------|----------------------------|---------------|-------------|
+| GET    | `/api/asistente-ia/estado` | admin         | Devuelve `{ configurado, proveedor, modelo, nivel }` |
+| POST   | `/api/asistente-ia/mensaje`| admin         | Body: `{ mensaje, historial }`. Devuelve `{ respuesta, historial, acciones }` |
+
+Formato del historial (OpenAI-compatible):
+
+```json
+[
+  { "role": "user",      "content": "Hola" },
+  { "role": "assistant", "content": "Hola, ¿en qué te ayudo?" }
+]
+```
 
 ---
 
 ## Costos
 
-| Concepto              | Costo                                        |
-|-----------------------|----------------------------------------------|
-| Gemini Flash (tier gratuito) | $0 hasta 1.500 requests/día            |
-| Si superás el tier   | ~$0.10 USD por millón de tokens de entrada    |
+| Concepto                              | Costo                              |
+|---------------------------------------|------------------------------------|
+| Groq Free Tier (Llama 3.3 70B)        | $0 hasta 1.000 requests/día        |
+| Si superás el free                    | ~$0.59/M tokens entrada (developer plan) |
 
-Para uso interno (un admin haciendo 20-50 consultas/día) el costo real es **$0**.
+Para uso interno (admin con 30-50 consultas/día) el costo real es **$0**.
 
 ---
 
 ## Limitaciones conocidas (v1)
 
-1. **Solo lectura.** No modifica nada. La siguiente iteración (Nivel 2) agregará
-   acciones de escritura con confirmación humana previa.
-2. **El historial vive en localStorage del navegador.** Si el admin limpia el
-   navegador o usa otro dispositivo, pierde el historial. No es un problema serio
-   porque cada conversación es self-contained.
-3. **No tiene memoria entre sesiones del mismo usuario** (más allá del localStorage).
-4. **No procesa imágenes/PDFs.** Gemini Flash soporta multimodal, pero esta
-   primera versión solo acepta texto. Si necesitás que lea constancias médicas,
-   se puede activar en una iteración futura.
+1. **Solo lectura.** No modifica nada. El Nivel 2 agregará acciones de escritura con confirmación humana previa.
+2. **Historial en localStorage del navegador.** Si se limpia el navegador, se pierde. No es problema porque cada conversación es self-contained.
+3. **Sin multimodal.** Esta primera versión solo procesa texto (Groq tampoco lo soporta hoy).
+4. **TPM limitado** (6K tokens/min en free). Si el modelo hace ráfagas de 5+ function calls seguidos puede toparse momentáneamente con el límite. El error se muestra y al retry pasa.
+
+---
+
+## Migración desde Gemini (si venís de la versión previa)
+
+Si ya habías hecho deploy con Gemini:
+
+1. En `.env`: cambiar `GEMINI_API_KEY=...` por `GROQ_API_KEY=...`.
+2. `git pull && cd backend && npm install` (esto remueve `@google/genai` y agrega `groq-sdk`).
+3. `pm2 restart gestor-vacaciones-backend --update-env`.
+4. `cd ../frontend && npm run build`.
+
+El historial viejo del localStorage del frontend se migra automáticamente al primer load.
 
 ---
 
 ## Próximos pasos sugeridos (Nivel 2)
 
-Cuando quieras dar el salto a "escritura confirmada":
-
-1. Agregar tabla `auditoria_asistente_ia` (quién, cuándo, qué prompt, qué función, payload antes/después).
+1. Agregar tabla `auditoria_asistente_ia` (quién, cuándo, prompt, función, payload antes/después).
 2. Crear funciones de escritura limitadas (ej. `actualizarDiasPeriodoVacaciones`).
-3. Hacer que el LLM **proponga** la acción y espere confirmación del usuario (dos
-   botones [Sí, aplicar] / [Cancelar]) antes de ejecutar.
+3. Hacer que el LLM proponga la acción y espere confirmación del usuario antes de ejecutar.
 4. Validaciones de negocio adicionales (no más de N días, no saldo negativo, etc.).
 
 Tiempo estimado para Nivel 2: 5-7 días de trabajo.

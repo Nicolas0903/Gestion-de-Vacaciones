@@ -197,7 +197,23 @@ export default function AsistenteIaBubble() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) setHistorial(parsed.slice(-MAX_HISTORIAL_LOCAL * 2));
+        if (Array.isArray(parsed)) {
+          /* Migración de formato viejo (Gemini: `{ role: 'model', parts: [{text}] }`)
+           * al nuevo (OpenAI: `{ role: 'assistant', content }`). */
+          const migrado = parsed
+            .map((m) => {
+              if (m?.content && (m.role === 'user' || m.role === 'assistant')) return m;
+              if (m?.role === 'user' && m.parts?.[0]?.text) {
+                return { role: 'user', content: m.parts[0].text };
+              }
+              if (m?.role === 'model' && m.parts?.[0]?.text) {
+                return { role: 'assistant', content: m.parts[0].text };
+              }
+              return null;
+            })
+            .filter(Boolean);
+          setHistorial(migrado.slice(-MAX_HISTORIAL_LOCAL * 2));
+        }
       }
     } catch (_) {
       /* ignore */
@@ -231,9 +247,8 @@ export default function AsistenteIaBubble() {
 
       setTexto('');
       const historialPrevio = historial;
-      /* Optimismo: mostramos el mensaje del usuario al instante, y un placeholder
-       * "pensando..." que reemplazaremos cuando llegue la respuesta. */
-      setHistorial((prev) => [...prev, { role: 'user', parts: [{ text: mensaje }] }]);
+      /* Optimismo: mostramos el mensaje del usuario al instante. */
+      setHistorial((prev) => [...prev, { role: 'user', content: mensaje }]);
       setEnviando(true);
 
       try {
@@ -244,19 +259,13 @@ export default function AsistenteIaBubble() {
         } else if (res.data?.data?.respuesta) {
           setHistorial((prev) => [
             ...prev,
-            { role: 'model', parts: [{ text: res.data.data.respuesta }] }
+            { role: 'assistant', content: res.data.data.respuesta }
           ]);
         }
       } catch (err) {
         const msg = err.response?.data?.mensaje || 'No pude enviar el mensaje. Intentá de nuevo.';
         toast.error(msg);
-        setHistorial((prev) => [
-          ...prev,
-          {
-            role: 'model',
-            parts: [{ text: `_${msg}_` }]
-          }
-        ]);
+        setHistorial((prev) => [...prev, { role: 'assistant', content: `_${msg}_` }]);
       } finally {
         setEnviando(false);
         setTimeout(() => inputRef.current?.focus(), 50);
@@ -363,7 +372,10 @@ export default function AsistenteIaBubble() {
 
             {historial.map((m, i) => {
               const esUsuario = m.role === 'user';
-              const contenido = m.parts?.[0]?.text || '';
+              /* Compat: aceptamos tanto `content` (formato nuevo OpenAI) como
+               * `parts[0].text` (formato Gemini, por si quedaron mensajes viejos
+               * en localStorage de la versión anterior). */
+              const contenido = m.content ?? m.parts?.[0]?.text ?? '';
               return (
                 <div
                   key={i}
