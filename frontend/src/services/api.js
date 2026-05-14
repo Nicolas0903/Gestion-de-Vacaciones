@@ -223,6 +223,13 @@ export const cajaChicaService = {
     api.get(`/caja-chica/periodos/${id}/resumen-pdf`, { responseType: 'blob' }),
 };
 
+// Asistente IA (solo admin, lectura)
+export const asistenteIaService = {
+  estado: () => api.get('/asistente-ia/estado'),
+  enviarMensaje: (mensaje, historial = []) =>
+    api.post('/asistente-ia/mensaje', { mensaje, historial })
+};
+
 export const controlProyectosService = {
   catalogo: () => api.get('/control-proyectos/catalogo'),
   consultoresSelect: (params) => api.get('/control-proyectos/consultores-select', { params }),

@@ -38,6 +38,7 @@ import AdministracionUsuarios from './pages/AdministracionUsuarios';
 import Layout from './components/Layout';
 import PageWrapper from './components/PageWrapper';
 import LoadingSpinner from './components/LoadingSpinner';
+import AsistenteIaBubble from './components/AsistenteIaBubble';
 
 // Ruta protegida
 const ProtectedRoute = ({ children, roles = [] }) => {
@@ -316,6 +317,7 @@ function App() {
           }}
         />
         <AppRoutes />
+        <AsistenteIaBubble />
       </Router>
     </AuthProvider>
   );
