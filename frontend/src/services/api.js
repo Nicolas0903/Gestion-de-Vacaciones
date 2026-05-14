@@ -226,6 +226,7 @@ export const cajaChicaService = {
 // Asistente IA (solo admin, lectura)
 export const asistenteIaService = {
   estado: () => api.get('/asistente-ia/estado'),
+  pendientes: () => api.get('/asistente-ia/pendientes'),
   enviarMensaje: (mensaje, historial = []) =>
     api.post('/asistente-ia/mensaje', { mensaje, historial })
 };

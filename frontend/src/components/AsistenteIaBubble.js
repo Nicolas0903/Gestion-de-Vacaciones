@@ -12,12 +12,16 @@ import { asistenteIaService } from '../services/api';
 
 /**
  * Burbuja flotante con chat al asistente IA.
- * - Solo se renderiza para usuarios con rol "admin" autenticados.
+ * - Visible para usuarios autenticados con rol admin / contadora / jefe_operaciones.
  * - Mantiene el historial en `localStorage` para sobrevivir refreshes.
+ * - Al iniciar sesión muestra un saludo personalizado con los pendientes que le tocan
+ *   al rol (vacaciones por aprobar, permisos, reembolsos, etc.) y un badge con el
+ *   contador encima de la burbuja.
  * - Envía cada mensaje al endpoint /api/asistente-ia/mensaje con el historial previo.
  */
 
 const STORAGE_KEY = 'asistenteIa.historial';
+const SALUDO_KEY = 'asistenteIa.saludo';
 const MAX_HISTORIAL_LOCAL = 40; // pares user/model
 
 /**
@@ -184,11 +188,16 @@ const SUGERENCIAS = [
 ];
 
 export default function AsistenteIaBubble() {
-  const { esAdmin, isAuthenticated, usuario } = useAuth();
+  const { tieneRol, isAuthenticated, usuario } = useAuth();
+  const habilitado =
+    isAuthenticated && tieneRol('admin', 'contadora', 'jefe_operaciones');
   const [abierto, setAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [texto, setTexto] = useState('');
   const [historial, setHistorial] = useState([]);
+  /* `saludo` se renderiza como una tarjeta fija arriba del historial. NO
+   * forma parte del array `historial` enviado al modelo (es solo cliente). */
+  const [saludo, setSaludo] = useState(null); // { total, saludo, categorias, token }
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -227,6 +236,65 @@ export default function AsistenteIaBubble() {
       /* ignore quota errors */
     }
   }, [historial]);
+
+  /* Saludo personalizado con pendientes:
+   *   - Al montar (o cuando cambia el token = nueva sesión) consulta al backend
+   *     el resumen de pendientes que le tocan al rol del usuario.
+   *   - Si la sesión es la misma que ya teníamos cacheada (mismo token), usamos
+   *     el saludo del localStorage para no martillar al backend en cada refresh.
+   *   - Si es nueva sesión, se regenera y se persiste.
+   *   - Cuando el usuario hace logout, se limpia. */
+  useEffect(() => {
+    if (!habilitado) {
+      setSaludo(null);
+      return;
+    }
+    const tokenActual = localStorage.getItem('token') || '';
+    let cacheado = null;
+    try {
+      const raw = localStorage.getItem(SALUDO_KEY);
+      if (raw) cacheado = JSON.parse(raw);
+    } catch (_) {
+      /* ignore */
+    }
+
+    /* Mismo token = misma sesión: mostramos el saludo cacheado y salimos. */
+    if (cacheado && cacheado.token && cacheado.token === tokenActual) {
+      setSaludo(cacheado);
+      return;
+    }
+
+    /* Sesión nueva o sin cache: pedimos al backend. */
+    let activo = true;
+    asistenteIaService
+      .pendientes()
+      .then((res) => {
+        if (!activo) return;
+        const data = res.data?.data;
+        if (!data) return;
+        const payload = {
+          total: Number(data.total || 0),
+          saludo: String(data.saludo || ''),
+          categorias: Array.isArray(data.categorias) ? data.categorias : [],
+          token: tokenActual
+        };
+        setSaludo(payload);
+        try {
+          localStorage.setItem(SALUDO_KEY, JSON.stringify(payload));
+        } catch (_) {
+          /* ignore */
+        }
+      })
+      .catch((err) => {
+        /* Silencioso: si falla, simplemente no mostramos saludo. */
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[AsistenteIaBubble] No se pudo obtener pendientes:', err?.message);
+        }
+      });
+    return () => {
+      activo = false;
+    };
+  }, [habilitado, usuario?.id]);
 
   useEffect(() => {
     if (abierto && scrollRef.current) {
@@ -284,7 +352,7 @@ export default function AsistenteIaBubble() {
     }
   };
 
-  if (!isAuthenticated || !esAdmin()) return null;
+  if (!habilitado) return null;
 
   return (
     <>
@@ -292,15 +360,25 @@ export default function AsistenteIaBubble() {
         <button
           type="button"
           onClick={() => setAbierto(true)}
-          aria-label="Abrir asistente IA"
+          aria-label={
+            saludo?.total > 0
+              ? `Abrir asistente IA - ${saludo.total} pendientes`
+              : 'Abrir asistente IA'
+          }
           className="fixed bottom-6 right-6 z-50 group flex items-center gap-2 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 px-4 py-3 text-white shadow-lg shadow-teal-500/30 hover:scale-105 hover:shadow-xl transition-all"
         >
           <SparklesIcon className="w-6 h-6" />
           <span className="hidden md:inline font-medium text-sm pr-1">Asistente IA</span>
-          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400"></span>
-          </span>
+          {saludo?.total > 0 ? (
+            <span className="absolute -top-2 -right-2 flex items-center justify-center min-w-[22px] h-[22px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold shadow ring-2 ring-white">
+              {saludo.total > 99 ? '99+' : saludo.total}
+            </span>
+          ) : (
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400"></span>
+            </span>
+          )}
         </button>
       )}
 
@@ -314,7 +392,7 @@ export default function AsistenteIaBubble() {
               <div className="min-w-0">
                 <div className="font-semibold text-sm leading-tight truncate">Asistente Prayaga</div>
                 <div className="text-[11px] opacity-80 leading-tight">
-                  Solo consultas · admin
+                  Solo consultas · {usuario?.rol_nombre || 'usuario'}
                 </div>
               </div>
             </div>
@@ -342,13 +420,34 @@ export default function AsistenteIaBubble() {
           </div>
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 bg-slate-50 space-y-3">
+            {saludo && (
+              <div
+                className={`rounded-2xl border px-3.5 py-3 text-sm shadow-sm ${
+                  saludo.total > 0
+                    ? 'border-amber-200 bg-amber-50 text-amber-900'
+                    : 'border-teal-200 bg-teal-50 text-teal-900'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <SparklesIcon
+                    className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+                      saludo.total > 0 ? 'text-amber-600' : 'text-teal-600'
+                    }`}
+                  />
+                  <div className="min-w-0 flex-1 leading-relaxed">
+                    {renderTexto(saludo.saludo)}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {historial.length === 0 && (
               <div className="text-center py-6">
                 <div className="inline-flex w-14 h-14 rounded-full bg-gradient-to-br from-teal-100 to-cyan-100 items-center justify-center mb-3">
                   <SparklesIcon className="w-7 h-7 text-teal-600" />
                 </div>
                 <h3 className="text-slate-800 font-semibold text-sm mb-1">
-                  ¡Hola{usuario?.nombres ? `, ${usuario.nombres.split(' ')[0]}` : ''}!
+                  {saludo ? '¿En qué te ayudo?' : `¡Hola${usuario?.nombres ? `, ${usuario.nombres.split(' ')[0]}` : ''}!`}
                 </h3>
                 <p className="text-slate-500 text-xs mb-4 px-4">
                   Puedo ayudarte a consultar vacaciones, permisos y datos de empleados.

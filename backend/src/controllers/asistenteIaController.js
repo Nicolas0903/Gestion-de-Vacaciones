@@ -81,7 +81,30 @@ const estado = async (req, res) => {
   });
 };
 
+/**
+ * GET /api/asistente-ia/pendientes
+ *
+ * Resumen de pendientes del usuario al iniciar sesión.
+ * Disponible para admin/contadora/jefe_operaciones (la ruta ya filtra el rol).
+ */
+const pendientes = async (req, res) => {
+  try {
+    const resumen = await asistenteIaService.obtenerResumenPendientes(req.usuario);
+    res.json({
+      success: true,
+      data: resumen
+    });
+  } catch (err) {
+    console.error('[asistenteIaController] Error en pendientes:', err);
+    res.status(500).json({
+      success: false,
+      mensaje: err.message || 'Error obteniendo el resumen de pendientes.'
+    });
+  }
+};
+
 module.exports = {
   enviarMensaje,
-  estado
+  estado,
+  pendientes
 };

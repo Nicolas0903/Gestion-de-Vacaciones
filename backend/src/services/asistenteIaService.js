@@ -865,9 +865,134 @@ async function procesarMensaje(historial, mensajeUsuario) {
   };
 }
 
+/* =========================================================================
+ * Resumen de pendientes al iniciar sesión.
+ *
+ * Devuelve un objeto con:
+ *   - total: número total de pendientes (para el badge en la burbuja).
+ *   - saludo: texto markdown listo para mostrar dentro del chat.
+ *   - categorias: desglose por categoría (clave, etiqueta, cantidad).
+ *
+ * Los pendientes dependen del rol del usuario:
+ *   - admin: vacaciones + permisos + reembolsos + solicitudes de registro
+ *            (vista global, no filtrada por aprobador).
+ *   - contadora: vacaciones que le tocan aprobar + permisos pendientes
+ *                + reembolsos (si es la aprobadora configurada).
+ *   - jefe_operaciones: vacaciones que le tocan aprobar como jefe
+ *                       + reembolsos (si es el aprobador configurado).
+ * ========================================================================= */
+async function obtenerResumenPendientes(usuario) {
+  const rol = usuario?.rol_nombre;
+  const userId = usuario?.id;
+  const primerNombre = String(usuario?.nombres || '').trim().split(/\s+/)[0] || 'Equipo';
+
+  const categorias = [];
+  let aprobadorReembolsosId = null;
+
+  /* Intentamos detectar si el usuario actual es el aprobador de reembolsos
+   * (admin siempre puede aprobarlos; los demás solo si están marcados). */
+  try {
+    const aprobadorReemb = await Empleado.obtenerAprobadorReembolsos();
+    aprobadorReembolsosId = aprobadorReemb?.id || null;
+  } catch (_) {
+    /* si falla, asumimos que solo admin aprueba reembolsos */
+  }
+
+  if (rol === 'admin') {
+    const [vacaciones, permisos, reembolsos, registros] = await Promise.all([
+      SolicitudVacaciones.listarTodasPendientes().catch(() => []),
+      PermisoDescanso.listarPendientes().catch(() => []),
+      Reembolso.listarPendientes().catch(() => []),
+      SolicitudRegistro.listarPendientes().catch(() => [])
+    ]);
+    categorias.push(
+      { clave: 'vacaciones', etiqueta: 'Solicitudes de vacaciones por aprobar', cantidad: vacaciones.length },
+      { clave: 'permisos', etiqueta: 'Permisos / descansos por revisar', cantidad: permisos.length },
+      { clave: 'reembolsos', etiqueta: 'Reembolsos pendientes', cantidad: reembolsos.length },
+      { clave: 'registros', etiqueta: 'Solicitudes de registro de usuarios', cantidad: registros.length }
+    );
+  } else if (rol === 'contadora') {
+    const promesas = [
+      SolicitudVacaciones.listarPendientesAprobacion(userId, 'contadora').catch(() => []),
+      PermisoDescanso.listarPendientes().catch(() => [])
+    ];
+    if (aprobadorReembolsosId && userId === aprobadorReembolsosId) {
+      promesas.push(Reembolso.listarPendientes().catch(() => []));
+    } else {
+      promesas.push(Promise.resolve(null));
+    }
+    const [vacaciones, permisos, reembolsos] = await Promise.all(promesas);
+    categorias.push(
+      { clave: 'vacaciones', etiqueta: 'Vacaciones esperando tu visto como contadora', cantidad: vacaciones.length },
+      { clave: 'permisos', etiqueta: 'Permisos / descansos por revisar', cantidad: permisos.length }
+    );
+    if (reembolsos != null) {
+      categorias.push({
+        clave: 'reembolsos',
+        etiqueta: 'Reembolsos pendientes (sos la aprobadora)',
+        cantidad: reembolsos.length
+      });
+    }
+  } else if (rol === 'jefe_operaciones') {
+    const promesas = [
+      SolicitudVacaciones.listarPendientesAprobacion(userId, 'jefe').catch(() => [])
+    ];
+    if (aprobadorReembolsosId && userId === aprobadorReembolsosId) {
+      promesas.push(Reembolso.listarPendientes().catch(() => []));
+    } else {
+      promesas.push(Promise.resolve(null));
+    }
+    const [vacaciones, reembolsos] = await Promise.all(promesas);
+    categorias.push({
+      clave: 'vacaciones',
+      etiqueta: 'Vacaciones esperando tu aprobación como jefe',
+      cantidad: vacaciones.length
+    });
+    if (reembolsos != null) {
+      categorias.push({
+        clave: 'reembolsos',
+        etiqueta: 'Reembolsos pendientes (sos el aprobador)',
+        cantidad: reembolsos.length
+      });
+    }
+  } else {
+    /* Roles no soportados: devolvemos un saludo neutro. */
+    return {
+      total: 0,
+      saludo: `Hola ${primerNombre}, no tenés pendientes asignados a tu rol.`,
+      categorias: []
+    };
+  }
+
+  const total = categorias.reduce((acc, c) => acc + (c.cantidad || 0), 0);
+
+  let saludo;
+  if (total === 0) {
+    saludo =
+      `**¡Hola, ${primerNombre}!**\n\n` +
+      `No tenés pendientes en este momento. Buen trabajo. ` +
+      `Podés preguntarme por vacaciones, permisos, reembolsos o empleados cuando quieras.`;
+  } else {
+    const lineas = categorias
+      .filter((c) => c.cantidad > 0)
+      .map((c) => `- ${c.etiqueta}: **${c.cantidad}**`);
+    const sugerencia =
+      rol === 'admin'
+        ? '_Tip: preguntame "muestra las solicitudes de vacaciones pendientes" o "lista los reembolsos pendientes" para ver el detalle._'
+        : '_Tip: preguntame "muestra las solicitudes de vacaciones pendientes" para ver el detalle._';
+    saludo =
+      `**¡Hola, ${primerNombre}!** Esto es lo que tenés en tu bandeja al iniciar sesión:\n\n` +
+      lineas.join('\n') +
+      `\n\n${sugerencia}`;
+  }
+
+  return { total, saludo, categorias };
+}
+
 module.exports = {
   procesarMensaje,
   buildSystemPrompt,
+  obtenerResumenPendientes,
   TOOLS,
   HANDLERS
 };
