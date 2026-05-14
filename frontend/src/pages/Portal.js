@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LogoTransparente from '../components/LogoTransparente';
 import {
@@ -13,18 +13,36 @@ import {
   BanknotesIcon,
   WalletIcon,
   UsersIcon,
-  BriefcaseIcon
+  BriefcaseIcon,
+  ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
+  const navigate = useNavigate();
   const {
     usuario,
+    logout,
     puedeAccederModuloPortal,
     esAdmin,
     esContadora,
     esAprobadorReembolsos,
     esAdminPortalUsuarios
   } = useAuth();
+
+  const handleLogout = () => {
+    if (!window.confirm('¿Cerrar sesión?')) return;
+    /* Limpiamos también el saludo cacheado del asistente IA para que el próximo
+     * usuario que use este navegador no vea info ajena. */
+    try {
+      localStorage.removeItem('asistenteIa.saludo');
+    } catch (_) {
+      /* ignore */
+    }
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const inicialUsuario = (usuario?.nombres || '?').trim().charAt(0).toUpperCase();
 
   const modulos = [
     {
@@ -174,18 +192,46 @@ const Portal = () => {
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-teal-400/20 to-cyan-400/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
         
         <div className="relative max-w-7xl mx-auto px-6 py-12">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-xl shadow-teal-500/30 p-2">
-              <LogoTransparente src="/isotipo-prayaga.png" alt="Prayaga" className="w-full h-full object-contain" />
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-xl shadow-teal-500/30 p-2">
+                <LogoTransparente src="/isotipo-prayaga.png" alt="Prayaga" className="w-full h-full object-contain" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
+                  Portal Prayaga Interno
+                </h1>
+                <p className="text-slate-500 text-lg">PRAYAGA</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
-                Portal Prayaga Interno
-              </h1>
-              <p className="text-slate-500 text-lg">PRAYAGA</p>
+
+            <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-xs font-semibold flex items-center justify-center">
+                  {inicialUsuario}
+                </div>
+                <div className="leading-tight pr-1">
+                  <div className="text-xs font-medium text-slate-800 max-w-[180px] truncate">
+                    {usuario?.nombres} {usuario?.apellidos}
+                  </div>
+                  <div className="text-[10px] text-slate-400 capitalize">
+                    {usuario?.rol_nombre?.replace(/_/g, ' ')}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 text-sm font-medium shadow-sm transition-colors"
+                aria-label="Cerrar sesión"
+                title="Cerrar sesión"
+              >
+                <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                <span className="hidden sm:inline">Cerrar sesión</span>
+              </button>
             </div>
           </div>
-          
+
           <p className="text-slate-600 text-lg max-w-2xl">
             Bienvenido, <span className="font-semibold text-teal-600">{usuario?.nombres}</span>. 
             Selecciona el módulo al que deseas acceder.
