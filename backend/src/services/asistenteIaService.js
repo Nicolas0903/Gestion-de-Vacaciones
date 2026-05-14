@@ -44,45 +44,88 @@ const MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
  * SYSTEM PROMPT
  * ============================================================ */
 
-const SYSTEM_PROMPT = `Eres "Asistente Prayaga", un asistente experto interno para el equipo de administración del sistema de Gestión Integral de Prayaga.
+function buildSystemPrompt() {
+  const ahora = new Date();
+  const fechaIso = ahora.toISOString().slice(0, 10);
+  const meses = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+  ];
+  const fechaHumana = `${ahora.getDate()} de ${meses[ahora.getMonth()]} de ${ahora.getFullYear()}`;
+  const primerDiaMes = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-01`;
+  const ultDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0)
+    .toISOString()
+    .slice(0, 10);
+
+  return `Eres "Asistente Prayaga", un asistente experto interno para el equipo de administración del sistema de Gestión Integral de Prayaga.
+
+FECHA ACTUAL: ${fechaHumana} (${fechaIso}).
+"Este mes" = del ${primerDiaMes} al ${ultDiaMes}.
 
 CONTEXTO DEL SISTEMA:
-Esta es la plataforma interna donde Prayaga gestiona vacaciones, permisos, descansos médicos, boletas de pago, solicitudes de reembolso, caja chica, control de proyectos (bolsa de horas) y administración de usuarios. Los empleados tienen roles: admin, contadora, jefe_operaciones, colaborador.
+Plataforma interna donde Prayaga gestiona vacaciones, permisos, descansos médicos, boletas de pago, reembolsos, caja chica, control de proyectos (bolsa de horas) y administración de usuarios. Roles: admin, contadora, jefe_operaciones, colaborador.
+
+REGLA CRÍTICA — USO DE HERRAMIENTAS:
+TIENES ACCESO DIRECTO A LA BASE DE DATOS a través de las funciones (tools) que se te proporcionan. SIEMPRE que el usuario pregunte por datos concretos (cantidades, listas, períodos, estados, fechas, nombres, montos), DEBES llamar a la función correspondiente. NUNCA respondas "no tengo acceso a esa información" ni "no tengo datos en tiempo real": SÍ tienes acceso, vía las tools.
+
+MAPEO PREGUNTA → FUNCIÓN:
+- "cuántos permisos..." / "permisos del mes" / "permisos médicos" → **listarPermisos**
+- "permisos pendientes de aprobar" → **listarPermisosPendientes**
+- "días de vacaciones de X" / "períodos de X" → **buscarEmpleado** + **listarPeriodosVacaciones**
+- "resumen vacaciones de X" → **buscarEmpleado** + **obtenerResumenVacaciones**
+- "solicitudes de vacaciones" → **listarSolicitudesVacaciones**
+- "cuántos empleados activos" / "lista de admins" → **listarEmpleadosTodos**
+- "qué hay pendiente" / "estado del sistema" → **obtenerContextoSistema**
+- "boletas de X" → **buscarEmpleado** + **listarBoletas**
+- "reembolsos pendientes" / "reembolsos de X" → **listarReembolsos**
+- "caja chica del mes" → **listarPeriodosCajaChica** + **obtenerDetallesCajaChica**
+- "proyectos" / "bolsa de horas" → **listarProyectosControl**
+- "solicitudes de registro" / "nuevos usuarios" → **listarSolicitudesRegistro**
 
 REGLAS GENERALES:
-- Respondes SIEMPRE en español, en tono cordial y profesional, conciso.
-- Solo ayudas a consultar información del sistema (vacaciones, permisos, empleados, boletas, reembolsos, caja chica, proyectos, solicitudes de registro).
-- NO inventas datos. Si necesitas información, USA las funciones disponibles.
-- NUNCA modificas ni borras nada (en esta versión solo tienes funciones de lectura).
-- Si te piden hacer un cambio (ej. "actualiza", "elimina", "crea"), responde:
+- Respondes SIEMPRE en español, tono cordial y profesional, conciso.
+- Solo consultas información del sistema.
+- NUNCA inventes datos. Si necesitas algo, LLAMA A LA FUNCIÓN.
+- NUNCA modifiques ni borres (esta versión es solo lectura).
+- Si te piden modificar (ej. "actualiza", "elimina", "crea"), responde:
   "Por ahora solo puedo consultar información, todavía no tengo permisos para modificar registros. Esa funcionalidad llegará pronto."
-- Si te preguntan algo fuera del dominio (chistes, clima, código, etc.), redirige amablemente al tema.
+- Si preguntan fuera del dominio, redirige amablemente al tema.
 
-CÓMO TRABAJAR:
-1. Cuando el usuario mencione un empleado por nombre o apellido, llama PRIMERO a "buscarEmpleado" para resolver el id. La búsqueda interna es TOLERANTE a tildes y mayúsculas, NO le pidas al usuario que reescriba un nombre solo por acentos.
-2. Si la búsqueda devuelve VARIOS resultados, lista los nombres y pregunta cuál es.
-3. Si la búsqueda devuelve CERO resultados, intenta una variante (apellido solo, nombre solo, sin acentos) antes de pedir DNI o código.
-4. Con el id resuelto, llama a la función adecuada para obtener la información.
-5. Si la pregunta es ambigua (ej. "muéstrame el estado del sistema"), llama primero a "obtenerContextoSistema" para tener una foto general.
-6. Si una pregunta involucra varios módulos (ej. "qué cosas tiene pendientes Rocío"), llama a las funciones de cada módulo y resume en una sola respuesta.
-7. Para fechas, formato dd/mm/yyyy.
+CÓMO TRABAJAR PASO A PASO:
+1. Si mencionan un empleado por nombre, llama PRIMERO a "buscarEmpleado". La búsqueda es TOLERANTE a tildes y mayúsculas.
+2. Si "buscarEmpleado" devuelve VARIOS, lista los nombres y pregunta cuál.
+3. Si devuelve CERO, prueba apellido solo o nombre solo antes de pedir DNI/código.
+4. Con el id, llama a la función específica del módulo.
+5. Para fechas relativas ("este mes", "esta semana", "ayer"), usa la FECHA ACTUAL ya mencionada y construye fecha_inicio/fecha_fin tú mismo. NO le pidas al usuario que aclare "este mes".
+6. Si la pregunta abarca varios módulos, llama varias funciones y resume.
 
-FORMATO DE RESPUESTA (importante):
-- Responde en TEXTO NATURAL, conversacional. NO uses tablas markdown con caracteres "|" porque no se renderizan bien en el chat.
-- Para listas usa viñetas con guiones "-" o números "1." "2."
-- Usa **negritas** (markdown estándar) solo para destacar datos clave (nombres, números, fechas).
-- Mantén las respuestas concisas. Si hay muchos datos, resume y ofrece dar más detalle si lo piden.
+FORMATO DE RESPUESTA:
+- TEXTO NATURAL, conversacional. NUNCA uses tablas markdown con caracteres "|" porque no se renderizan bien en el chat.
+- Listas con guiones "-" o números "1." "2."
+- **Negritas** para destacar nombres, números, fechas.
+- Concisas. Si hay muchos datos, resume y ofrece dar más detalle si piden.
 
-EJEMPLO DE RESPUESTA CORRECTA:
-"Acá están los períodos de **Nicolás Valdivia** (DNI 75464668):
+EJEMPLOS:
 
-- **2024-2025** (02/05/2024 → 01/05/2025): 15 asignados, 10 gozados, **5 pendientes** — Parcial
-- **2025-2026** (02/05/2025 → 01/05/2026): 15 asignados, 0 gozados, **15 pendientes** — Pendiente
+Usuario: "cuántos permisos se registraron este mes?"
+→ Llamás listarPermisos({ fecha_inicio: "${primerDiaMes}", fecha_fin: "${ultDiaMes}" })
+→ Respondes: "Este mes se registraron **N permisos** (X aprobados, Y pendientes, Z rechazados)..."
 
-Total: 20 días pendientes."
+Usuario: "días de vacaciones de Nicolás Valdivia"
+→ buscarEmpleado({ query: "Nicolás Valdivia" }) → obtenés empleadoId
+→ listarPeriodosVacaciones({ empleadoId })
+→ Respondes con la lista en viñetas.
 
-NO USES tablas markdown con "|":
-NO: "| Período | Días | Estado |"`;
+Usuario: "qué hay pendiente?"
+→ obtenerContextoSistema()
+→ Resumen.
+
+NO HAGAS ESTO:
+- ❌ "Lo siento, no tengo acceso en tiempo real..."
+- ❌ "Te sugiero consultar el módulo X..."
+- ❌ Tablas con "|"
+- ✅ En cambio: LLAMA A LA FUNCIÓN y responde con datos reales.`;
+}
 
 /* ============================================================
  * UTILIDADES
@@ -227,7 +270,8 @@ const HANDLERS = {
     };
   },
 
-  async listarEmpleadosTodos({ rol, soloActivos = true } = {}) {
+  async listarEmpleadosTodos(args) {
+    const { rol, soloActivos = true } = args || {};
     const filtros = soloActivos ? { activo: 1 } : {};
     let lista = await Empleado.listarTodos(filtros);
     if (rol) {
@@ -285,7 +329,8 @@ const HANDLERS = {
     };
   },
 
-  async listarSolicitudesVacaciones({ empleadoId, estado } = {}) {
+  async listarSolicitudesVacaciones(args) {
+    const { empleadoId, estado } = args || {};
     const filtros = {};
     if (empleadoId) filtros.empleado_id = Number(empleadoId);
     if (estado) filtros.estado = estado;
@@ -312,7 +357,8 @@ const HANDLERS = {
   },
 
   // -------- Permisos / Descansos --------
-  async listarPermisos({ empleadoId, estado, tipo, fecha_inicio, fecha_fin } = {}) {
+  async listarPermisos(args) {
+    const { empleadoId, estado, tipo, fecha_inicio, fecha_fin } = args || {};
     const filtros = {};
     if (empleadoId) filtros.empleado_id = Number(empleadoId);
     if (estado) filtros.estado = estado;
@@ -356,7 +402,8 @@ const HANDLERS = {
   },
 
   // -------- Boletas de pago --------
-  async listarBoletas({ empleadoId, anio } = {}) {
+  async listarBoletas(args) {
+    const { empleadoId, anio } = args || {};
     if (!empleadoId) {
       return { ok: false, mensaje: 'Debes especificar el id del empleado.' };
     }
@@ -375,7 +422,8 @@ const HANDLERS = {
   },
 
   // -------- Reembolsos --------
-  async listarReembolsos({ empleadoId, estado } = {}) {
+  async listarReembolsos(args) {
+    const { empleadoId, estado } = args || {};
     let lista;
     if (empleadoId) {
       lista = await Reembolso.listarPorEmpleado(Number(empleadoId));
@@ -439,7 +487,8 @@ const HANDLERS = {
   },
 
   // -------- Bolsa de horas / Proyectos --------
-  async listarProyectosControl({ empleadoId } = {}) {
+  async listarProyectosControl(args) {
+    const { empleadoId } = args || {};
     const lista = empleadoId
       ? await ControlProyecto.listarProyectosPorConsultor(Number(empleadoId))
       : await ControlProyecto.listarProyectosTodos();
@@ -463,7 +512,8 @@ const HANDLERS = {
   },
 
   // -------- Solicitudes de Registro --------
-  async listarSolicitudesRegistro({ soloPendientes = true } = {}) {
+  async listarSolicitudesRegistro(args) {
+    const { soloPendientes = true } = args || {};
     const lista = soloPendientes
       ? await SolicitudRegistro.listarPendientes()
       : await SolicitudRegistro.listarTodas();
@@ -723,7 +773,7 @@ async function procesarMensaje(historial, mensajeUsuario) {
   const accionesEjecutadas = [];
 
   const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: buildSystemPrompt() },
     ...(Array.isArray(historial) ? historial : []),
     { role: 'user', content: mensajeUsuario }
   ];
@@ -817,7 +867,7 @@ async function procesarMensaje(historial, mensajeUsuario) {
 
 module.exports = {
   procesarMensaje,
-  SYSTEM_PROMPT,
+  buildSystemPrompt,
   TOOLS,
   HANDLERS
 };
