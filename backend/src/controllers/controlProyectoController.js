@@ -463,12 +463,18 @@ const crearActividad = async (req, res) => {
     if (!proyecto) {
       return res.status(404).json({ success: false, mensaje: 'Proyecto no encontrado.' });
     }
-    const asignado = await ControlProyecto.empleadoAsignadoAProyecto(pid, req.usuario.id);
-    if (!asignado) {
-      return res.status(403).json({
-        success: false,
-        mensaje: 'Solo puede registrar horas en proyectos en los que usted está entre los consultores asignados.'
-      });
+    /* Admin / cuenta gestora pueden registrar actividades en CUALQUIER proyecto
+     * (aunque no estén en la lista de consultores asignados). El resto debe estar
+     * en los consultores del proyecto. */
+    const esGestorCp = puedeGestionProyectos(req.usuario);
+    if (!esGestorCp) {
+      const asignado = await ControlProyecto.empleadoAsignadoAProyecto(pid, req.usuario.id);
+      if (!asignado) {
+        return res.status(403).json({
+          success: false,
+          mensaje: 'Solo puede registrar horas en proyectos en los que usted está entre los consultores asignados.'
+        });
+      }
     }
 
     const consultor_asignado_id = req.usuario.id;

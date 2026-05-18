@@ -222,6 +222,14 @@ const ControlProyectos = () => {
     [actForm.fecha_hora_inicio, actForm.fecha_hora_fin]
   );
 
+  /* Lista de proyectos seleccionables al registrar/editar una actividad.
+   *   - Admin / cuenta gestora: todos los proyectos.
+   *   - Resto: solo los proyectos donde el usuario está asignado como consultor. */
+  const proyectosParaActividad = useMemo(() => {
+    if (puedeProy && Array.isArray(proyectos) && proyectos.length) return proyectos;
+    return misProyectos;
+  }, [puedeProy, proyectos, misProyectos]);
+
   const resetProyForm = () => {
     setProyForm(proyectoVacio());
     setProyectoEditId(null);
@@ -749,8 +757,12 @@ const ControlProyectos = () => {
                       value={actForm.proyecto_id}
                       onChange={(e) => setActForm((f) => ({ ...f, proyecto_id: e.target.value }))}
                     >
-                      <option value="">Solo aparecen proyectos donde está asignado</option>
-                      {misProyectos.map((p) => (
+                      <option value="">
+                        {puedeProy
+                          ? 'Seleccione un proyecto (admin: todos los proyectos)'
+                          : 'Solo aparecen proyectos donde está asignado'}
+                      </option>
+                      {proyectosParaActividad.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.empresa} — {p.proyecto}
                         </option>
@@ -988,8 +1000,8 @@ const ControlProyectos = () => {
                     value={filtroProyectoAct}
                     onChange={(e) => setFiltroProyectoAct(e.target.value)}
                   >
-                    <option value="">Todos mis proyectos</option>
-                    {misProyectos.map((p) => (
+                    <option value="">{puedeProy ? 'Todos los proyectos' : 'Todos mis proyectos'}</option>
+                    {proyectosParaActividad.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.proyecto}
                       </option>
