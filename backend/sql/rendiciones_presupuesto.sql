@@ -4,6 +4,10 @@
 -- ejecuta el rol admin (no hay aprobador configurable como en reembolsos).
 -- La tabla es independiente para mantener la trazabilidad y los listados de
 -- caja chica / reportes separados.
+--
+-- Nota: la información del método de cobro (Yape/Plin/transferencia, celular,
+-- nombre de cuenta, CCI) se gestiona externamente, por eso NO se almacena en
+-- esta tabla.
 CREATE TABLE IF NOT EXISTS rendiciones_presupuesto (
   id INT PRIMARY KEY AUTO_INCREMENT,
   empleado_id INT NOT NULL,
@@ -23,10 +27,6 @@ CREATE TABLE IF NOT EXISTS rendiciones_presupuesto (
   archivo_comprobante_nombre VARCHAR(255) NULL,
   archivo_comprobante_path VARCHAR(500) NULL,
   archivo_recibo_generado_path VARCHAR(500) NULL COMMENT 'PDF generado si no adjuntó factura',
-  metodo_reembolso ENUM('yape', 'plin', 'transferencia') NOT NULL,
-  celular VARCHAR(30) NOT NULL,
-  nombre_en_metodo VARCHAR(220) NOT NULL,
-  numero_cuenta TEXT NULL COMMENT 'Cuenta o CCI si es transferencia',
   monto DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
   ruc_proveedor VARCHAR(32) NULL COMMENT 'Con comprobante: RUC del emisor',
   numero_documento VARCHAR(80) NULL COMMENT 'Con comprobante: N° de factura / documento',

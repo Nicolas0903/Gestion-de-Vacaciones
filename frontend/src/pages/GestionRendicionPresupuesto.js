@@ -27,9 +27,6 @@ const AREAS_FALLBACK = [
   { value: 'comercial', label: 'Comercial' }
 ];
 
-const metodoLabel = (m) =>
-  ({ yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia' }[m] || m);
-
 const formatoMonto = (m) => {
   const n = Number(m);
   if (Number.isNaN(n)) return '—';
@@ -132,10 +129,6 @@ const GestionRendicionPresupuesto = () => {
       area: editar.area || '',
       concepto: editar.concepto || '',
       monto: String(editar.monto ?? '0'),
-      metodo_reembolso: editar.metodo_reembolso || 'yape',
-      celular: editar.celular || '',
-      nombre_en_metodo: editar.nombre_en_metodo || '',
-      numero_cuenta: editar.numero_cuenta || '',
       ruc_proveedor: String(editar.ruc_proveedor || '').trim(),
       numero_documento: String(editar.numero_documento || '').trim()
     });
@@ -332,12 +325,6 @@ const GestionRendicionPresupuesto = () => {
       fd.append('area', formEdit.area);
       fd.append('concepto', formEdit.concepto.trim());
       fd.append('monto', formEdit.monto || '0');
-      fd.append('metodo_reembolso', formEdit.metodo_reembolso);
-      fd.append('celular', formEdit.celular.trim());
-      fd.append('nombre_en_metodo', formEdit.nombre_en_metodo.trim());
-      if (formEdit.metodo_reembolso === 'transferencia') {
-        fd.append('numero_cuenta', formEdit.numero_cuenta.trim());
-      }
       fd.append('ruc_proveedor', String(formEdit.ruc_proveedor || '').trim());
       fd.append('numero_documento', String(formEdit.numero_documento || '').trim());
       if (archivoReemplazo) {
@@ -509,7 +496,6 @@ const GestionRendicionPresupuesto = () => {
                   <th className="px-4 py-3 font-medium">Área</th>
                   <th className="px-4 py-3 font-medium">Concepto</th>
                   <th className="px-4 py-3 font-medium whitespace-nowrap">Monto</th>
-                  <th className="px-4 py-3 font-medium">Método</th>
                   <th className="px-4 py-3 font-medium">Estado</th>
                   <th className="px-4 py-3 font-medium">Observaciones</th>
                   <th className="px-4 py-3 font-medium">Acciones</th>
@@ -537,7 +523,6 @@ const GestionRendicionPresupuesto = () => {
                     <td className="px-4 py-3 whitespace-nowrap tabular-nums text-slate-800">
                       {formatoMonto(r.monto)}
                     </td>
-                    <td className="px-4 py-3">{metodoLabel(r.metodo_reembolso)}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2 py-1 rounded-full ${estadoBadge(r.estado)}`}>
                         {estadoLabel(r.estado)}
@@ -712,9 +697,6 @@ const GestionRendicionPresupuesto = () => {
                 {formatoFechaDMY(fichaModal.fecha_solicitud_usuario)}
               </p>
               <p>
-                <span className="text-slate-500">Método:</span> {metodoLabel(fichaModal.metodo_reembolso)}
-              </p>
-              <p>
                 <span className="text-slate-500">DNI:</span> <span className="font-mono">{fichaModal.dni}</span>
               </p>
               <p>
@@ -740,17 +722,6 @@ const GestionRendicionPresupuesto = () => {
                     {fichaModal.archivo_comprobante_nombre || '—'}
                   </p>
                 </>
-              ) : null}
-              <p>
-                <span className="text-slate-500">Celular:</span> <span className="font-mono">{fichaModal.celular || '—'}</span>
-              </p>
-              <p>
-                <span className="text-slate-500">Nombre en método:</span> {fichaModal.nombre_en_metodo || '—'}
-              </p>
-              {fichaModal.metodo_reembolso === 'transferencia' ? (
-                <p className="break-all whitespace-pre-wrap">
-                  <span className="text-slate-500">Cuenta / CCI:</span> {fichaModal.numero_cuenta || '—'}
-                </p>
               ) : null}
             </div>
               </div>
@@ -937,49 +908,6 @@ const GestionRendicionPresupuesto = () => {
                     <p className="text-[11px] text-slate-500 mt-1">Máx. {RENDICION_PRESUPUESTO_MAX_UPLOAD_MB} MB.</p>
                   </div>
                 </>
-              )}
-              <div>
-                <label className="block text-slate-600 mb-1">Método *</label>
-                <select
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
-                  value={formEdit.metodo_reembolso}
-                  onChange={(e) => setFormEdit({ ...formEdit, metodo_reembolso: e.target.value })}
-                >
-                  <option value="yape">Yape</option>
-                  <option value="plin">Plin</option>
-                  <option value="transferencia">Transferencia</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-slate-600 mb-1">
-                  Celular{formEdit.metodo_reembolso === 'transferencia' ? ' (opc.)' : ' *'}
-                </label>
-                <input
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
-                  value={formEdit.celular}
-                  onChange={(e) => setFormEdit({ ...formEdit, celular: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-slate-600 mb-1">
-                  Nombre en método{formEdit.metodo_reembolso === 'transferencia' ? ' (opc.)' : ' *'}
-                </label>
-                <input
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
-                  value={formEdit.nombre_en_metodo}
-                  onChange={(e) => setFormEdit({ ...formEdit, nombre_en_metodo: e.target.value })}
-                />
-              </div>
-              {formEdit.metodo_reembolso === 'transferencia' && (
-                <div>
-                  <label className="block text-slate-600 mb-1">Cuenta / CCI</label>
-                  <textarea
-                    rows={2}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
-                    value={formEdit.numero_cuenta}
-                    onChange={(e) => setFormEdit({ ...formEdit, numero_cuenta: e.target.value })}
-                  />
-                </div>
               )}
             </div>
             <div className="flex justify-end gap-2 mt-5">

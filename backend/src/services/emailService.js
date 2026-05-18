@@ -1542,10 +1542,6 @@ const notificarNuevaRendicionAdmin = async ({
       <div class="info-row"><span class="info-label">Fecha (usuario)</span><span class="info-value">${escapeHtml(rendicion.fecha_solicitud_usuario)}</span></div>
       <div class="info-row"><span class="info-label">Concepto</span><span class="info-value">${escapeHtml(rendicion.concepto)}</span></div>
       <div class="info-row"><span class="info-label">Monto</span><span class="info-value">S/ ${Number(rendicion.monto || 0).toFixed(2)}</span></div>
-      <div class="info-row"><span class="info-label">Método</span><span class="info-value">${escapeHtml(etiquetaMetodoReembolso(rendicion.metodo_reembolso))}</span></div>
-      <div class="info-row"><span class="info-label">Celular</span><span class="info-value">${escapeHtml(rendicion.celular)}</span></div>
-      <div class="info-row"><span class="info-label">Nombre en método</span><span class="info-value">${escapeHtml(rendicion.nombre_en_metodo)}</span></div>
-      ${rendicion.metodo_reembolso === 'transferencia' ? `<div class="info-row"><span class="info-label">Cuenta/CCI</span><span class="info-value">${escapeHtml(rendicion.numero_cuenta || '')}</span></div>` : ''}
       ${
         rendicion.tiene_comprobante && String(rendicion.ruc_proveedor || '').trim()
           ? `<div class="info-row"><span class="info-label">RUC</span><span class="info-value">${escapeHtml(String(rendicion.ruc_proveedor).trim())}</span></div>`

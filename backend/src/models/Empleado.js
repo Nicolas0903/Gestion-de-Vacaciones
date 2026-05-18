@@ -137,25 +137,48 @@ class Empleado {
   }
 
   /**
-   * Aprobador para Rendición de Presupuesto.
-   *  - Por defecto: el primer empleado admin activo.
-   *  - Override opcional via env `RENDICION_PRESUPUESTO_APROBADOR_EMPLEADO_ID`.
+   * Lista de correos oficiales que reciben las notificaciones de rendición
+   * de presupuesto. Se puede sobreescribir vía env
+   * `RENDICION_PRESUPUESTO_APROBADORES_EMAILS` (csv).
    */
-  static async obtenerAprobadorRendicion() {
-    const idOverride = process.env.RENDICION_PRESUPUESTO_APROBADOR_EMPLEADO_ID;
-    if (idOverride) {
-      const e = await this.buscarPorId(parseInt(idOverride, 10));
-      if (e && e.activo) return e;
+  static get APROBADORES_RENDICION_EMAILS_DEFAULT() {
+    return [
+      'magali.sevillano@prayaga.biz',
+      'ricardo.martinez@prayaga.biz',
+      'asistente@prayaga.biz'
+    ];
+  }
+
+  static aprobadoresRendicionEmailsConfigurados() {
+    const raw = process.env.RENDICION_PRESUPUESTO_APROBADORES_EMAILS;
+    if (raw && String(raw).trim()) {
+      return String(raw)
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
     }
+    return this.APROBADORES_RENDICION_EMAILS_DEFAULT.map((e) => e.toLowerCase());
+  }
+
+  /**
+   * Aprobadores para Rendición de Presupuesto.
+   * Devuelve todos los empleados activos con correo en la lista oficial
+   * (Magali Sevillano, Ricardo Martínez y Verónica - asistente@prayaga.biz).
+   */
+  static async obtenerAprobadoresRendicion() {
+    const emails = this.aprobadoresRendicionEmailsConfigurados();
+    if (!emails.length) return [];
+    const placeholders = emails.map(() => '?').join(',');
     const [rows] = await pool.execute(
       `SELECT e.*, r.nombre as rol_nombre, r.nivel_aprobacion
        FROM empleados e
-       INNER JOIN roles r ON e.rol_id = r.id
-       WHERE e.activo = 1 AND r.nombre = 'admin'
-       ORDER BY e.id ASC
-       LIMIT 1`
+       LEFT JOIN roles r ON e.rol_id = r.id
+       WHERE e.activo = 1
+         AND LOWER(TRIM(e.email)) IN (${placeholders})
+       ORDER BY e.id ASC`,
+      emails
     );
-    return rows[0] || null;
+    return rows;
   }
 
   // Listar todos los empleados

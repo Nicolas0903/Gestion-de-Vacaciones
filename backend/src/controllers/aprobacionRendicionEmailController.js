@@ -115,16 +115,17 @@ function generarFormularioRechazo(token, tokenData) {
 }
 
 /**
- * Verifica que el `aprobador_id` del token siga siendo un admin activo.
- * En reembolsos esto comparaba contra el aprobador configurado en env;
- * en rendiciones aceptamos cualquier admin activo (el token guarda quién
- * recibió el email originalmente).
+ * Verifica que el `aprobador_id` del token siga estando habilitado como
+ * aprobador de rendiciones (Magali, Ricardo, Verónica) o sea admin (fallback).
  */
 async function verificarAprobadorToken(tokenData) {
   const e = await Empleado.buscarPorId(tokenData.aprobador_id);
   if (!e || !e.activo) return null;
-  if (e.rol_nombre !== 'admin') return null;
-  return e;
+  const emailNorm = (e.email || '').toLowerCase().trim();
+  const oficiales = Empleado.aprobadoresRendicionEmailsConfigurados();
+  if (oficiales.includes(emailNorm)) return e;
+  if (e.rol_nombre === 'admin') return e;
+  return null;
 }
 
 const aprobarPorToken = async (req, res) => {

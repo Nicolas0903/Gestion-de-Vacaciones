@@ -33,10 +33,6 @@ const crear = async (req, res) => {
       area,
       concepto,
       tiene_comprobante,
-      metodo_reembolso,
-      celular,
-      nombre_en_metodo,
-      numero_cuenta,
       monto
     } = req.body;
 
@@ -49,25 +45,6 @@ const crear = async (req, res) => {
     }
     if (!area || !RendicionPresupuesto.AREAS_VALIDAS.includes(area)) {
       return res.status(400).json({ success: false, mensaje: 'Indique un área válida.' });
-    }
-    if (!metodo_reembolso) {
-      return res.status(400).json({ success: false, mensaje: 'Indique el método de desembolso.' });
-    }
-    const metodos = ['yape', 'plin', 'transferencia'];
-    if (!metodos.includes(metodo_reembolso)) {
-      return res.status(400).json({ success: false, mensaje: 'Método de desembolso no válido.' });
-    }
-    if (metodo_reembolso !== 'transferencia' && !String(celular || '').trim()) {
-      return res.status(400).json({
-        success: false,
-        mensaje: 'Indique el celular asociado a Yape o Plin.'
-      });
-    }
-    if (metodo_reembolso !== 'transferencia' && !String(nombre_en_metodo || '').trim()) {
-      return res.status(400).json({
-        success: false,
-        mensaje: 'Indique el nombre que debe figurar en Yape o Plin.'
-      });
     }
 
     const rucProveedor = String(req.body.ruc_proveedor || '').trim();
@@ -118,13 +95,6 @@ const crear = async (req, res) => {
       archivo_comprobante_nombre,
       archivo_comprobante_path,
       archivo_recibo_generado_path: null,
-      metodo_reembolso,
-      celular: String(celular || '').trim(),
-      nombre_en_metodo: String(nombre_en_metodo || '').trim(),
-      numero_cuenta:
-        metodo_reembolso === 'transferencia'
-          ? String(numero_cuenta || '').trim() || null
-          : null,
       monto: montoNum,
       ruc_proveedor: tComp ? rucProveedor : null,
       numero_documento: tComp ? numeroDocumento : null
@@ -151,34 +121,41 @@ const crear = async (req, res) => {
       row = await RendicionPresupuesto.buscarPorId(id);
     }
 
-    const aprobador = await Empleado.obtenerAprobadorRendicion();
-    if (aprobador) {
-      const tokenAprobar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'aprobar');
-      const tokenRechazar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'rechazar');
-      const urlAprobar = `${API_URL}/aprobacion-rendicion-email/aprobar/${tokenAprobar}`;
-      const urlRechazar = `${API_URL}/aprobacion-rendicion-email/rechazar/${tokenRechazar}`;
-
-      emailService
-        .notificarNuevaRendicionAdmin({
-          rendicion: { ...row, area_label: RendicionPresupuesto.AREAS_LABEL[row.area] || row.area },
-          empleado: req.usuario,
-          aprobador,
-          urlAprobar,
-          urlRechazar,
-          pdfReciboBuffer: !tComp ? pdfReciboBuffer : null,
-          comprobanteDiskPath: tComp ? archivo_comprobante_path : null,
-          comprobanteNombreOriginal: archivo_comprobante_nombre
-        })
-        .catch((e) => console.error('Email rendición:', e));
-    } else {
+    const aprobadores = await Empleado.obtenerAprobadoresRendicion();
+    if (aprobadores.length === 0) {
       console.error(
-        'Rendiciones: no se encontró ningún admin activo para notificar la nueva rendición.'
+        'Rendiciones: no se encontró ningún aprobador activo (Magali, Ricardo o Verónica). No se envió correo.'
       );
+    } else {
+      const rendicionData = {
+        ...row,
+        area_label: RendicionPresupuesto.AREAS_LABEL[row.area] || row.area
+      };
+
+      for (const aprobador of aprobadores) {
+        const tokenAprobar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'aprobar');
+        const tokenRechazar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'rechazar');
+        const urlAprobar = `${API_URL}/aprobacion-rendicion-email/aprobar/${tokenAprobar}`;
+        const urlRechazar = `${API_URL}/aprobacion-rendicion-email/rechazar/${tokenRechazar}`;
+
+        emailService
+          .notificarNuevaRendicionAdmin({
+            rendicion: rendicionData,
+            empleado: req.usuario,
+            aprobador,
+            urlAprobar,
+            urlRechazar,
+            pdfReciboBuffer: !tComp ? pdfReciboBuffer : null,
+            comprobanteDiskPath: tComp ? archivo_comprobante_path : null,
+            comprobanteNombreOriginal: archivo_comprobante_nombre
+          })
+          .catch((e) => console.error(`Email rendición (${aprobador.email}):`, e));
+      }
     }
 
     res.status(201).json({
       success: true,
-      mensaje: 'Rendición registrada. Se notificó al administrador.',
+      mensaje: 'Rendición registrada. Se notificó a los responsables.',
       data: enriquecer(row)
     });
   } catch (error) {
@@ -404,10 +381,6 @@ const actualizarAdmin = async (req, res) => {
       area,
       concepto,
       monto,
-      metodo_reembolso,
-      celular,
-      nombre_en_metodo,
-      numero_cuenta,
       ruc_proveedor: rucProveedorBody,
       numero_documento: numeroDocumentoBody
     } = req.body;
@@ -417,25 +390,6 @@ const actualizarAdmin = async (req, res) => {
     }
     if (!area || !RendicionPresupuesto.AREAS_VALIDAS.includes(area)) {
       return res.status(400).json({ success: false, mensaje: 'Indique un área válida.' });
-    }
-    if (!metodo_reembolso) {
-      return res.status(400).json({ success: false, mensaje: 'Indique el método de desembolso.' });
-    }
-    const metodos = ['yape', 'plin', 'transferencia'];
-    if (!metodos.includes(metodo_reembolso)) {
-      return res.status(400).json({ success: false, mensaje: 'Método de desembolso no válido.' });
-    }
-    if (metodo_reembolso !== 'transferencia' && !String(celular || '').trim()) {
-      return res.status(400).json({
-        success: false,
-        mensaje: 'Indique el celular asociado a Yape o Plin.'
-      });
-    }
-    if (metodo_reembolso !== 'transferencia' && !String(nombre_en_metodo || '').trim()) {
-      return res.status(400).json({
-        success: false,
-        mensaje: 'Indique el nombre que debe figurar en Yape o Plin.'
-      });
     }
 
     const tComp = !!r.tiene_comprobante;
@@ -466,13 +420,6 @@ const actualizarAdmin = async (req, res) => {
       area,
       concepto: String(concepto).trim(),
       monto: montoNum,
-      metodo_reembolso,
-      celular: String(celular || '').trim(),
-      nombre_en_metodo: String(nombre_en_metodo || '').trim(),
-      numero_cuenta:
-        metodo_reembolso === 'transferencia'
-          ? String(numero_cuenta || '').trim() || null
-          : null,
       ruc_proveedor: tComp ? rucProveedor : null,
       numero_documento: tComp ? numeroDocumento : null,
       archivo_comprobante_nombre,

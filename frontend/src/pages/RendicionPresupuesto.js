@@ -11,9 +11,6 @@ import {
 } from '../config/rendicionPresupuestoUpload';
 import { formatoFechaDMY, formatoFechaHoraDMY } from '../utils/dateUtils';
 
-const metodoLabel = (m) =>
-  ({ yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia' }[m] || m);
-
 const estadoBadge = (e) => {
   const map = {
     pendiente: 'bg-amber-100 text-amber-800',
@@ -63,10 +60,6 @@ const RendicionPresupuesto = () => {
   const [tieneComprobante, setTieneComprobante] = useState(false);
   const [archivo, setArchivo] = useState(null);
   const [monto, setMonto] = useState('0');
-  const [metodo, setMetodo] = useState('yape');
-  const [celular, setCelular] = useState('');
-  const [nombreEnMetodo, setNombreEnMetodo] = useState('');
-  const [numeroCuenta, setNumeroCuenta] = useState('');
   const [rucProveedor, setRucProveedor] = useState('');
   const [numeroDocumento, setNumeroDocumento] = useState('');
   const [fileInputKey, setFileInputKey] = useState(0);
@@ -83,10 +76,6 @@ const RendicionPresupuesto = () => {
     setTieneComprobante(false);
     setArchivo(null);
     setMonto('0');
-    setMetodo('yape');
-    setCelular('');
-    setNombreEnMetodo('');
-    setNumeroCuenta('');
     setRucProveedor('');
     setNumeroDocumento('');
     setFileInputKey((k) => k + 1);
@@ -130,14 +119,6 @@ const RendicionPresupuesto = () => {
       toast.error('Seleccione el área que realizó el consumo.');
       return;
     }
-    if (metodo !== 'transferencia' && !celular.trim()) {
-      toast.error('Indique el celular asociado a Yape o Plin.');
-      return;
-    }
-    if (metodo !== 'transferencia' && !nombreEnMetodo.trim()) {
-      toast.error('Indique el nombre que debe figurar en Yape o Plin.');
-      return;
-    }
     if (tieneComprobante && !String(rucProveedor).trim()) {
       toast.error('Indique el RUC del emisor según el comprobante.');
       return;
@@ -168,12 +149,6 @@ const RendicionPresupuesto = () => {
     fd.append('concepto', concepto.trim());
     fd.append('tiene_comprobante', tieneComprobante ? 'true' : 'false');
     fd.append('monto', monto || '0');
-    fd.append('metodo_reembolso', metodo);
-    fd.append('celular', celular.trim());
-    fd.append('nombre_en_metodo', nombreEnMetodo.trim());
-    if (metodo === 'transferencia') {
-      fd.append('numero_cuenta', numeroCuenta.trim());
-    }
     if (tieneComprobante) {
       fd.append('ruc_proveedor', String(rucProveedor).trim());
       fd.append('numero_documento', String(numeroDocumento).trim());
@@ -185,7 +160,7 @@ const RendicionPresupuesto = () => {
     setEnviando(true);
     try {
       await rendicionPresupuestoService.crear(fd);
-      toast.success('Rendición registrada. Se notificó al administrador.');
+      toast.success('Rendición registrada. Se notificó a los responsables.');
       resetFormulario();
       cargarLista();
     } catch (err) {
@@ -403,77 +378,6 @@ const RendicionPresupuesto = () => {
             </p>
           </div>
 
-          <div className="border-t border-slate-100 pt-5">
-            <h2 className="text-sm font-semibold text-slate-800 mb-3">Método de desembolso</h2>
-            {metodo === 'transferencia' && (
-              <p className="text-xs text-slate-500 mb-3">
-                Si eliges <strong className="font-medium text-slate-600">transferencia</strong>, celular y nombre son{' '}
-                <strong className="font-medium text-slate-600">opcionales</strong>. En Yape o Plin sí se pide celular y nombre.
-              </p>
-            )}
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Método *</label>
-                <select
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5"
-                  value={metodo}
-                  onChange={(e) => setMetodo(e.target.value)}
-                >
-                  <option value="yape">Yape</option>
-                  <option value="plin">Plin</option>
-                  <option value="transferencia">Transferencia</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Celular
-                  {metodo === 'transferencia' ? (
-                    <span className="font-normal text-slate-500"> (opcional si es transferencia)</span>
-                  ) : (
-                    ' *'
-                  )}
-                </label>
-                <input
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5"
-                  value={celular}
-                  onChange={(e) => setCelular(e.target.value)}
-                  placeholder={
-                    metodo === 'transferencia'
-                      ? 'Opcional'
-                      : 'Número asociado a Yape o Plin'
-                  }
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Nombre que debe figurar
-                  {metodo === 'transferencia' ? (
-                    <span className="font-normal text-slate-500"> (opcional si es transferencia)</span>
-                  ) : (
-                    ' *'
-                  )}
-                </label>
-                <input
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5"
-                  value={nombreEnMetodo}
-                  onChange={(e) => setNombreEnMetodo(e.target.value)}
-                />
-              </div>
-              {metodo === 'transferencia' && (
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Número de cuenta o CCI</label>
-                  <textarea
-                    rows={2}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono text-sm"
-                    value={numeroCuenta}
-                    onChange={(e) => setNumeroCuenta(e.target.value)}
-                    placeholder="Cuenta bancaria o CCI"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
           <button
             type="submit"
             disabled={enviando}
@@ -510,7 +414,7 @@ const RendicionPresupuesto = () => {
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
                     Fecha gasto: {formatoFechaDMY(r.fecha_solicitud_usuario)} · Monto: S/{' '}
-                    {Number(r.monto || 0).toFixed(2)} · {metodoLabel(r.metodo_reembolso)}
+                    {Number(r.monto || 0).toFixed(2)}
                   </p>
                   <details className="mt-2 text-xs text-slate-600">
                     <summary className="cursor-pointer text-sky-600 font-medium select-none">Ver todos los datos</summary>
@@ -531,16 +435,6 @@ const RendicionPresupuesto = () => {
                           <dd className="font-mono break-all">{String(r.numero_documento || '').trim() || '—'}</dd>
                           <dt className="text-slate-500">Archivo</dt>
                           <dd className="break-all">{r.archivo_comprobante_nombre || '—'}</dd>
-                        </>
-                      )}
-                      <dt className="text-slate-500">Celular</dt>
-                      <dd className="font-mono">{r.celular || '—'}</dd>
-                      <dt className="text-slate-500">Nombre en método</dt>
-                      <dd>{r.nombre_en_metodo || '—'}</dd>
-                      {r.metodo_reembolso === 'transferencia' && (
-                        <>
-                          <dt className="text-slate-500">Cuenta / CCI</dt>
-                          <dd className="break-all whitespace-pre-wrap">{r.numero_cuenta || '—'}</dd>
                         </>
                       )}
                     </dl>
