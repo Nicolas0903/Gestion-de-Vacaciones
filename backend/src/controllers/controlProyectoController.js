@@ -410,6 +410,7 @@ const crearActividad = async (req, res) => {
   try {
     const {
       proyecto_id,
+      consultor_asignado_id: consultorIdRaw,
       requerido_por,
       requerido_por_otros: rpoRaw,
       descripcion_actividad,
@@ -477,7 +478,25 @@ const crearActividad = async (req, res) => {
       }
     }
 
-    const consultor_asignado_id = req.usuario.id;
+    /* `consultor_asignado_id` solo lo puede sobreescribir un gestor. Si el body
+     * trae un valor, validamos que ese empleado esté efectivamente entre los
+     * consultores del proyecto destino. Para el resto de roles, la actividad
+     * siempre queda registrada al usuario que está creando el registro. */
+    let consultor_asignado_id = req.usuario.id;
+    if (esGestorCp && consultorIdRaw != null && String(consultorIdRaw).trim() !== '') {
+      const cid = parseInt(consultorIdRaw, 10);
+      if (!Number.isFinite(cid) || cid <= 0) {
+        return res.status(400).json({ success: false, mensaje: 'Consultor asignado no válido.' });
+      }
+      const okAsig = await ControlProyecto.empleadoAsignadoAProyecto(pid, cid);
+      if (!okAsig) {
+        return res.status(400).json({
+          success: false,
+          mensaje: 'El consultor elegido no está asignado a este proyecto.'
+        });
+      }
+      consultor_asignado_id = cid;
+    }
 
     let horasCalculadasOpcional;
     if (horas_trabajadas !== undefined && horas_trabajadas !== null && String(horas_trabajadas).trim() !== '') {
@@ -571,6 +590,30 @@ const actualizarActividad = async (req, res) => {
     }
     if (patch.consultor_asignado_id != null && !gestor) {
       delete patch.consultor_asignado_id;
+    }
+    /* Si un gestor manda explícitamente un nuevo consultor, validamos que ese
+     * empleado esté asignado al proyecto destino (el que quedará tras el patch,
+     * que puede ser uno nuevo si también está cambiando proyecto_id). */
+    if (gestor && patch.consultor_asignado_id !== undefined) {
+      if (patch.consultor_asignado_id === null || patch.consultor_asignado_id === '') {
+        /* Vacío explícito: lo quitamos para no romper el NOT NULL en BD. */
+        delete patch.consultor_asignado_id;
+      } else {
+        const cid = parseInt(patch.consultor_asignado_id, 10);
+        if (!Number.isFinite(cid) || cid <= 0) {
+          return res.status(400).json({ success: false, mensaje: 'Consultor asignado no válido.' });
+        }
+        const proyectoDestinoId =
+          patch.proyecto_id != null ? parseInt(patch.proyecto_id, 10) : prev.proyecto_id;
+        const okAsig = await ControlProyecto.empleadoAsignadoAProyecto(proyectoDestinoId, cid);
+        if (!okAsig) {
+          return res.status(400).json({
+            success: false,
+            mensaje: 'El consultor elegido no está asignado a este proyecto.'
+          });
+        }
+        patch.consultor_asignado_id = cid;
+      }
     }
 
     const esAdminCp = req.usuario.rol_nombre === 'admin';

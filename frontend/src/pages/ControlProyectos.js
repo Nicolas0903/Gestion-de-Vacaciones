@@ -75,6 +75,10 @@ const proyectoVacio = () => ({
 
 const actividadVacia = () => ({
   proyecto_id: '',
+  /* Solo lo usa admin/gestor cuando registra una actividad en nombre de
+   * otro consultor. Para el resto de roles queda vacío y el backend asigna
+   * al propio usuario que está creando el registro. */
+  consultor_asignado_id: '',
   requerido_por: 'ricardo_martinez',
   requerido_por_otros: '',
   descripcion_actividad: '',
@@ -230,6 +234,29 @@ const ControlProyectos = () => {
     return misProyectos;
   }, [puedeProy, proyectos, misProyectos]);
 
+  /* Consultores asignados al proyecto seleccionado actualmente en el form.
+   * Se usa para que admin pueda elegir a quién asignarle la actividad. */
+  const consultoresDelProyectoActivo = useMemo(() => {
+    const pid = Number(actForm.proyecto_id);
+    if (!pid) return [];
+    const proy = proyectosParaActividad.find((p) => Number(p.id) === pid);
+    if (!proy) return [];
+    if (Array.isArray(proy.consultores) && proy.consultores.length) {
+      return proy.consultores;
+    }
+    /* Fallback: si solo viene la lista de IDs, derivamos a partir del catálogo
+     * de consultores cargado para el módulo. */
+    if (Array.isArray(proy.consultores_empleado_ids)) {
+      return proy.consultores_empleado_ids
+        .map((id) => {
+          const c = (consultores || []).find((x) => Number(x.id) === Number(id));
+          return c ? { id: c.id, nombre_completo: c.nombre_completo, email: c.email } : null;
+        })
+        .filter(Boolean);
+    }
+    return [];
+  }, [actForm.proyecto_id, proyectosParaActividad, consultores]);
+
   const resetProyForm = () => {
     setProyForm(proyectoVacio());
     setProyectoEditId(null);
@@ -312,6 +339,15 @@ const ControlProyectos = () => {
       /* Estos campos son solo UI; no los enviamos al backend. */
       delete body.horas_manual;
       delete body.horas_trabajadas_manual;
+
+      /* `consultor_asignado_id` solo viaja al backend si el usuario es gestor
+       * y eligió uno explícito; si no, lo quitamos para que el backend deje el
+       * comportamiento por defecto (al crear: el propio usuario; al editar: sin cambios). */
+      if (puedeProy && actForm.consultor_asignado_id) {
+        body.consultor_asignado_id = parseInt(actForm.consultor_asignado_id, 10);
+      } else {
+        delete body.consultor_asignado_id;
+      }
 
       if (body.requerido_por === 'otros') {
         const t = String(body.requerido_por_otros || '').trim();
@@ -411,6 +447,10 @@ const ControlProyectos = () => {
 
     setActForm({
       proyecto_id: String(a.proyecto_id),
+      /* Solo precargamos el consultor si el usuario actual puede cambiarlo
+       * (admin/gestor). Para el resto el campo no se muestra y queda vacío. */
+      consultor_asignado_id:
+        puedeProy && a.consultor_asignado_id != null ? String(a.consultor_asignado_id) : '',
       requerido_por: a.requerido_por,
       requerido_por_otros: a.requerido_por === 'otros' ? a.requerido_por_otros || '' : '',
       descripcion_actividad: a.descripcion_actividad || '',
@@ -755,7 +795,29 @@ const ControlProyectos = () => {
                       required
                       className="w-full max-w-xl rounded-xl border border-slate-200 px-3 py-2 text-sm"
                       value={actForm.proyecto_id}
-                      onChange={(e) => setActForm((f) => ({ ...f, proyecto_id: e.target.value }))}
+                      onChange={(e) => {
+                        const nuevoProyectoId = e.target.value;
+                        /* Si admin estaba con un consultor seleccionado, validamos
+                         * que ese consultor también pertenezca al nuevo proyecto.
+                         * Si no pertenece, lo limpiamos. */
+                        setActForm((f) => {
+                          let nuevoConsultor = f.consultor_asignado_id;
+                          if (nuevoConsultor) {
+                            const proy = proyectosParaActividad.find(
+                              (p) => Number(p.id) === Number(nuevoProyectoId)
+                            );
+                            const ids = proy?.consultores_empleado_ids || [];
+                            if (!ids.map(Number).includes(Number(nuevoConsultor))) {
+                              nuevoConsultor = '';
+                            }
+                          }
+                          return {
+                            ...f,
+                            proyecto_id: nuevoProyectoId,
+                            consultor_asignado_id: nuevoConsultor
+                          };
+                        });
+                      }}
                     >
                       <option value="">
                         {puedeProy
@@ -769,6 +831,37 @@ const ControlProyectos = () => {
                       ))}
                     </select>
                   </div>
+
+                  {puedeProy && (
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Consultor asignado (admin)
+                      </label>
+                      <select
+                        className="w-full max-w-xl rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                        value={actForm.consultor_asignado_id}
+                        onChange={(e) =>
+                          setActForm((f) => ({ ...f, consultor_asignado_id: e.target.value }))
+                        }
+                        disabled={!actForm.proyecto_id}
+                      >
+                        <option value="">
+                          {actForm.proyecto_id
+                            ? `Usted (${nombreUsuario || 'admin'}) por defecto`
+                            : 'Seleccione primero un proyecto'}
+                        </option>
+                        {consultoresDelProyectoActivo.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nombre_completo}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Si dejas vacío, la actividad queda registrada a tu nombre. Solo aparecen los
+                        consultores asignados al proyecto.
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Requerido por *</label>
                     <select
