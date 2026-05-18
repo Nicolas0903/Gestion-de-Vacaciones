@@ -425,7 +425,10 @@ class ControlProyecto {
       fecha_hora_fin: patch.fecha_hora_fin,
       estado: patch.estado,
       comentarios: patch.comentarios,
-      situacion_pago: patch.situacion_pago
+      situacion_pago: patch.situacion_pago,
+      /* Permitimos persistir el valor manual de horas (cuando el frontend lo
+       * envía explícitamente porque el usuario desactivó el cálculo automático). */
+      horas_trabajadas: patch.horas_trabajadas
     };
     if (permiteCambiarConsultor && patch.consultor_asignado_id != null) {
       map.consultor_asignado_id = patch.consultor_asignado_id;
@@ -441,7 +444,11 @@ class ControlProyecto {
     vals.push(id);
     const [r] = await pool.execute(`UPDATE cp_actividades SET ${keys.join(', ')} WHERE id = ?`, vals);
 
-    if (patch.fecha_hora_inicio || patch.fecha_hora_fin) {
+    /* Si cambian las fechas y NO se envió `horas_trabajadas` explícitamente,
+     * recalculamos automáticamente. Si sí se envió, respetamos el valor manual. */
+    const recibieronHorasExplicitas =
+      patch.horas_trabajadas !== undefined && patch.horas_trabajadas !== null;
+    if ((patch.fecha_hora_inicio || patch.fecha_hora_fin) && !recibieronHorasExplicitas) {
       const act = await this.obtenerActividad(id);
       if (act) {
         const ht = horasDesdeDatetime(act.fecha_hora_inicio, act.fecha_hora_fin);

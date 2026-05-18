@@ -576,6 +576,22 @@ const actualizarActividad = async (req, res) => {
       delete patch.situacion_pago;
     }
 
+    /* Validación de horas_trabajadas cuando el frontend las envía manualmente
+     * (modo "no calcular automáticamente"). Si no viene en el body o llega vacío,
+     * dejamos que el modelo recalcule a partir de las fechas. */
+    if (patch.horas_trabajadas !== undefined && patch.horas_trabajadas !== null) {
+      const txt = String(patch.horas_trabajadas).trim();
+      if (txt === '') {
+        delete patch.horas_trabajadas;
+      } else {
+        const h = Number(txt);
+        if (!Number.isFinite(h) || h < 0) {
+          return res.status(400).json({ success: false, mensaje: 'Horas trabajadas no válidas.' });
+        }
+        patch.horas_trabajadas = h;
+      }
+    }
+
     const ok = await ControlProyecto.actualizarActividad(id, patch, { permiteCambiarConsultor: gestor });
     if (!ok) return res.status(400).json({ success: false, mensaje: 'No se actualizó la actividad.' });
 

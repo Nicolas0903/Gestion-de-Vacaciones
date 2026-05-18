@@ -83,7 +83,14 @@ const actividadVacia = () => ({
   fecha_hora_fin: '',
   estado: 'no_iniciado',
   comentarios: '',
-  situacion_pago: 'pendiente'
+  situacion_pago: 'pendiente',
+  /* Modo de horas:
+   *   - horas_manual=false (default): las horas se calculan automáticamente
+   *     a partir de fecha_hora_inicio y fecha_hora_fin (previewHorasIniFin).
+   *   - horas_manual=true: el usuario las ingresa a mano en horas_trabajadas_manual.
+   *     Igualmente sigue siendo obligatorio indicar el rango de fechas. */
+  horas_manual: false,
+  horas_trabajadas_manual: ''
 });
 
 const ControlProyectos = () => {
@@ -271,11 +278,33 @@ const ControlProyectos = () => {
   const submitActividad = async (e) => {
     e.preventDefault();
     try {
+      /* Resolvemos las horas según el modo elegido en el switch. */
+      let horasResueltas;
+      if (actForm.horas_manual) {
+        const txt = String(actForm.horas_trabajadas_manual || '').trim().replace(',', '.');
+        const n = Number(txt);
+        if (!txt || !Number.isFinite(n) || n <= 0) {
+          toast.error('Ingrese las horas trabajadas (valor mayor que 0).');
+          return;
+        }
+        horasResueltas = Math.round(n * 100) / 100;
+      } else {
+        if (horasPreviewAct == null) {
+          toast.error('La fecha y hora de fin debe ser posterior a la de inicio para calcular las horas.');
+          return;
+        }
+        horasResueltas = horasPreviewAct;
+      }
+
       const body = {
         ...actForm,
         proyecto_id: parseInt(actForm.proyecto_id, 10),
-        horas_trabajadas: horasPreviewAct != null ? horasPreviewAct : undefined
+        horas_trabajadas: horasResueltas
       };
+      /* Estos campos son solo UI; no los enviamos al backend. */
+      delete body.horas_manual;
+      delete body.horas_trabajadas_manual;
+
       if (body.requerido_por === 'otros') {
         const t = String(body.requerido_por_otros || '').trim();
         if (!t) {
@@ -296,10 +325,6 @@ const ControlProyectos = () => {
       }
       if (!body.fecha_hora_inicio || !body.fecha_hora_fin) {
         toast.error('Indique inicio y fin.');
-        return;
-      }
-      if (horasPreviewAct == null) {
-        toast.error('La fecha y hora de fin debe ser posterior a la de inicio para calcular las horas.');
         return;
       }
       if (!esAdmin()) {
@@ -364,17 +389,31 @@ const ControlProyectos = () => {
 
   const abrirEditActividad = (a) => {
     setActividadEditId(a.id);
+    const fhiLocal = sqlADatetimeLocal(a.fecha_hora_inicio);
+    const fhfLocal = sqlADatetimeLocal(a.fecha_hora_fin);
+
+    /* Detección automática del modo: si las horas guardadas difieren
+     * (con tolerancia) del cálculo por fechas, asumimos que se ingresaron
+     * manualmente y abrimos el form en modo manual para no perder ese valor. */
+    const horasAuto = previewHorasIniFin(fhiLocal, fhfLocal);
+    const horasGuardadas = Number(a.horas_trabajadas);
+    const esManual =
+      Number.isFinite(horasGuardadas) &&
+      (horasAuto == null || Math.abs(horasAuto - horasGuardadas) > 0.01);
+
     setActForm({
       proyecto_id: String(a.proyecto_id),
       requerido_por: a.requerido_por,
       requerido_por_otros: a.requerido_por === 'otros' ? a.requerido_por_otros || '' : '',
       descripcion_actividad: a.descripcion_actividad || '',
       prioridad: a.prioridad || 'media',
-      fecha_hora_inicio: sqlADatetimeLocal(a.fecha_hora_inicio),
-      fecha_hora_fin: sqlADatetimeLocal(a.fecha_hora_fin),
+      fecha_hora_inicio: fhiLocal,
+      fecha_hora_fin: fhfLocal,
       estado: a.estado || 'no_iniciado',
       comentarios: a.comentarios || '',
-      situacion_pago: a.situacion_pago || 'pendiente'
+      situacion_pago: a.situacion_pago || 'pendiente',
+      horas_manual: esManual,
+      horas_trabajadas_manual: esManual ? String(horasGuardadas) : ''
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -790,13 +829,83 @@ const ControlProyectos = () => {
                       onChange={(e) => setActForm((f) => ({ ...f, fecha_hora_fin: e.target.value }))}
                     />
                   </div>
+                  <div className="md:col-span-2">
+                    <div className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-slate-700">
+                          ¿Calcular las horas automáticamente?
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {actForm.horas_manual
+                            ? 'Manual: vas a ingresar las horas trabajadas a mano.'
+                            : 'Automático: se calculan a partir de la fecha/hora de inicio y fin.'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={!actForm.horas_manual}
+                        onClick={() =>
+                          setActForm((f) => ({
+                            ...f,
+                            horas_manual: !f.horas_manual,
+                            /* Al activar manual, precargamos con el valor calculado
+                             * para que el usuario lo pueda ajustar en vez de empezar
+                             * desde cero. Al volver a automático limpiamos. */
+                            horas_trabajadas_manual: !f.horas_manual
+                              ? f.horas_trabajadas_manual ||
+                                (horasPreviewAct != null ? String(horasPreviewAct) : '')
+                              : ''
+                          }))
+                        }
+                        className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-200 ${
+                          !actForm.horas_manual ? 'bg-indigo-600' : 'bg-slate-300'
+                        }`}
+                        title={
+                          actForm.horas_manual
+                            ? 'Activá para volver a cálculo automático'
+                            : 'Desactivá para ingresar las horas manualmente'
+                        }
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 bg-white rounded-full shadow transform transition-transform mt-0.5 ${
+                            !actForm.horas_manual ? 'translate-x-[22px]' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Horas trabajadas (calculadas)</label>
-                    <input
-                      readOnly
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50 tabular-nums"
-                      value={horasPreviewAct != null ? String(horasPreviewAct) : '—'}
-                    />
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      {actForm.horas_manual
+                        ? 'Horas trabajadas (manual) *'
+                        : 'Horas trabajadas (calculadas)'}
+                    </label>
+                    {actForm.horas_manual ? (
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.25"
+                        inputMode="decimal"
+                        placeholder="Ej: 2.5"
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm tabular-nums focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                        value={actForm.horas_trabajadas_manual}
+                        onChange={(e) =>
+                          setActForm((f) => ({ ...f, horas_trabajadas_manual: e.target.value }))
+                        }
+                      />
+                    ) : (
+                      <input
+                        readOnly
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50 tabular-nums"
+                        value={horasPreviewAct != null ? String(horasPreviewAct) : '—'}
+                      />
+                    )}
+                    {actForm.horas_manual && horasPreviewAct != null && (
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Cálculo automático sugerido: {horasPreviewAct} h.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Estado *</label>
