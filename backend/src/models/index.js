@@ -9,6 +9,7 @@ const ControlProyecto = require('./ControlProyecto');
 const PermisoDescanso = require('./PermisoDescanso');
 const BoletaPago = require('./BoletaPago');
 const SolicitudRegistro = require('./SolicitudRegistro');
+const RendicionPresupuesto = require('./RendicionPresupuesto');
 
 module.exports = {
   Empleado,
@@ -21,5 +22,6 @@ module.exports = {
   ControlProyecto,
   PermisoDescanso,
   BoletaPago,
-  SolicitudRegistro
+  SolicitudRegistro,
+  RendicionPresupuesto
 };

@@ -26,6 +26,8 @@ import GestionPermisos from './pages/GestionPermisos';
 import SolicitudesRegistro from './pages/admin/SolicitudesRegistro';
 import Reembolsos from './pages/Reembolsos';
 import GestionReembolsos from './pages/GestionReembolsos';
+import RendicionPresupuesto from './pages/RendicionPresupuesto';
+import GestionRendicionPresupuesto from './pages/GestionRendicionPresupuesto';
 import CajaChica from './pages/CajaChica';
 import ControlProyectos from './pages/ControlProyectos';
 import ControlProyectosReporte from './pages/ControlProyectosReporte';
@@ -197,6 +199,22 @@ function AppRoutes() {
       <Route path="/reembolsos/gestion" element={
         <ProtectedRoute>
           <ReembolsosGestionGate />
+        </ProtectedRoute>
+      } />
+
+      {/* Rendición de Presupuesto (acceso restringido por modulos_portal) */}
+      <Route path="/rendicion-presupuesto" element={
+        <ProtectedRoute>
+          <ModuloPortalRoute moduloId="rendicion-presupuesto">
+            <PageWrapper><RendicionPresupuesto /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/rendicion-presupuesto/gestion" element={
+        <ProtectedRoute roles={['admin']}>
+          <ModuloPortalRoute moduloId="rendicion-presupuesto">
+            <PageWrapper><GestionRendicionPresupuesto /></PageWrapper>
+          </ModuloPortalRoute>
         </ProtectedRoute>
       } />
 

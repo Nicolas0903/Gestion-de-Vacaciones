@@ -98,6 +98,23 @@ const Portal = () => {
     }
   ];
 
+  if (puedeAccederModuloPortal('rendicion-presupuesto')) {
+    modulos.push({
+      id: 'rendicion-presupuesto',
+      titulo: 'Rendición de Presupuesto',
+      descripcion: 'Reembolsos y rendición de gastos por área (acceso restringido)',
+      icono: BanknotesIcon,
+      color: 'from-teal-500 to-sky-600',
+      shadowColor: 'shadow-teal-500/30',
+      bgLight: 'bg-teal-50',
+      textColor: 'text-teal-600',
+      link: '/rendicion-presupuesto',
+      activo: true,
+      restringido: true,
+      adminLink: '/rendicion-presupuesto/gestion'
+    });
+  }
+
   if (puedeAccederModuloPortal('asistencia')) {
     modulos.push({
       id: 'asistencia',
@@ -325,7 +342,9 @@ const Portal = () => {
                         ? puedeAccederModuloPortal('caja-chica')
                         : modulo.id === 'control-proyectos'
                           ? esAdmin()
-                          : esAdmin() || esContadora()) && (
+                          : modulo.id === 'rendicion-presupuesto'
+                            ? esAdmin()
+                            : esAdmin() || esContadora()) && (
                     <Link
                       to={modulo.adminLink}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors shrink-0"

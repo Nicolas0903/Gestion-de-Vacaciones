@@ -136,6 +136,28 @@ class Empleado {
     return rows[0] || null;
   }
 
+  /**
+   * Aprobador para Rendición de Presupuesto.
+   *  - Por defecto: el primer empleado admin activo.
+   *  - Override opcional via env `RENDICION_PRESUPUESTO_APROBADOR_EMPLEADO_ID`.
+   */
+  static async obtenerAprobadorRendicion() {
+    const idOverride = process.env.RENDICION_PRESUPUESTO_APROBADOR_EMPLEADO_ID;
+    if (idOverride) {
+      const e = await this.buscarPorId(parseInt(idOverride, 10));
+      if (e && e.activo) return e;
+    }
+    const [rows] = await pool.execute(
+      `SELECT e.*, r.nombre as rol_nombre, r.nivel_aprobacion
+       FROM empleados e
+       INNER JOIN roles r ON e.rol_id = r.id
+       WHERE e.activo = 1 AND r.nombre = 'admin'
+       ORDER BY e.id ASC
+       LIMIT 1`
+    );
+    return rows[0] || null;
+  }
+
   // Listar todos los empleados
   static async listarTodos(filtros = {}) {
     let query = `

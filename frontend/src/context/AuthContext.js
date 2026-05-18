@@ -161,6 +161,10 @@ export const AuthProvider = ({ children }) => {
     if (moduloId === 'caja-chica' && EMAILS_MODULO_CAJA_CHICA.includes(em)) {
       return true;
     }
+    // Admin siempre puede acceder a Rendición de Presupuesto (es quien aprueba).
+    if (moduloId === 'rendicion-presupuesto' && esAdmin()) {
+      return true;
+    }
 
     const m = usuario.modulos_portal;
     const tieneMapa = m && typeof m === 'object' && Object.keys(m).length > 0;
@@ -181,6 +185,12 @@ export const AuthProvider = ({ children }) => {
 
     if (moduloId === 'solicitudes-registro') {
       return esAdmin() || esContadora();
+    }
+
+    // Rendición de Presupuesto: acceso restringido por defecto (solo admin
+    // o si está activado explícitamente en modulos_portal del empleado).
+    if (moduloId === 'rendicion-presupuesto') {
+      return false;
     }
 
     return true;

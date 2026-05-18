@@ -6,6 +6,7 @@ const MODULOS_PORTAL = [
   { id: 'boletas', etiqueta: 'Boletas de Pago', descripcion: 'Consulta y firma de boletas' },
   { id: 'permisos', etiqueta: 'Permisos y Descansos', descripcion: 'Permisos y descansos médicos' },
   { id: 'reembolsos', etiqueta: 'Reintegros / Reembolsos', descripcion: 'Solicitudes de reintegro de gastos' },
+  { id: 'rendicion-presupuesto', etiqueta: 'Rendición de Presupuesto', descripcion: 'Reembolsos y rendición por área (acceso restringido)' },
   { id: 'asistencia', etiqueta: 'Reporte de Asistencia', descripcion: 'Visualización del reporte de asistencia' },
   { id: 'caja-chica', etiqueta: 'Caja chica', descripcion: 'Reporte mensual de caja chica' },
   { id: 'solicitudes-registro', etiqueta: 'Solicitudes de Registro', descripcion: 'Aprobación de nuevas cuentas' },

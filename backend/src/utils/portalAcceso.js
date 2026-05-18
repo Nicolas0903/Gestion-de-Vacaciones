@@ -33,6 +33,11 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
   if (moduloId === 'solicitudes-registro') {
     return rolNombre === 'admin' || rolNombre === 'contadora';
   }
+  // Rendición de presupuesto: acceso restringido. Solo admin tiene acceso por defecto;
+  // para el resto del personal, debe activarse explícitamente vía modulos_portal.
+  if (moduloId === 'rendicion-presupuesto') {
+    return rolNombre === 'admin';
+  }
   return false;
 }
 
@@ -48,6 +53,11 @@ function tieneMapaPortalExplicito(empleado) {
 function tieneAccesoEfectivoModulo(empleado, moduloId) {
   const e = (empleado.email || '').toLowerCase().trim();
   if (moduloId === 'caja-chica' && EMAILS_MODULO_CAJA_CHICA.includes(e)) {
+    return true;
+  }
+  // Admin siempre puede acceder al módulo de Rendición de Presupuesto
+  // (aunque su mapa explícito lo tenga en false), porque es quien aprueba.
+  if (moduloId === 'rendicion-presupuesto' && empleado.rol_nombre === 'admin') {
     return true;
   }
   if (tieneMapaPortalExplicito(empleado)) {

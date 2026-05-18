@@ -1,0 +1,1044 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import {
+  ArrowLeftIcon,
+  CheckBadgeIcon,
+  Cog6ToothIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
+import { useAuth } from '../context/AuthContext';
+import {
+  RENDICION_PRESUPUESTO_MAX_UPLOAD_MB,
+  RENDICION_PRESUPUESTO_MAX_FILE_BYTES
+} from '../config/rendicionPresupuestoUpload';
+import { rendicionPresupuestoService } from '../services/api';
+import { formatoFechaDMY } from '../utils/dateUtils';
+import { AyudaUbicacionFactura } from '../components/AyudaFacturaReembolso';
+
+const AREAS_FALLBACK = [
+  { value: 'gerencia_general', label: 'Gerencia General' },
+  { value: 'consultoria', label: 'Consultoría' },
+  { value: 'administracion', label: 'Administración' },
+  { value: 'operaciones', label: 'Operaciones' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'comercial', label: 'Comercial' }
+];
+
+const metodoLabel = (m) =>
+  ({ yape: 'Yape', plin: 'Plin', transferencia: 'Transferencia' }[m] || m);
+
+const formatoMonto = (m) => {
+  const n = Number(m);
+  if (Number.isNaN(n)) return '—';
+  return `S/ ${n.toFixed(2)}`;
+};
+
+const estadoBadge = (e) => {
+  const map = {
+    pendiente: 'bg-amber-100 text-amber-800',
+    aprobado: 'bg-emerald-100 text-emerald-800',
+    rechazado: 'bg-rose-100 text-rose-800',
+    observado: 'bg-sky-100 text-sky-900'
+  };
+  return map[e] || 'bg-slate-100 text-slate-700';
+};
+
+const estadoLabel = (e) =>
+  ({
+    pendiente: 'Pendiente',
+    aprobado: 'Aprobado',
+    rechazado: 'Rechazado',
+    observado: 'Observado'
+  }[e] || e);
+
+function descargarBlob(blob, nombre) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+/** YYYY-MM desde fecha del gasto (fecha_solicitud_usuario). */
+function yyyymmFechaGasto(row) {
+  const d = row?.fecha_solicitud_usuario;
+  if (!d) return '';
+  const s = String(d);
+  return s.length >= 7 ? s.slice(0, 7) : '';
+}
+
+const GestionRendicionPresupuesto = () => {
+  const { esAdmin } = useAuth();
+  const [tab, setTab] = useState('pendientes');
+  const [pendientes, setPendientes] = useState([]);
+  const [todos, setTodos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [rechazoId, setRechazoId] = useState(null);
+  const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [aprobarId, setAprobarId] = useState(null);
+  const [comentarioAprobar, setComentarioAprobar] = useState('');
+  const [observarId, setObservarId] = useState(null);
+  const [comentarioObservar, setComentarioObservar] = useState('');
+  const [procesando, setProcesando] = useState(false);
+  const [editar, setEditar] = useState(null);
+  const [formEdit, setFormEdit] = useState(null);
+  const [archivoReemplazo, setArchivoReemplazo] = useState(null);
+  const [mesFiltro, setMesFiltro] = useState('');
+  const [solicitanteFiltro, setSolicitanteFiltro] = useState('');
+  const [areaFiltro, setAreaFiltro] = useState('');
+  const [fichaModal, setFichaModal] = useState(null);
+  const [areas, setAreas] = useState(AREAS_FALLBACK);
+
+  const areaLabelOf = (v) => areas.find((a) => a.value === v)?.label || v;
+
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [p, t] = await Promise.all([
+        rendicionPresupuestoService.pendientes(),
+        rendicionPresupuestoService.todos()
+      ]);
+      setPendientes(p.data.data || []);
+      setTodos(t.data.data || []);
+    } catch {
+      toast.error('No se pudieron cargar las rendiciones.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+    rendicionPresupuestoService
+      .areas()
+      .then(({ data }) => {
+        if (Array.isArray(data?.data) && data.data.length > 0) setAreas(data.data);
+      })
+      .catch(() => {});
+  }, [cargar]);
+
+  useEffect(() => {
+    if (!editar) {
+      setFormEdit(null);
+      setArchivoReemplazo(null);
+      return;
+    }
+    setFormEdit({
+      fecha_solicitud_usuario: editar.fecha_solicitud_usuario?.slice(0, 10) || '',
+      area: editar.area || '',
+      concepto: editar.concepto || '',
+      monto: String(editar.monto ?? '0'),
+      metodo_reembolso: editar.metodo_reembolso || 'yape',
+      celular: editar.celular || '',
+      nombre_en_metodo: editar.nombre_en_metodo || '',
+      numero_cuenta: editar.numero_cuenta || '',
+      ruc_proveedor: String(editar.ruc_proveedor || '').trim(),
+      numero_documento: String(editar.numero_documento || '').trim()
+    });
+    setArchivoReemplazo(null);
+  }, [editar]);
+
+  const puedeResolver = (r) => r.estado === 'pendiente' || r.estado === 'observado';
+
+  const confirmarAprobar = async () => {
+    if (!aprobarId) return;
+    setProcesando(true);
+    try {
+      await rendicionPresupuestoService.aprobar(aprobarId, comentarioAprobar.trim());
+      toast.success('Rendición aprobada.');
+      setAprobarId(null);
+      setComentarioAprobar('');
+      cargar();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al aprobar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const confirmarObservar = async () => {
+    if (!observarId || !comentarioObservar.trim()) {
+      toast.error('Indique las observaciones.');
+      return;
+    }
+    setProcesando(true);
+    try {
+      await rendicionPresupuestoService.observar(observarId, comentarioObservar.trim());
+      toast.success('Registrado como observado.');
+      setObservarId(null);
+      setComentarioObservar('');
+      cargar();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al registrar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const confirmarRechazo = async () => {
+    if (!rechazoId || !motivoRechazo.trim()) {
+      toast.error('Indique el motivo.');
+      return;
+    }
+    setProcesando(true);
+    try {
+      await rendicionPresupuestoService.rechazar(rechazoId, motivoRechazo.trim());
+      toast.success('Rendición rechazada.');
+      setRechazoId(null);
+      setMotivoRechazo('');
+      cargar();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al rechazar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const eliminarRegistro = async (id, codigo) => {
+    if (!window.confirm(`¿Eliminar definitivamente la rendición ${codigo}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    setProcesando(true);
+    try {
+      await rendicionPresupuestoService.eliminar(id);
+      toast.success('Registro eliminado.');
+      cargar();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo eliminar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const bajarRecibo = async (id, codigo) => {
+    try {
+      const res = await rendicionPresupuestoService.descargarRecibo(id);
+      descargarBlob(res.data, `${codigo}.pdf`);
+    } catch {
+      toast.error('Sin recibo o error al descargar.');
+    }
+  };
+
+  const bajarComprobante = async (id, codigo) => {
+    try {
+      const res = await rendicionPresupuestoService.descargarComprobante(id);
+      descargarBlob(res.data, `comprobante-${codigo}`);
+    } catch {
+      toast.error('Sin comprobante o error al descargar.');
+    }
+  };
+
+  const filas = tab === 'pendientes' ? pendientes : todos;
+
+  const opcionesSolicitantes = useMemo(() => {
+    const map = new Map();
+    const ingest = (lista) => {
+      for (const r of lista) {
+        const id = r.empleado_id;
+        if (id == null) continue;
+        const nombre = `${r.empleado_nombres || ''} ${r.empleado_apellidos || ''}`.trim() || `ID ${id}`;
+        if (!map.has(id)) map.set(id, nombre);
+      }
+    };
+    ingest(pendientes);
+    ingest(todos);
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], 'es'));
+  }, [pendientes, todos]);
+
+  const filasFiltradas = useMemo(() => {
+    return filas.filter((r) => {
+      if (mesFiltro && yyyymmFechaGasto(r) !== mesFiltro) return false;
+      if (solicitanteFiltro && String(r.empleado_id) !== solicitanteFiltro) return false;
+      if (areaFiltro && r.area !== areaFiltro) return false;
+      return true;
+    });
+  }, [filas, mesFiltro, solicitanteFiltro, areaFiltro]);
+
+  const hayFiltros = Boolean(mesFiltro || solicitanteFiltro || areaFiltro);
+
+  const pendientesAprobacionMasiva = useMemo(
+    () => (tab === 'pendientes' ? filasFiltradas.filter((r) => puedeResolver(r)) : []),
+    [tab, filasFiltradas]
+  );
+
+  const aprobarTodosPendientes = async () => {
+    const lista = pendientesAprobacionMasiva;
+    if (!lista.length) return;
+    const n = lista.length;
+    const filtroTxt = hayFiltros ? ' que coinciden con los filtros actuales' : '';
+    if (
+      !window.confirm(
+        `¿Aprobar ${n} solicitud${n === 1 ? '' : 'es'}${filtroTxt}?\n\nSe aplicará sin comentarios adicionales.`
+      )
+    ) {
+      return;
+    }
+    setProcesando(true);
+    let ok = 0;
+    const fallidas = [];
+    for (const r of lista) {
+      try {
+        await rendicionPresupuestoService.aprobar(r.id, '');
+        ok += 1;
+      } catch (err) {
+        fallidas.push(r.codigo_ticket || `#${r.id}`);
+      }
+    }
+    setProcesando(false);
+    if (fallidas.length === 0) {
+      toast.success(`${ok} solicitud${ok === 1 ? '' : 'es'} aprobada${ok === 1 ? '' : 's'}.`);
+    } else {
+      toast.error(
+        `Aprobadas: ${ok}. Fallaron ${fallidas.length}: ${fallidas.slice(0, 5).join(', ')}${
+          fallidas.length > 5 ? '…' : ''
+        }`
+      );
+    }
+    cargar();
+  };
+
+  const guardarEdicionAdmin = async () => {
+    if (!editar || !formEdit) return;
+    if (!formEdit.fecha_solicitud_usuario || !formEdit.concepto.trim()) {
+      toast.error('Fecha y concepto son obligatorios.');
+      return;
+    }
+    if (!formEdit.area) {
+      toast.error('Seleccione el área de la rendición.');
+      return;
+    }
+    if (editar.tiene_comprobante && !String(formEdit.ruc_proveedor).trim()) {
+      toast.error('Indique el RUC del emisor.');
+      return;
+    }
+    if (editar.tiene_comprobante && !String(formEdit.numero_documento).trim()) {
+      toast.error('Indique el número de documento (factura).');
+      return;
+    }
+    if (archivoReemplazo && archivoReemplazo.size > RENDICION_PRESUPUESTO_MAX_FILE_BYTES) {
+      toast.error(
+        `Supera los ${RENDICION_PRESUPUESTO_MAX_UPLOAD_MB} MB permitidos (${(archivoReemplazo.size / (1024 * 1024)).toFixed(1)} MB). Comprímalo e inténtelo de nuevo.`
+      );
+      return;
+    }
+    setProcesando(true);
+    try {
+      const fd = new FormData();
+      fd.append('fecha_solicitud_usuario', formEdit.fecha_solicitud_usuario);
+      fd.append('area', formEdit.area);
+      fd.append('concepto', formEdit.concepto.trim());
+      fd.append('monto', formEdit.monto || '0');
+      fd.append('metodo_reembolso', formEdit.metodo_reembolso);
+      fd.append('celular', formEdit.celular.trim());
+      fd.append('nombre_en_metodo', formEdit.nombre_en_metodo.trim());
+      if (formEdit.metodo_reembolso === 'transferencia') {
+        fd.append('numero_cuenta', formEdit.numero_cuenta.trim());
+      }
+      fd.append('ruc_proveedor', String(formEdit.ruc_proveedor || '').trim());
+      fd.append('numero_documento', String(formEdit.numero_documento || '').trim());
+      if (archivoReemplazo) {
+        fd.append('comprobante', archivoReemplazo);
+      }
+      await rendicionPresupuestoService.actualizarAdmin(editar.id, fd);
+      toast.success('Rendición actualizada.');
+      setEditar(null);
+      cargar();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo guardar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      <Link
+        to="/portal"
+        className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-sky-600 mb-8 transition-colors"
+      >
+        <ArrowLeftIcon className="w-4 h-4" />
+        Volver al portal
+      </Link>
+
+      <div className="rounded-3xl bg-white border border-slate-100 shadow-lg p-8 md:p-10">
+        <div className="flex items-start gap-4 mb-6">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-sky-600 flex items-center justify-center shadow-lg shadow-teal-500/25 shrink-0">
+            <Cog6ToothIcon className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 mb-1">Gestión de Rendiciones de Presupuesto</h1>
+            <p className="text-sm text-slate-500">Revisión y resolución por área</p>
+            {esAdmin() && (
+              <p className="text-xs text-slate-500 mt-2 max-w-xl">
+                Como administrador puedes <strong className="font-medium text-slate-700">eliminar</strong> cualquier
+                rendición desde la columna de acciones (se borran también los archivos adjuntos o el PDF generado).
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 justify-between mb-6">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setTab('pendientes')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                tab === 'pendientes'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Pendientes ({pendientes.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('todos')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                tab === 'todos'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Todas
+            </button>
+          </div>
+          {pendientesAprobacionMasiva.length > 0 && (
+            <button
+              type="button"
+              disabled={procesando}
+              onClick={aprobarTodosPendientes}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 shadow-sm shadow-emerald-600/20"
+            >
+              <CheckBadgeIcon className="w-5 h-5 shrink-0" />
+              Aprobar todas ({pendientesAprobacionMasiva.length})
+            </button>
+          )}
+        </div>
+
+        {!loading && filas.length > 0 && (
+          <div className="flex flex-col sm:flex-row flex-wrap gap-4 mb-4 items-start sm:items-end">
+            <div>
+              <label htmlFor="filtro-mes-reintegro" className="block text-xs font-medium text-slate-600 mb-1">
+                Mes (fecha del gasto)
+              </label>
+              <input
+                id="filtro-mes-reintegro"
+                type="month"
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 bg-white"
+                value={mesFiltro}
+                onChange={(e) => setMesFiltro(e.target.value)}
+              />
+            </div>
+            <div className="min-w-[220px] flex-1 sm:flex-initial">
+              <label htmlFor="filtro-solicitante-reintegro" className="block text-xs font-medium text-slate-600 mb-1">
+                Solicitante
+              </label>
+              <select
+                id="filtro-solicitante-reintegro"
+                className="w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 bg-white"
+                value={solicitanteFiltro}
+                onChange={(e) => setSolicitanteFiltro(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {opcionesSolicitantes.map(([id, nombre]) => (
+                  <option key={id} value={String(id)}>
+                    {nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="min-w-[200px]">
+              <label htmlFor="filtro-area-rendicion" className="block text-xs font-medium text-slate-600 mb-1">
+                Área
+              </label>
+              <select
+                id="filtro-area-rendicion"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 bg-white"
+                value={areaFiltro}
+                onChange={(e) => setAreaFiltro(e.target.value)}
+              >
+                <option value="">Todas las áreas</option>
+                {areas.map((a) => (
+                  <option key={a.value} value={a.value}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {hayFiltros && (
+              <button
+                type="button"
+                className="text-sm font-medium text-sky-600 hover:text-sky-800 py-2"
+                onClick={() => {
+                  setMesFiltro('');
+                  setSolicitanteFiltro('');
+                  setAreaFiltro('');
+                }}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        )}
+
+        {!loading && filas.length > 0 && hayFiltros && (
+          <p className="text-xs text-slate-500 mb-3">
+            Mostrando {filasFiltradas.length} de {filas.length} en esta pestaña.
+          </p>
+        )}
+
+        {loading ? (
+          <p className="text-slate-500 text-sm">Cargando…</p>
+        ) : filas.length === 0 ? (
+          <p className="text-slate-500 text-sm">No hay registros en esta vista.</p>
+        ) : filasFiltradas.length === 0 ? (
+          <p className="text-slate-500 text-sm">Ningún registro coincide con los filtros. Prueba otro mes o solicitante.</p>
+        ) : (
+            <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden flex flex-col shadow-sm">
+            <div className="relative max-h-[min(75vh,36rem)] min-h-[220px] overflow-auto [scrollbar-gutter:stable]">
+              <table className="min-w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-left text-slate-600 shadow-[inset_0_-1px_0_0_rgb(226_232_240)]">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Ticket</th>
+                  <th className="px-4 py-3 font-medium whitespace-nowrap">Fecha (gasto)</th>
+                  <th className="px-4 py-3 font-medium">Solicitante</th>
+                  <th className="px-4 py-3 font-medium">Área</th>
+                  <th className="px-4 py-3 font-medium">Concepto</th>
+                  <th className="px-4 py-3 font-medium whitespace-nowrap">Monto</th>
+                  <th className="px-4 py-3 font-medium">Método</th>
+                  <th className="px-4 py-3 font-medium">Estado</th>
+                  <th className="px-4 py-3 font-medium">Observaciones</th>
+                  <th className="px-4 py-3 font-medium">Acciones</th>
+                  {esAdmin() && <th className="px-4 py-3 font-medium w-36">Admin</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filasFiltradas.map((r) => (
+                  <tr key={r.id} className="text-slate-700">
+                    <td className="px-4 py-3 font-mono text-xs">{r.codigo_ticket}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-slate-700">
+                      {formatoFechaDMY(r.fecha_solicitud_usuario)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.empleado_nombres} {r.empleado_apellidos}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="inline-block text-[11px] font-semibold uppercase tracking-wide bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">
+                        {r.area_label || areaLabelOf(r.area)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 max-w-xs truncate" title={r.concepto}>
+                      {r.concepto}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap tabular-nums text-slate-800">
+                      {formatoMonto(r.monto)}
+                    </td>
+                    <td className="px-4 py-3">{metodoLabel(r.metodo_reembolso)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${estadoBadge(r.estado)}`}>
+                        {estadoLabel(r.estado)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 max-w-[200px] text-xs text-slate-600 align-top" title={r.comentarios_resolucion || ''}>
+                      {r.comentarios_resolucion ? (
+                        <span className="line-clamp-3">{r.comentarios_resolucion}</span>
+                      ) : (
+                        '—'
+                      )}
+                      <button
+                        type="button"
+                        className="mt-2 inline-flex items-center gap-1 text-sky-600 font-medium hover:text-sky-800 hover:underline"
+                        onClick={() => setFichaModal(r)}
+                      >
+                        Ver ficha
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        {!r.tiene_comprobante && (
+                          <button
+                            type="button"
+                            className="text-sky-600 text-xs font-medium hover:underline"
+                            onClick={() => bajarRecibo(r.id, r.codigo_ticket)}
+                          >
+                            PDF
+                          </button>
+                        )}
+                        {r.tiene_comprobante && (
+                          <button
+                            type="button"
+                            className="text-sky-600 text-xs font-medium hover:underline"
+                            onClick={() => bajarComprobante(r.id, r.codigo_ticket)}
+                          >
+                            Comp.
+                          </button>
+                        )}
+                        {puedeResolver(r) && (tab === 'pendientes' || tab === 'todos') && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={procesando}
+                              className="text-emerald-600 text-xs font-medium hover:underline disabled:opacity-50"
+                              onClick={() => {
+                                setAprobarId(r.id);
+                                setComentarioAprobar('');
+                              }}
+                            >
+                              Aprobar
+                            </button>
+                            {r.estado === 'pendiente' && (
+                              <button
+                                type="button"
+                                disabled={procesando}
+                                className="text-indigo-600 text-xs font-medium hover:underline disabled:opacity-50"
+                                onClick={() => {
+                                  setObservarId(r.id);
+                                  setComentarioObservar('');
+                                }}
+                              >
+                                Observar
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={procesando}
+                              className="text-rose-600 text-xs font-medium hover:underline disabled:opacity-50"
+                              onClick={() => setRechazoId(r.id)}
+                            >
+                              Rechazar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    {esAdmin() && (
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-col gap-1.5">
+                          <button
+                            type="button"
+                            disabled={procesando}
+                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-900 hover:bg-sky-100 disabled:opacity-50"
+                            title="Editar datos de la solicitud"
+                            onClick={() => setEditar(r)}
+                          >
+                            <PencilSquareIcon className="w-3.5 h-3.5 shrink-0" />
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={procesando}
+                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                            title="Eliminar solicitud y archivos (solo administrador)"
+                            onClick={() => eliminarRegistro(r.id, r.codigo_ticket)}
+                          >
+                            <TrashIcon className="w-3.5 h-3.5 shrink-0" />
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {fichaModal && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center overscroll-none bg-black/40 p-4 sm:p-6"
+          onClick={() => setFichaModal(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ficha-reintegro-titulo"
+            className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[min(calc(100dvh-2rem),40rem)] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 p-6 pb-4 shrink-0 border-b border-slate-100">
+              <div>
+                <h3 id="ficha-reintegro-titulo" className="text-lg font-bold text-slate-800 font-mono">
+                  {fichaModal.codigo_ticket}
+                </h3>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {fichaModal.empleado_nombres} {fichaModal.empleado_apellidos}
+                </p>
+                <p className="text-xs text-slate-500 mt-2">
+                  <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium text-slate-700 bg-slate-100 border border-slate-200">
+                    {estadoLabel(fichaModal.estado)}
+                  </span>{' '}
+                  · Monto {formatoMonto(fichaModal.monto)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFichaModal(null)}
+                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 shrink-0"
+                aria-label="Cerrar"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain touch-pan-y [scrollbar-gutter:stable]">
+              <div className="px-6 pt-4 pb-2">
+              {fichaModal.comentarios_resolucion ? (
+              <div className="mb-5 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Observaciones</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap">{fichaModal.comentarios_resolucion}</p>
+              </div>
+            ) : null}
+
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Datos de la rendición</p>
+            <div className="space-y-2.5 text-sm text-slate-700 border border-slate-100 rounded-xl p-4 bg-slate-50/70">
+              <p>
+                <span className="text-slate-500">Área:</span>{' '}
+                <span className="font-medium">{fichaModal.area_label || areaLabelOf(fichaModal.area) || '—'}</span>
+              </p>
+              <p>
+                <span className="text-slate-500">Concepto:</span>{' '}
+                <span className="font-medium">{fichaModal.concepto}</span>
+              </p>
+              <p>
+                <span className="text-slate-500">Fecha del gasto:</span>{' '}
+                {formatoFechaDMY(fichaModal.fecha_solicitud_usuario)}
+              </p>
+              <p>
+                <span className="text-slate-500">Método:</span> {metodoLabel(fichaModal.metodo_reembolso)}
+              </p>
+              <p>
+                <span className="text-slate-500">DNI:</span> <span className="font-mono">{fichaModal.dni}</span>
+              </p>
+              <p>
+                <span className="text-slate-500">Comprobante:</span>{' '}
+                {fichaModal.tiene_comprobante ? 'Sí' : 'No (recibo Prayaga)'}
+              </p>
+              {fichaModal.tiene_comprobante ? (
+                <>
+                  <p>
+                    <span className="text-slate-500">RUC:</span>{' '}
+                    <span className="font-mono break-all">
+                      {String(fichaModal.ruc_proveedor || '').trim() || '—'}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-slate-500">N° doc.:</span>{' '}
+                    <span className="font-mono break-all">
+                      {String(fichaModal.numero_documento || '').trim() || '—'}
+                    </span>
+                  </p>
+                  <p className="break-all">
+                    <span className="text-slate-500">Archivo adjunto:</span>{' '}
+                    {fichaModal.archivo_comprobante_nombre || '—'}
+                  </p>
+                </>
+              ) : null}
+              <p>
+                <span className="text-slate-500">Celular:</span> <span className="font-mono">{fichaModal.celular || '—'}</span>
+              </p>
+              <p>
+                <span className="text-slate-500">Nombre en método:</span> {fichaModal.nombre_en_metodo || '—'}
+              </p>
+              {fichaModal.metodo_reembolso === 'transferencia' ? (
+                <p className="break-all whitespace-pre-wrap">
+                  <span className="text-slate-500">Cuenta / CCI:</span> {fichaModal.numero_cuenta || '—'}
+                </p>
+              ) : null}
+            </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end shrink-0 p-6 pt-4 border-t border-slate-100 bg-white shadow-[inset_0_1px_0_0_rgb(248_250_252)]">
+              <button
+                type="button"
+                onClick={() => setFichaModal(null)}
+                className="px-5 py-2.5 rounded-xl text-sm font-medium bg-slate-800 text-white hover:bg-slate-900"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {aprobarId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 className="font-bold text-slate-800 mb-2">Aprobar rendición</h3>
+            <p className="text-sm text-slate-600 mb-3">Opcional: observaciones para el colaborador.</p>
+            <textarea
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4"
+              rows={3}
+              value={comentarioAprobar}
+              onChange={(e) => setComentarioAprobar(e.target.value)}
+              placeholder="Observaciones (opcional)"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm bg-slate-100 text-slate-700"
+                onClick={() => {
+                  setAprobarId(null);
+                  setComentarioAprobar('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={procesando}
+                className="px-4 py-2 rounded-xl text-sm bg-emerald-600 text-white disabled:opacity-50"
+                onClick={confirmarAprobar}
+              >
+                Confirmar aprobación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {observarId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 className="font-bold text-slate-800 mb-2">Marcar como observado</h3>
+            <p className="text-sm text-slate-600 mb-3">Indique observaciones para el solicitante (obligatorio).</p>
+            <textarea
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4"
+              rows={4}
+              value={comentarioObservar}
+              onChange={(e) => setComentarioObservar(e.target.value)}
+              placeholder="Observaciones"
+              required
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm bg-slate-100 text-slate-700"
+                onClick={() => {
+                  setObservarId(null);
+                  setComentarioObservar('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={procesando}
+                className="px-4 py-2 rounded-xl text-sm bg-indigo-600 text-white disabled:opacity-50"
+                onClick={confirmarObservar}
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editar && formEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 my-8">
+            <h3 className="font-bold text-slate-800 mb-1">Editar rendición (admin)</h3>
+            <p className="text-xs text-slate-500 mb-4 font-mono">{editar.codigo_ticket}</p>
+            <div className="space-y-3 text-sm max-h-[70vh] overflow-y-auto pr-1">
+              <div>
+                <label className="block text-slate-600 mb-1">Fecha del gasto *</label>
+                <input
+                  type="date"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={formEdit.fecha_solicitud_usuario}
+                  onChange={(e) => setFormEdit({ ...formEdit, fecha_solicitud_usuario: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-1">Área *</label>
+                <select
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"
+                  value={formEdit.area}
+                  onChange={(e) => setFormEdit({ ...formEdit, area: e.target.value })}
+                >
+                  <option value="">Seleccione un área…</option>
+                  {areas.map((a) => (
+                    <option key={a.value} value={a.value}>
+                      {a.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-1">Concepto *</label>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={formEdit.concepto}
+                  onChange={(e) => setFormEdit({ ...formEdit, concepto: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-1">Monto (S/) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={formEdit.monto}
+                  onChange={(e) => setFormEdit({ ...formEdit, monto: e.target.value })}
+                />
+              </div>
+              {editar.tiene_comprobante && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-600 mb-1">
+                        <span className="inline-flex items-center gap-1">
+                          RUC *
+                          <AyudaUbicacionFactura />
+                        </span>
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
+                        value={formEdit.ruc_proveedor}
+                        onChange={(e) => setFormEdit({ ...formEdit, ruc_proveedor: e.target.value })}
+                        placeholder="Emisor"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 mb-1">
+                        <span className="inline-flex items-center gap-1">
+                          N° documento *
+                          <AyudaUbicacionFactura />
+                        </span>
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
+                        value={formEdit.numero_documento}
+                        onChange={(e) =>
+                          setFormEdit({ ...formEdit, numero_documento: e.target.value })
+                        }
+                        placeholder="Factura"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 mb-1">Reemplazar comprobante (opcional)</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                      className="text-xs w-full"
+                      onChange={(e) => setArchivoReemplazo(e.target.files?.[0] || null)}
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">Máx. {RENDICION_PRESUPUESTO_MAX_UPLOAD_MB} MB.</p>
+                  </div>
+                </>
+              )}
+              <div>
+                <label className="block text-slate-600 mb-1">Método *</label>
+                <select
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={formEdit.metodo_reembolso}
+                  onChange={(e) => setFormEdit({ ...formEdit, metodo_reembolso: e.target.value })}
+                >
+                  <option value="yape">Yape</option>
+                  <option value="plin">Plin</option>
+                  <option value="transferencia">Transferencia</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-1">
+                  Celular{formEdit.metodo_reembolso === 'transferencia' ? ' (opc.)' : ' *'}
+                </label>
+                <input
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={formEdit.celular}
+                  onChange={(e) => setFormEdit({ ...formEdit, celular: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-1">
+                  Nombre en método{formEdit.metodo_reembolso === 'transferencia' ? ' (opc.)' : ' *'}
+                </label>
+                <input
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={formEdit.nombre_en_metodo}
+                  onChange={(e) => setFormEdit({ ...formEdit, nombre_en_metodo: e.target.value })}
+                />
+              </div>
+              {formEdit.metodo_reembolso === 'transferencia' && (
+                <div>
+                  <label className="block text-slate-600 mb-1">Cuenta / CCI</label>
+                  <textarea
+                    rows={2}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
+                    value={formEdit.numero_cuenta}
+                    onChange={(e) => setFormEdit({ ...formEdit, numero_cuenta: e.target.value })}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm bg-slate-100 text-slate-700"
+                onClick={() => setEditar(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={procesando}
+                className="px-4 py-2 rounded-xl text-sm bg-sky-600 text-white disabled:opacity-50"
+                onClick={guardarEdicionAdmin}
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rechazoId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 className="font-bold text-slate-800 mb-2">Motivo del rechazo</h3>
+            <textarea
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4"
+              rows={4}
+              value={motivoRechazo}
+              onChange={(e) => setMotivoRechazo(e.target.value)}
+              placeholder="Obligatorio"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm bg-slate-100 text-slate-700"
+                onClick={() => {
+                  setRechazoId(null);
+                  setMotivoRechazo('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={procesando}
+                className="px-4 py-2 rounded-xl text-sm bg-rose-600 text-white disabled:opacity-50"
+                onClick={confirmarRechazo}
+              >
+                Confirmar rechazo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default GestionRendicionPresupuesto;

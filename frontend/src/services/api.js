@@ -181,6 +181,34 @@ export const reembolsoService = {
     }),
 };
 
+// Rendición de Presupuesto (módulo paralelo a reembolsos con campo "área")
+export const rendicionPresupuestoService = {
+  areas: () => api.get('/rendiciones-presupuesto/areas'),
+  crear: (formData) =>
+    api.post('/rendiciones-presupuesto', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  misSolicitudes: () => api.get('/rendiciones-presupuesto/mis-solicitudes'),
+  pendientes: () => api.get('/rendiciones-presupuesto/pendientes'),
+  todos: (params = {}) => api.get('/rendiciones-presupuesto/todos', { params }),
+  obtener: (id) => api.get(`/rendiciones-presupuesto/${id}`),
+  descargarRecibo: (id) =>
+    api.get(`/rendiciones-presupuesto/${id}/recibo`, { responseType: 'blob' }),
+  descargarComprobante: (id) =>
+    api.get(`/rendiciones-presupuesto/${id}/comprobante`, { responseType: 'blob' }),
+  aprobar: (id, comentarios = '') =>
+    api.put(`/rendiciones-presupuesto/${id}/aprobar`, { comentarios }),
+  rechazar: (id, comentarios) =>
+    api.put(`/rendiciones-presupuesto/${id}/rechazar`, { comentarios }),
+  observar: (id, comentarios) =>
+    api.put(`/rendiciones-presupuesto/${id}/observar`, { comentarios }),
+  eliminar: (id) => api.delete(`/rendiciones-presupuesto/${id}`),
+  actualizarAdmin: (id, formData) =>
+    api.put(`/rendiciones-presupuesto/${id}/admin`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+};
+
 // Administración de usuarios del portal (solo correos autorizados)
 export const adminPortalUsuariosService = {
   listarEmpleados: (params = {}) =>

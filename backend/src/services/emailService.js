@@ -1466,6 +1466,213 @@ const notificarReembolsoResueltoEmpleado = async (reembolso, empleado, resultado
   }
 };
 
+/* =========================================================================
+ * Rendición de Presupuesto (módulo paralelo a reembolsos, aprobado por admin).
+ * ========================================================================= */
+
+const MARCA_ENCABEZADO_EMAIL_RENDICION = '🧾 Rendición de presupuesto';
+const PIE_EMAIL_RENDICION =
+  'Este es un mensaje automático del Portal Prayaga Interno - Prayaga (rendiciones de presupuesto).';
+
+const codigoTicketRendicion = (row) => {
+  const y = row.created_at ? new Date(row.created_at).getFullYear() : new Date().getFullYear();
+  return `RDP-${y}-${String(row.id).padStart(5, '0')}`;
+};
+
+const htmlVistaReciboRendicion = (r, codigoTicket) => {
+  const monto = Number(r.monto) || 0;
+  const fecha = r.fecha_solicitud_usuario
+    ? new Date(r.fecha_solicitud_usuario).toLocaleDateString('es-PE')
+    : '—';
+  const reg = r.created_at ? new Date(r.created_at).toLocaleString('es-PE') : '—';
+  const area = r.area_label || r.area || '—';
+  return `
+  <div style="border:1px solid #000; padding:20px; max-width:520px; margin:16px auto; font-family:Arial,Helvetica,sans-serif; color:#111;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-size:12px; color:#0d9488;"><strong>PRAYAGA</strong></td>
+      <td align="center" style="font-size:16px; font-weight:bold;">Rendición de Presupuesto</td>
+      <td align="right"><span style="border:1px solid #000; padding:8px 12px; display:inline-block;">S/ ${monto.toFixed(2)}</span></td>
+    </tr></table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;"><tr>
+      <td style="font-size:13px;">Recibí de Prayaga Solutions S.A.C</td>
+      <td align="right" style="font-size:13px;"><strong>Fecha:</strong> ${escapeHtml(fecha)}</td>
+    </tr></table>
+    <p style="font-size:13px; margin-top:10px; margin-bottom:6px;"><strong>Área:</strong> ${escapeHtml(area)}</p>
+    <p style="font-size:13px; margin-top:8px; margin-bottom:4px;"><strong>Concepto de</strong></p>
+    <p style="border-bottom:1px solid #000; font-size:13px; padding-bottom:6px; min-height:24px;">${escapeHtml(r.concepto)}</p>
+    <p style="text-align:right; font-size:13px; margin-top:28px;">Nombre completo: ${escapeHtml(r.nombre_completo)}</p>
+    <p style="text-align:right; font-size:13px;">DNI: ${escapeHtml(r.dni)}</p>
+    <p style="font-size:11px; color:#64748b; text-align:center; margin-top:24px;">
+      ${escapeHtml(codigoTicket)} · Registro ticket: ${escapeHtml(reg)}
+    </p>
+  </div>`;
+};
+
+const notificarNuevaRendicionAdmin = async ({
+  rendicion,
+  empleado,
+  aprobador,
+  urlAprobar,
+  urlRechazar,
+  pdfReciboBuffer,
+  comprobanteDiskPath,
+  comprobanteNombreOriginal
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Rendición: notificación a admin omitida');
+    return false;
+  }
+  if (!aprobador?.email) return false;
+
+  const codigo = codigoTicketRendicion(rendicion);
+  const empNombre = `${empleado.nombres || ''} ${empleado.apellidos || ''}`.trim();
+  const areaLabel = rendicion.area_label || rendicion.area || '—';
+  const bloqueRecibo =
+    !rendicion.tiene_comprobante && pdfReciboBuffer
+      ? htmlVistaReciboRendicion(rendicion, codigo)
+      : '<p>El solicitante adjuntó su comprobante de pago en este correo.</p>';
+
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(aprobador.nombres)} ${escapeHtml(aprobador.apellidos)}</strong>,</p>
+    <p>Nueva rendición de presupuesto de <strong>${escapeHtml(empNombre)}</strong>.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Ticket</span><span class="info-value">${escapeHtml(codigo)}</span></div>
+      <div class="info-row"><span class="info-label">Registro</span><span class="info-value">${escapeHtml(new Date(rendicion.created_at).toLocaleString('es-PE'))}</span></div>
+      <div class="info-row"><span class="info-label">Área</span><span class="info-value">${escapeHtml(areaLabel)}</span></div>
+      <div class="info-row"><span class="info-label">Fecha (usuario)</span><span class="info-value">${escapeHtml(rendicion.fecha_solicitud_usuario)}</span></div>
+      <div class="info-row"><span class="info-label">Concepto</span><span class="info-value">${escapeHtml(rendicion.concepto)}</span></div>
+      <div class="info-row"><span class="info-label">Monto</span><span class="info-value">S/ ${Number(rendicion.monto || 0).toFixed(2)}</span></div>
+      <div class="info-row"><span class="info-label">Método</span><span class="info-value">${escapeHtml(etiquetaMetodoReembolso(rendicion.metodo_reembolso))}</span></div>
+      <div class="info-row"><span class="info-label">Celular</span><span class="info-value">${escapeHtml(rendicion.celular)}</span></div>
+      <div class="info-row"><span class="info-label">Nombre en método</span><span class="info-value">${escapeHtml(rendicion.nombre_en_metodo)}</span></div>
+      ${rendicion.metodo_reembolso === 'transferencia' ? `<div class="info-row"><span class="info-label">Cuenta/CCI</span><span class="info-value">${escapeHtml(rendicion.numero_cuenta || '')}</span></div>` : ''}
+      ${
+        rendicion.tiene_comprobante && String(rendicion.ruc_proveedor || '').trim()
+          ? `<div class="info-row"><span class="info-label">RUC</span><span class="info-value">${escapeHtml(String(rendicion.ruc_proveedor).trim())}</span></div>`
+          : ''
+      }
+      ${
+        rendicion.tiene_comprobante && String(rendicion.numero_documento || '').trim()
+          ? `<div class="info-row"><span class="info-label">N° documento</span><span class="info-value">${escapeHtml(String(rendicion.numero_documento).trim())}</span></div>`
+          : ''
+      }
+    </div>
+    ${bloqueRecibo}
+    <p style="text-align:center; margin:24px 0 10px;"><strong>¿Aprobar o rechazar?</strong></p>
+    <center>
+      <table cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr>
+        <td style="padding:0 10px;"><a href="${urlAprobar}" style="display:inline-block;background:#10b981;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">APROBAR</a></td>
+        <td style="padding:0 10px;"><a href="${urlRechazar}" style="display:inline-block;background:#ef4444;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">RECHAZAR</a></td>
+      </tr></table>
+    </center>
+  `;
+
+  const attachments = [];
+  if (pdfReciboBuffer && Buffer.isBuffer(pdfReciboBuffer)) {
+    attachments.push({ filename: `${codigo}.pdf`, content: pdfReciboBuffer });
+  }
+  if (comprobanteDiskPath && fs.existsSync(comprobanteDiskPath)) {
+    attachments.push({
+      filename: comprobanteNombreOriginal || path.basename(comprobanteDiskPath),
+      path: comprobanteDiskPath
+    });
+  }
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Portal Prayaga Interno - Rendiciones" <${process.env.SMTP_USER}>`,
+      to: aprobador.email,
+      subject: `Rendición ${codigo} - ${empNombre}`,
+      html: plantillaBase(
+        contenido,
+        'Nueva rendición de presupuesto',
+        MARCA_ENCABEZADO_EMAIL_RENDICION,
+        PIE_EMAIL_RENDICION
+      ),
+      attachments
+    });
+    console.log(`📧 Rendición: correo enviado a admin ${aprobador.email}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email rendición a admin:', error.message);
+    return false;
+  }
+};
+
+const notificarRendicionResueltaEmpleado = async (rendicion, empleado, resultado, aprobador, detalle) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return false;
+  }
+  const codigo = codigoTicketRendicion(rendicion);
+  const nombre = `${empleado.nombres || ''} ${empleado.apellidos || ''}`.trim();
+  const aprob = `${aprobador.nombres || ''} ${aprobador.apellidos || ''}`.trim();
+  const obs =
+    detalle && String(detalle).trim()
+      ? `<div class="info-box" style="margin-top:12px;">
+      <div class="info-row"><span class="info-label">Observaciones</span><span class="info-value">${escapeHtml(String(detalle).trim())}</span></div>
+    </div>`
+      : '';
+
+  let contenido;
+  let subject;
+  let tituloPlantilla;
+
+  if (resultado === 'aprobado') {
+    contenido = `
+    <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
+    <p>Tu rendición <strong>${escapeHtml(codigo)}</strong> quedó en estado <span class="status-aprobada">APROBADA</span>.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Aprobado por</span><span class="info-value">${escapeHtml(aprob)}</span></div>
+    </div>${obs}`;
+    subject = `Rendición aprobada · ${codigo}`;
+    tituloPlantilla = 'Rendición aprobada';
+  } else if (resultado === 'observado') {
+    contenido = `
+    <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
+    <p>Tu rendición <strong>${escapeHtml(codigo)}</strong> fue marcada como <strong>observada</strong> por revisión.</p>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:12px;border-radius:8px;">
+      <strong>Observaciones:</strong> ${escapeHtml(detalle || '—')}
+    </div>
+    <div class="info-box" style="margin-top:12px;">
+      <div class="info-row"><span class="info-label">Revisado por</span><span class="info-value">${escapeHtml(aprob)}</span></div>
+    </div>`;
+    subject = `Rendición observada · ${codigo}`;
+    tituloPlantilla = 'Rendición observada';
+  } else {
+    contenido = `
+    <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
+    <p>Tu rendición <strong>${escapeHtml(codigo)}</strong> fue <span class="status-rechazada">RECHAZADA</span>.</p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;">
+      <strong>Motivo / observaciones:</strong> ${escapeHtml(detalle || '—')}
+    </div>
+    <div class="info-box" style="margin-top:12px;">
+      <div class="info-row"><span class="info-label">Revisado por</span><span class="info-value">${escapeHtml(aprob)}</span></div>
+    </div>`;
+    subject = `Rendición rechazada · ${codigo}`;
+    tituloPlantilla = 'Rendición rechazada';
+  }
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Portal Prayaga Interno - Rendiciones" <${process.env.SMTP_USER}>`,
+      to: empleado.email,
+      subject,
+      html: plantillaBase(
+        contenido,
+        tituloPlantilla,
+        MARCA_ENCABEZADO_EMAIL_RENDICION,
+        PIE_EMAIL_RENDICION
+      )
+    });
+    return true;
+  } catch (error) {
+    console.error('❌ Error email rendición a empleado:', error.message);
+    return false;
+  }
+};
+
 const enviarEmailPrueba = async (destinatario) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error('Configuración de email no encontrada en variables de entorno');
@@ -1513,5 +1720,7 @@ module.exports = {
   notificarActividadBolsaHorasEncargado,
   notificarNuevaSolicitudReembolsoAprobador,
   notificarReembolsoResueltoEmpleado,
+  notificarNuevaRendicionAdmin,
+  notificarRendicionResueltaEmpleado,
   enviarCajaChicaResumenRocio
 };
