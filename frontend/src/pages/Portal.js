@@ -44,19 +44,45 @@ const Portal = () => {
 
   const inicialUsuario = (usuario?.nombres || '?').trim().charAt(0).toUpperCase();
 
-  const modulos = [
-    {
-      id: 'vacaciones',
-      titulo: 'Gestión de Vacaciones',
-      descripcion: 'Solicita, aprueba y gestiona las vacaciones del personal',
+  /* Card unificada Vacaciones + Permisos: visualmente es una sola entrada en
+   * el portal, pero por dentro respeta los permisos individuales de cada
+   * submódulo (`vacaciones` y `permisos`). El botón "Gestionar" sigue yendo
+   * a /permisos/gestion para admin/contadora, igual que antes. */
+  const subAccesoVacaciones = puedeAccederModuloPortal('vacaciones');
+  const subAccesoPermisos = puedeAccederModuloPortal('permisos');
+
+  const modulos = [];
+
+  if (subAccesoVacaciones || subAccesoPermisos) {
+    modulos.push({
+      id: 'vacaciones-permisos',
+      titulo: 'Vacaciones y Permisos',
+      descripcion: 'Solicita y administra vacaciones, descansos médicos y permisos del personal',
       icono: CalendarDaysIcon,
-      color: 'from-teal-500 to-cyan-500',
+      color: 'from-teal-500 to-amber-500',
       shadowColor: 'shadow-teal-500/30',
       bgLight: 'bg-teal-50',
       textColor: 'text-teal-600',
-      link: '/vacaciones',
-      activo: true
-    },
+      activo: true,
+      subAccesos: [
+        subAccesoVacaciones && {
+          id: 'vacaciones',
+          label: 'Vacaciones',
+          to: '/vacaciones',
+          icono: CalendarDaysIcon
+        },
+        subAccesoPermisos && {
+          id: 'permisos',
+          label: 'Permisos y Descansos',
+          to: '/permisos',
+          icono: ClipboardDocumentCheckIcon
+        }
+      ].filter(Boolean),
+      adminLink: subAccesoPermisos ? '/permisos/gestion' : null
+    });
+  }
+
+  modulos.push(
     {
       id: 'boletas',
       titulo: 'Boletas de Pago',
@@ -71,19 +97,6 @@ const Portal = () => {
       adminLink: '/boletas/gestion' // Link especial para admin
     },
     {
-      id: 'permisos',
-      titulo: 'Permisos y Descansos',
-      descripcion: 'Registra descansos médicos y solicita permisos',
-      icono: ClipboardDocumentCheckIcon,
-      color: 'from-amber-500 to-orange-500',
-      shadowColor: 'shadow-amber-500/30',
-      bgLight: 'bg-amber-50',
-      textColor: 'text-amber-600',
-      link: '/permisos',
-      activo: true,
-      adminLink: '/permisos/gestion'
-    },
-    {
       id: 'reembolsos',
       titulo: 'Solicitud de reintegro',
       descripcion: 'Registra y da seguimiento a tus solicitudes de reintegro de gastos',
@@ -96,7 +109,7 @@ const Portal = () => {
       activo: true,
       adminLink: '/reembolsos/gestion'
     }
-  ];
+  );
 
   if (puedeAccederModuloPortal('rendicion-presupuesto')) {
     modulos.push({
@@ -197,9 +210,13 @@ const Portal = () => {
     });
   }
 
-  const modulosVisibles = modulos.filter((m) =>
-    m.soloAdminPersonal ? true : puedeAccederModuloPortal(m.id)
-  );
+  const modulosVisibles = modulos.filter((m) => {
+    if (m.soloAdminPersonal) return true;
+    /* Las cards con sub-accesos ya se filtran al construirlas
+     * (solo se agregan si el usuario puede ver al menos un sub-módulo). */
+    if (m.subAccesos) return m.subAccesos.length > 0;
+    return puedeAccederModuloPortal(m.id);
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30">
@@ -317,13 +334,30 @@ const Portal = () => {
                 
                 <div className="flex flex-wrap items-center justify-between gap-y-3 gap-x-4">
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <Link
-                      to={modulo.link}
-                      className={`flex items-center gap-2 ${modulo.textColor} font-medium text-sm hover:underline`}
-                    >
-                      <span>Acceder</span>
-                      <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
-                    </Link>
+                    {modulo.subAccesos ? (
+                      modulo.subAccesos.map((sa) => {
+                        const SubIcono = sa.icono;
+                        return (
+                          <Link
+                            key={sa.id}
+                            to={sa.to}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 ${modulo.textColor} text-sm font-medium hover:underline transition-colors`}
+                          >
+                            {SubIcono && <SubIcono className="w-4 h-4" />}
+                            <span>{sa.label}</span>
+                            <ArrowRightIcon className="w-3.5 h-3.5" />
+                          </Link>
+                        );
+                      })
+                    ) : (
+                      <Link
+                        to={modulo.link}
+                        className={`flex items-center gap-2 ${modulo.textColor} font-medium text-sm hover:underline`}
+                      >
+                        <span>Acceder</span>
+                        <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                      </Link>
+                    )}
                     {(modulo.extraLinks || []).map((el) => (
                       <Link
                         key={el.to}
@@ -344,7 +378,9 @@ const Portal = () => {
                           ? esAdmin()
                           : modulo.id === 'rendicion-presupuesto'
                             ? esAdmin()
-                            : esAdmin() || esContadora()) && (
+                            : modulo.id === 'vacaciones-permisos'
+                              ? esAdmin() || esContadora()
+                              : esAdmin() || esContadora()) && (
                     <Link
                       to={modulo.adminLink}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors shrink-0"
