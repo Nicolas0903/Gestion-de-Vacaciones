@@ -158,7 +158,10 @@ export const AuthProvider = ({ children }) => {
   const puedeAccederModuloPortal = (moduloId) => {
     if (!usuario) return false;
     const em = (usuario.email || '').toLowerCase().trim();
-    if (moduloId === 'caja-chica' && EMAILS_MODULO_CAJA_CHICA.includes(em)) {
+    if (
+      (moduloId === 'caja-chica' || moduloId === 'caja-rendicion') &&
+      EMAILS_MODULO_CAJA_CHICA.includes(em)
+    ) {
       return true;
     }
     // Admin siempre puede acceder a Rendición de Presupuesto (es quien aprueba).
@@ -179,7 +182,7 @@ export const AuthProvider = ({ children }) => {
       return puedeVerReporteAsistencia();
     }
 
-    if (moduloId === 'caja-chica') {
+    if (moduloId === 'caja-chica' || moduloId === 'caja-rendicion') {
       return esAdmin() || esContadora();
     }
 

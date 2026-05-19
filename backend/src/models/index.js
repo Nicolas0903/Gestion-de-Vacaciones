@@ -10,6 +10,7 @@ const PermisoDescanso = require('./PermisoDescanso');
 const BoletaPago = require('./BoletaPago');
 const SolicitudRegistro = require('./SolicitudRegistro');
 const RendicionPresupuesto = require('./RendicionPresupuesto');
+const RendicionCajaPeriodo = require('./RendicionCajaPeriodo');
 
 module.exports = {
   Empleado,
@@ -23,5 +24,6 @@ module.exports = {
   PermisoDescanso,
   BoletaPago,
   SolicitudRegistro,
-  RendicionPresupuesto
+  RendicionPresupuesto,
+  RendicionCajaPeriodo
 };

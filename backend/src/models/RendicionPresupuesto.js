@@ -1,4 +1,38 @@
 const { pool } = require('../config/database');
+const fs = require('fs');
+const path = require('path');
+
+const DEPOSITO_ADJ_DIR = path.join(__dirname, '../../uploads/rendiciones-presupuesto/depositos');
+
+function normalizarFechaDeposito(v) {
+  if (v == null || v === '') return null;
+  if (v instanceof Date && !isNaN(v.getTime())) {
+    const y = v.getUTCFullYear();
+    const m = String(v.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(v.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const pe = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (pe) {
+    const d = pe[1].padStart(2, '0');
+    const mo = pe[2].padStart(2, '0');
+    return `${pe[3]}-${mo}-${d}`;
+  }
+  return null;
+}
+
+function unlinkDepositoSeguro(filePath) {
+  if (!filePath) return;
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch (_) {
+    /* ignore */
+  }
+}
 
 /**
  * Modelo de "Rendición de Presupuesto".
@@ -162,6 +196,72 @@ class RendicionPresupuesto {
 
   static async eliminarPorId(id) {
     const [r] = await pool.execute(`DELETE FROM rendiciones_presupuesto WHERE id = ?`, [id]);
+    return r.affectedRows > 0;
+  }
+
+  static normalizarFechaDepositoApi(v) {
+    return normalizarFechaDeposito(v);
+  }
+
+  /** Rendiciones aprobadas cuyo gasto (fecha_solicitud_usuario) cae en el rango del mes. */
+  static async listarAprobadasPorRangoFechaDocumento(fechaDesde, fechaHasta) {
+    const [rows] = await pool.execute(
+      `SELECT rp.*, e.nombres as empleado_nombres, e.apellidos as empleado_apellidos
+       FROM rendiciones_presupuesto rp
+       JOIN empleados e ON rp.empleado_id = e.id
+       WHERE rp.estado = 'aprobado'
+         AND rp.fecha_solicitud_usuario >= ?
+         AND rp.fecha_solicitud_usuario <= ?
+       ORDER BY rp.fecha_solicitud_usuario ASC, rp.id ASC`,
+      [fechaDesde, fechaHasta]
+    );
+    return rows;
+  }
+
+  static async actualizarDatosDeposito(id, { fecha_deposito, monto_deposito }) {
+    const fecha = normalizarFechaDeposito(fecha_deposito);
+    if (fecha_deposito != null && fecha_deposito !== '' && fecha === null) {
+      throw new Error('fecha_deposito no válida');
+    }
+    let monto = null;
+    if (monto_deposito !== undefined && monto_deposito !== null && monto_deposito !== '') {
+      monto = parseFloat(monto_deposito, 10);
+      if (Number.isNaN(monto) || monto < 0) {
+        throw new Error('monto_deposito no válido');
+      }
+    }
+    const [r] = await pool.execute(
+      `UPDATE rendiciones_presupuesto
+       SET fecha_deposito = ?, monto_deposito = ?
+       WHERE id = ? AND estado = 'aprobado'`,
+      [fecha, monto, id]
+    );
+    return r.affectedRows > 0;
+  }
+
+  static async actualizarComprobanteDeposito(id, nombre, diskPath) {
+    const row = await this.buscarPorId(id);
+    if (!row || row.estado !== 'aprobado') return false;
+    unlinkDepositoSeguro(row.comprobante_deposito_path);
+    const [r] = await pool.execute(
+      `UPDATE rendiciones_presupuesto
+       SET comprobante_deposito_nombre = ?, comprobante_deposito_path = ?
+       WHERE id = ? AND estado = 'aprobado'`,
+      [nombre, diskPath, id]
+    );
+    return r.affectedRows > 0;
+  }
+
+  static async eliminarComprobanteDeposito(id) {
+    const row = await this.buscarPorId(id);
+    if (!row) return false;
+    unlinkDepositoSeguro(row.comprobante_deposito_path);
+    const [r] = await pool.execute(
+      `UPDATE rendiciones_presupuesto
+       SET comprobante_deposito_nombre = NULL, comprobante_deposito_path = NULL
+       WHERE id = ?`,
+      [id]
+    );
     return r.affectedRows > 0;
   }
 

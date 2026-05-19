@@ -26,7 +26,7 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
   if (moduloId === 'asistencia') {
     return rolNombre === 'admin' || EMAILS_REPORTE_ASISTENCIA.includes(e);
   }
-  if (moduloId === 'caja-chica') {
+  if (moduloId === 'caja-chica' || moduloId === 'caja-rendicion') {
     if (EMAILS_MODULO_CAJA_CHICA.includes(e)) return true;
     return rolNombre === 'admin' || rolNombre === 'contadora';
   }
@@ -52,7 +52,10 @@ function tieneMapaPortalExplicito(empleado) {
  */
 function tieneAccesoEfectivoModulo(empleado, moduloId) {
   const e = (empleado.email || '').toLowerCase().trim();
-  if (moduloId === 'caja-chica' && EMAILS_MODULO_CAJA_CHICA.includes(e)) {
+  if (
+    (moduloId === 'caja-chica' || moduloId === 'caja-rendicion') &&
+    EMAILS_MODULO_CAJA_CHICA.includes(e)
+  ) {
     return true;
   }
   // Admin siempre puede acceder al módulo de Rendición de Presupuesto

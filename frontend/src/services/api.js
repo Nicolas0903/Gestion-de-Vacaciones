@@ -249,6 +249,34 @@ export const cajaChicaService = {
     api.get(`/caja-chica/periodos/${id}/resumen-pdf`, { responseType: 'blob' }),
 };
 
+// Caja rendición de presupuesto (sin ingresos; depósitos sobre rendiciones aprobadas)
+export const rendicionCajaService = {
+  listarPeriodos: () => api.get('/caja-rendicion/periodos'),
+  crearPeriodo: (anio, mes) => api.post('/caja-rendicion/periodos', { anio, mes }),
+  detalle: (id) => api.get(`/caja-rendicion/periodos/${id}`),
+  guardarDepositos: (id, rendiciones) =>
+    api.put(`/caja-rendicion/periodos/${id}/depositos`, { rendiciones }),
+  subirComprobanteDeposito: (periodoId, rendicionId, file) => {
+    const fd = new FormData();
+    fd.append('archivo', file);
+    return api.post(
+      `/caja-rendicion/periodos/${periodoId}/rendiciones/${rendicionId}/deposito-adjunto`,
+      fd
+    );
+  },
+  descargarComprobanteDeposito: (periodoId, rendicionId) =>
+    api.get(
+      `/caja-rendicion/periodos/${periodoId}/rendiciones/${rendicionId}/deposito-adjunto`,
+      { responseType: 'blob' }
+    ),
+  eliminarComprobanteDeposito: (periodoId, rendicionId) =>
+    api.delete(
+      `/caja-rendicion/periodos/${periodoId}/rendiciones/${rendicionId}/deposito-adjunto`
+    ),
+  cerrar: (id) => api.post(`/caja-rendicion/periodos/${id}/cerrar`),
+  reabrir: (id) => api.post(`/caja-rendicion/periodos/${id}/reabrir`)
+};
+
 // Asistente IA (solo admin, lectura)
 export const asistenteIaService = {
   estado: () => api.get('/asistente-ia/estado'),

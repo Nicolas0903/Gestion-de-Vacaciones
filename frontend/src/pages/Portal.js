@@ -207,6 +207,22 @@ const Portal = () => {
     });
   }
 
+  if (puedeAccederModuloPortal('caja-rendicion')) {
+    modulos.push({
+      id: 'caja-rendicion',
+      titulo: 'Caja rendición presupuesto',
+      descripcion: 'Rendiciones aprobadas del mes y registro de depósitos (fecha, monto, comprobante)',
+      icono: BanknotesIcon,
+      color: 'from-violet-500 to-purple-600',
+      shadowColor: 'shadow-violet-500/30',
+      bgLight: 'bg-violet-50',
+      textColor: 'text-violet-600',
+      link: '/caja-rendicion',
+      activo: true,
+      restringido: true
+    });
+  }
+
   if (puedeAccederModuloPortal('control-proyectos')) {
     modulos.push({
       id: 'control-proyectos',

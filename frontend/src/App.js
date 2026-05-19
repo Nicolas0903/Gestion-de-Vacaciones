@@ -29,6 +29,7 @@ import GestionReembolsos from './pages/GestionReembolsos';
 import RendicionPresupuesto from './pages/RendicionPresupuesto';
 import GestionRendicionPresupuesto from './pages/GestionRendicionPresupuesto';
 import CajaChica from './pages/CajaChica';
+import RendicionCaja from './pages/RendicionCaja';
 import ControlProyectos from './pages/ControlProyectos';
 import ControlProyectosReporte from './pages/ControlProyectosReporte';
 import ControlProyectosReporteProyectos from './pages/ControlProyectosReporteProyectos';
@@ -222,6 +223,14 @@ function AppRoutes() {
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="caja-chica">
             <PageWrapper><CajaChica /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/caja-rendicion" element={
+        <ProtectedRoute>
+          <ModuloPortalRoute moduloId="caja-rendicion">
+            <PageWrapper><RendicionCaja /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

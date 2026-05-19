@@ -9,6 +9,11 @@ const MODULOS_PORTAL = [
   { id: 'rendicion-presupuesto', etiqueta: 'Rendición de Presupuesto', descripcion: 'Reembolsos y rendición por área (acceso restringido)' },
   { id: 'asistencia', etiqueta: 'Reporte de Asistencia', descripcion: 'Visualización del reporte de asistencia' },
   { id: 'caja-chica', etiqueta: 'Caja chica', descripcion: 'Reporte mensual de caja chica' },
+  {
+    id: 'caja-rendicion',
+    etiqueta: 'Caja rendición presupuesto',
+    descripcion: 'Depósitos y comprobantes de rendiciones de presupuesto aprobadas'
+  },
   { id: 'solicitudes-registro', etiqueta: 'Solicitudes de Registro', descripcion: 'Aprobación de nuevas cuentas' },
   { id: 'control-proyectos', etiqueta: 'Bolsa de Horas', descripcion: 'Proyectos, bolsa de horas y registro de actividades' }
 ];
