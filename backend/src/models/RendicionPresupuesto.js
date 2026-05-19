@@ -130,14 +130,6 @@ class RendicionPresupuesto {
     return rows;
   }
 
-  static async actualizarArchivoRecibo(id, path) {
-    const [r] = await pool.execute(
-      `UPDATE rendiciones_presupuesto SET archivo_recibo_generado_path = ? WHERE id = ?`,
-      [path, id]
-    );
-    return r.affectedRows > 0;
-  }
-
   static async aprobar(id, aprobadorId, comentario = null) {
     const [r] = await pool.execute(
       `UPDATE rendiciones_presupuesto
@@ -179,8 +171,7 @@ class RendicionPresupuesto {
       area,
       concepto,
       monto,
-      ruc_proveedor,
-      numero_documento,
+      tiene_comprobante,
       archivo_comprobante_nombre,
       archivo_comprobante_path
     } = datos;
@@ -191,8 +182,7 @@ class RendicionPresupuesto {
         area = ?,
         concepto = ?,
         monto = ?,
-        ruc_proveedor = ?,
-        numero_documento = ?,
+        tiene_comprobante = ?,
         archivo_comprobante_nombre = ?,
         archivo_comprobante_path = ?
        WHERE id = ?`,
@@ -201,8 +191,7 @@ class RendicionPresupuesto {
         area,
         concepto,
         monto,
-        ruc_proveedor || null,
-        numero_documento || null,
+        tiene_comprobante ? 1 : 0,
         archivo_comprobante_nombre || null,
         archivo_comprobante_path || null,
         id

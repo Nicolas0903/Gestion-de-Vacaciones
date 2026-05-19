@@ -16,7 +16,6 @@ import {
 } from '../config/rendicionPresupuestoUpload';
 import { rendicionPresupuestoService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
-import { AyudaUbicacionFactura } from '../components/AyudaFacturaReembolso';
 
 const AREAS_FALLBACK = [
   { value: 'gerencia_general', label: 'Gerencia General' },
@@ -128,9 +127,7 @@ const GestionRendicionPresupuesto = () => {
       fecha_solicitud_usuario: editar.fecha_solicitud_usuario?.slice(0, 10) || '',
       area: editar.area || '',
       concepto: editar.concepto || '',
-      monto: String(editar.monto ?? '0'),
-      ruc_proveedor: String(editar.ruc_proveedor || '').trim(),
-      numero_documento: String(editar.numero_documento || '').trim()
+      monto: String(editar.monto ?? '0')
     });
     setArchivoReemplazo(null);
   }, [editar]);
@@ -204,15 +201,6 @@ const GestionRendicionPresupuesto = () => {
       toast.error(err.response?.data?.mensaje || 'No se pudo eliminar.');
     } finally {
       setProcesando(false);
-    }
-  };
-
-  const bajarRecibo = async (id, codigo) => {
-    try {
-      const res = await rendicionPresupuestoService.descargarRecibo(id);
-      descargarBlob(res.data, `${codigo}.pdf`);
-    } catch {
-      toast.error('Sin recibo o error al descargar.');
     }
   };
 
@@ -304,14 +292,6 @@ const GestionRendicionPresupuesto = () => {
       toast.error('Seleccione el área de la rendición.');
       return;
     }
-    if (editar.tiene_comprobante && !String(formEdit.ruc_proveedor).trim()) {
-      toast.error('Indique el RUC del emisor.');
-      return;
-    }
-    if (editar.tiene_comprobante && !String(formEdit.numero_documento).trim()) {
-      toast.error('Indique el número de documento (factura).');
-      return;
-    }
     if (archivoReemplazo && archivoReemplazo.size > RENDICION_PRESUPUESTO_MAX_FILE_BYTES) {
       toast.error(
         `Supera los ${RENDICION_PRESUPUESTO_MAX_UPLOAD_MB} MB permitidos (${(archivoReemplazo.size / (1024 * 1024)).toFixed(1)} MB). Comprímalo e inténtelo de nuevo.`
@@ -325,8 +305,6 @@ const GestionRendicionPresupuesto = () => {
       fd.append('area', formEdit.area);
       fd.append('concepto', formEdit.concepto.trim());
       fd.append('monto', formEdit.monto || '0');
-      fd.append('ruc_proveedor', String(formEdit.ruc_proveedor || '').trim());
-      fd.append('numero_documento', String(formEdit.numero_documento || '').trim());
       if (archivoReemplazo) {
         fd.append('comprobante', archivoReemplazo);
       }
@@ -544,23 +522,16 @@ const GestionRendicionPresupuesto = () => {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2 items-center">
-                        {!r.tiene_comprobante && (
-                          <button
-                            type="button"
-                            className="text-sky-600 text-xs font-medium hover:underline"
-                            onClick={() => bajarRecibo(r.id, r.codigo_ticket)}
-                          >
-                            PDF
-                          </button>
-                        )}
-                        {r.tiene_comprobante && (
+                        {r.archivo_comprobante_path ? (
                           <button
                             type="button"
                             className="text-sky-600 text-xs font-medium hover:underline"
                             onClick={() => bajarComprobante(r.id, r.codigo_ticket)}
                           >
-                            Comp.
+                            Archivo
                           </button>
+                        ) : (
+                          <span className="text-xs text-slate-400">Sin archivo</span>
                         )}
                         {puedeResolver(r) && (tab === 'pendientes' || tab === 'todos') && (
                           <>
@@ -699,30 +670,10 @@ const GestionRendicionPresupuesto = () => {
               <p>
                 <span className="text-slate-500">DNI:</span> <span className="font-mono">{fichaModal.dni}</span>
               </p>
-              <p>
-                <span className="text-slate-500">Comprobante:</span>{' '}
-                {fichaModal.tiene_comprobante ? 'Sí' : 'No (recibo Prayaga)'}
+              <p className="break-all">
+                <span className="text-slate-500">Archivo adjunto:</span>{' '}
+                {fichaModal.archivo_comprobante_nombre || <span className="text-slate-400">Sin archivo</span>}
               </p>
-              {fichaModal.tiene_comprobante ? (
-                <>
-                  <p>
-                    <span className="text-slate-500">RUC:</span>{' '}
-                    <span className="font-mono break-all">
-                      {String(fichaModal.ruc_proveedor || '').trim() || '—'}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-slate-500">N° doc.:</span>{' '}
-                    <span className="font-mono break-all">
-                      {String(fichaModal.numero_documento || '').trim() || '—'}
-                    </span>
-                  </p>
-                  <p className="break-all">
-                    <span className="text-slate-500">Archivo adjunto:</span>{' '}
-                    {fichaModal.archivo_comprobante_nombre || '—'}
-                  </p>
-                </>
-              ) : null}
             </div>
               </div>
             </div>
@@ -863,52 +814,23 @@ const GestionRendicionPresupuesto = () => {
                   onChange={(e) => setFormEdit({ ...formEdit, monto: e.target.value })}
                 />
               </div>
-              {editar.tiene_comprobante && (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-slate-600 mb-1">
-                        <span className="inline-flex items-center gap-1">
-                          RUC *
-                          <AyudaUbicacionFactura />
-                        </span>
-                      </label>
-                      <input
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
-                        value={formEdit.ruc_proveedor}
-                        onChange={(e) => setFormEdit({ ...formEdit, ruc_proveedor: e.target.value })}
-                        placeholder="Emisor"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 mb-1">
-                        <span className="inline-flex items-center gap-1">
-                          N° documento *
-                          <AyudaUbicacionFactura />
-                        </span>
-                      </label>
-                      <input
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
-                        value={formEdit.numero_documento}
-                        onChange={(e) =>
-                          setFormEdit({ ...formEdit, numero_documento: e.target.value })
-                        }
-                        placeholder="Factura"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 mb-1">Reemplazar comprobante (opcional)</label>
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
-                      className="text-xs w-full"
-                      onChange={(e) => setArchivoReemplazo(e.target.files?.[0] || null)}
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1">Máx. {RENDICION_PRESUPUESTO_MAX_UPLOAD_MB} MB.</p>
-                  </div>
-                </>
-              )}
+              <div>
+                <label className="block text-slate-600 mb-1">
+                  {editar.archivo_comprobante_path ? 'Reemplazar archivo adjunto (opcional)' : 'Adjuntar archivo (opcional)'}
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                  className="text-xs w-full"
+                  onChange={(e) => setArchivoReemplazo(e.target.files?.[0] || null)}
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {editar.archivo_comprobante_path
+                    ? `Actual: ${editar.archivo_comprobante_nombre || '—'}. `
+                    : ''}
+                  Máx. {RENDICION_PRESUPUESTO_MAX_UPLOAD_MB} MB.
+                </p>
+              </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button

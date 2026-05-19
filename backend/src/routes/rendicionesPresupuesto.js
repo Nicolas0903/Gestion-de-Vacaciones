@@ -64,7 +64,6 @@ router.put(
   rendicionPresupuestoController.actualizarAdmin
 );
 
-router.get('/:id/recibo', autenticar, rendicionPresupuestoController.descargarReciboPdf);
 router.get('/:id/comprobante', autenticar, rendicionPresupuestoController.descargarComprobante);
 router.get('/:id', autenticar, rendicionPresupuestoController.obtener);
 

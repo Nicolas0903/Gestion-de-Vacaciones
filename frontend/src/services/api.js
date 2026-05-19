@@ -192,8 +192,6 @@ export const rendicionPresupuestoService = {
   pendientes: () => api.get('/rendiciones-presupuesto/pendientes'),
   todos: (params = {}) => api.get('/rendiciones-presupuesto/todos', { params }),
   obtener: (id) => api.get(`/rendiciones-presupuesto/${id}`),
-  descargarRecibo: (id) =>
-    api.get(`/rendiciones-presupuesto/${id}/recibo`, { responseType: 'blob' }),
   descargarComprobante: (id) =>
     api.get(`/rendiciones-presupuesto/${id}/comprobante`, { responseType: 'blob' }),
   aprobar: (id, comentarios = '') =>

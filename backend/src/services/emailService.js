@@ -1479,42 +1479,12 @@ const codigoTicketRendicion = (row) => {
   return `RDP-${y}-${String(row.id).padStart(5, '0')}`;
 };
 
-const htmlVistaReciboRendicion = (r, codigoTicket) => {
-  const monto = Number(r.monto) || 0;
-  const fecha = r.fecha_solicitud_usuario
-    ? new Date(r.fecha_solicitud_usuario).toLocaleDateString('es-PE')
-    : '—';
-  const reg = r.created_at ? new Date(r.created_at).toLocaleString('es-PE') : '—';
-  const area = r.area_label || r.area || '—';
-  return `
-  <div style="border:1px solid #000; padding:20px; max-width:520px; margin:16px auto; font-family:Arial,Helvetica,sans-serif; color:#111;">
-    <table width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td style="font-size:12px; color:#0d9488;"><strong>PRAYAGA</strong></td>
-      <td align="center" style="font-size:16px; font-weight:bold;">Rendición de Presupuesto</td>
-      <td align="right"><span style="border:1px solid #000; padding:8px 12px; display:inline-block;">S/ ${monto.toFixed(2)}</span></td>
-    </tr></table>
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;"><tr>
-      <td style="font-size:13px;">Recibí de Prayaga Solutions S.A.C</td>
-      <td align="right" style="font-size:13px;"><strong>Fecha:</strong> ${escapeHtml(fecha)}</td>
-    </tr></table>
-    <p style="font-size:13px; margin-top:10px; margin-bottom:6px;"><strong>Área:</strong> ${escapeHtml(area)}</p>
-    <p style="font-size:13px; margin-top:8px; margin-bottom:4px;"><strong>Concepto de</strong></p>
-    <p style="border-bottom:1px solid #000; font-size:13px; padding-bottom:6px; min-height:24px;">${escapeHtml(r.concepto)}</p>
-    <p style="text-align:right; font-size:13px; margin-top:28px;">Nombre completo: ${escapeHtml(r.nombre_completo)}</p>
-    <p style="text-align:right; font-size:13px;">DNI: ${escapeHtml(r.dni)}</p>
-    <p style="font-size:11px; color:#64748b; text-align:center; margin-top:24px;">
-      ${escapeHtml(codigoTicket)} · Registro ticket: ${escapeHtml(reg)}
-    </p>
-  </div>`;
-};
-
 const notificarNuevaRendicionAdmin = async ({
   rendicion,
   empleado,
   aprobador,
   urlAprobar,
   urlRechazar,
-  pdfReciboBuffer,
   comprobanteDiskPath,
   comprobanteNombreOriginal
 }) => {
@@ -1527,10 +1497,10 @@ const notificarNuevaRendicionAdmin = async ({
   const codigo = codigoTicketRendicion(rendicion);
   const empNombre = `${empleado.nombres || ''} ${empleado.apellidos || ''}`.trim();
   const areaLabel = rendicion.area_label || rendicion.area || '—';
-  const bloqueRecibo =
-    !rendicion.tiene_comprobante && pdfReciboBuffer
-      ? htmlVistaReciboRendicion(rendicion, codigo)
-      : '<p>El solicitante adjuntó su comprobante de pago en este correo.</p>';
+  const tieneArchivo = !!comprobanteDiskPath;
+  const bloqueArchivo = tieneArchivo
+    ? '<p style="text-align:center; color:#475569;">📎 El solicitante adjuntó un archivo a este correo.</p>'
+    : '<p style="text-align:center; color:#475569;">El solicitante <strong>no adjuntó</strong> ningún archivo.</p>';
 
   const contenido = `
     <p>Hola <strong>${escapeHtml(aprobador.nombres)} ${escapeHtml(aprobador.apellidos)}</strong>,</p>
@@ -1542,18 +1512,8 @@ const notificarNuevaRendicionAdmin = async ({
       <div class="info-row"><span class="info-label">Fecha (usuario)</span><span class="info-value">${escapeHtml(rendicion.fecha_solicitud_usuario)}</span></div>
       <div class="info-row"><span class="info-label">Concepto</span><span class="info-value">${escapeHtml(rendicion.concepto)}</span></div>
       <div class="info-row"><span class="info-label">Monto</span><span class="info-value">S/ ${Number(rendicion.monto || 0).toFixed(2)}</span></div>
-      ${
-        rendicion.tiene_comprobante && String(rendicion.ruc_proveedor || '').trim()
-          ? `<div class="info-row"><span class="info-label">RUC</span><span class="info-value">${escapeHtml(String(rendicion.ruc_proveedor).trim())}</span></div>`
-          : ''
-      }
-      ${
-        rendicion.tiene_comprobante && String(rendicion.numero_documento || '').trim()
-          ? `<div class="info-row"><span class="info-label">N° documento</span><span class="info-value">${escapeHtml(String(rendicion.numero_documento).trim())}</span></div>`
-          : ''
-      }
     </div>
-    ${bloqueRecibo}
+    ${bloqueArchivo}
     <p style="text-align:center; margin:24px 0 10px;"><strong>¿Aprobar o rechazar?</strong></p>
     <center>
       <table cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr>
@@ -1564,9 +1524,6 @@ const notificarNuevaRendicionAdmin = async ({
   `;
 
   const attachments = [];
-  if (pdfReciboBuffer && Buffer.isBuffer(pdfReciboBuffer)) {
-    attachments.push({ filename: `${codigo}.pdf`, content: pdfReciboBuffer });
-  }
   if (comprobanteDiskPath && fs.existsSync(comprobanteDiskPath)) {
     attachments.push({
       filename: comprobanteNombreOriginal || path.basename(comprobanteDiskPath),

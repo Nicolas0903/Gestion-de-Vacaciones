@@ -1,15 +1,9 @@
 const fs = require('fs');
-const path = require('path');
 const { RendicionPresupuesto, Empleado } = require('../models');
 const TokenRendicionPresupuesto = require('../models/TokenRendicionPresupuesto');
-const PDFService = require('../services/pdfService');
 const emailService = require('../services/emailService');
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api';
-
-function parseBool(v) {
-  return v === true || v === 'true' || v === '1' || v === 1;
-}
 
 function enriquecer(r) {
   if (!r) return null;
@@ -28,15 +22,8 @@ function esStaffRendicion(usuario) {
 
 const crear = async (req, res) => {
   try {
-    const {
-      fecha_solicitud_usuario,
-      area,
-      concepto,
-      tiene_comprobante,
-      monto
-    } = req.body;
+    const { fecha_solicitud_usuario, area, concepto, monto } = req.body;
 
-    const tComp = parseBool(tiene_comprobante);
     const nombre_completo = `${req.usuario.nombres || ''} ${req.usuario.apellidos || ''}`.trim();
     const dni = req.usuario.dni || '';
 
@@ -47,29 +34,9 @@ const crear = async (req, res) => {
       return res.status(400).json({ success: false, mensaje: 'Indique un área válida.' });
     }
 
-    const rucProveedor = String(req.body.ruc_proveedor || '').trim();
-    const numeroDocumento = String(req.body.numero_documento || '').trim();
-    if (tComp && !rucProveedor) {
-      return res.status(400).json({
-        success: false,
-        mensaje: 'Indique el RUC del emisor según el comprobante.'
-      });
-    }
-    if (tComp && !numeroDocumento) {
-      return res.status(400).json({
-        success: false,
-        mensaje: 'Indique el número de documento (factura) según el comprobante.'
-      });
-    }
-
-    if (tComp && !req.file) {
-      return res.status(400).json({ success: false, mensaje: 'Debe adjuntar el comprobante de pago.' });
-    }
-    if (!tComp && req.file) {
-      return res.status(400).json({
-        success: false,
-        mensaje: 'Marcó que no tiene comprobante; no adjunte archivo o indique que sí tiene comprobante.'
-      });
+    const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : 0;
+    if (Number.isNaN(montoNum) || montoNum < 0) {
+      return res.status(400).json({ success: false, mensaje: 'Monto no válido.' });
     }
 
     let archivo_comprobante_nombre = null;
@@ -79,11 +46,6 @@ const crear = async (req, res) => {
       archivo_comprobante_path = req.file.path;
     }
 
-    const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : 0;
-    if (Number.isNaN(montoNum) || montoNum < 0) {
-      return res.status(400).json({ success: false, mensaje: 'Monto no válido.' });
-    }
-
     const id = await RendicionPresupuesto.crear({
       empleado_id: req.usuario.id,
       fecha_solicitud_usuario,
@@ -91,35 +53,16 @@ const crear = async (req, res) => {
       concepto: concepto.trim(),
       nombre_completo,
       dni,
-      tiene_comprobante: tComp,
+      tiene_comprobante: !!req.file,
       archivo_comprobante_nombre,
       archivo_comprobante_path,
       archivo_recibo_generado_path: null,
       monto: montoNum,
-      ruc_proveedor: tComp ? rucProveedor : null,
-      numero_documento: tComp ? numeroDocumento : null
+      ruc_proveedor: null,
+      numero_documento: null
     });
 
-    let row = await RendicionPresupuesto.buscarPorId(id);
-    const codigo = RendicionPresupuesto.codigoTicket(row);
-
-    let pdfReciboBuffer = null;
-    if (!tComp) {
-      const datosPdf = {
-        ...row,
-        codigo_ticket: codigo,
-        area_label: RendicionPresupuesto.AREAS_LABEL[row.area] || row.area
-      };
-      pdfReciboBuffer = await PDFService.generarReciboRendicionPresupuesto(datosPdf);
-      const reciboDir = path.join(__dirname, '../../uploads/rendiciones-presupuesto/recibos');
-      if (!fs.existsSync(reciboDir)) {
-        fs.mkdirSync(reciboDir, { recursive: true });
-      }
-      const reciboPath = path.join(reciboDir, `${codigo}.pdf`);
-      fs.writeFileSync(reciboPath, pdfReciboBuffer);
-      await RendicionPresupuesto.actualizarArchivoRecibo(id, reciboPath);
-      row = await RendicionPresupuesto.buscarPorId(id);
-    }
+    const row = await RendicionPresupuesto.buscarPorId(id);
 
     const aprobadores = await Empleado.obtenerAprobadoresRendicion();
     if (aprobadores.length === 0) {
@@ -145,8 +88,7 @@ const crear = async (req, res) => {
             aprobador,
             urlAprobar,
             urlRechazar,
-            pdfReciboBuffer: !tComp ? pdfReciboBuffer : null,
-            comprobanteDiskPath: tComp ? archivo_comprobante_path : null,
+            comprobanteDiskPath: archivo_comprobante_path,
             comprobanteNombreOriginal: archivo_comprobante_nombre
           })
           .catch((e) => console.error(`Email rendición (${aprobador.email}):`, e));
@@ -213,27 +155,6 @@ const obtener = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, mensaje: 'Error.' });
-  }
-};
-
-const descargarReciboPdf = async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    const r = await RendicionPresupuesto.buscarPorId(id);
-    if (!r || !r.archivo_recibo_generado_path) {
-      return res.status(404).json({ success: false, mensaje: 'Recibo no disponible.' });
-    }
-    if (r.empleado_id !== req.usuario.id && !esStaffRendicion(req.usuario)) {
-      return res.status(403).json({ success: false, mensaje: 'Sin permiso.' });
-    }
-    if (!fs.existsSync(r.archivo_recibo_generado_path)) {
-      return res.status(404).json({ success: false, mensaje: 'Archivo no encontrado.' });
-    }
-    const codigo = RendicionPresupuesto.codigoTicket(r);
-    res.download(r.archivo_recibo_generado_path, `${codigo}.pdf`);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, mensaje: 'Error al descargar.' });
   }
 };
 
@@ -376,30 +297,13 @@ const actualizarAdmin = async (req, res) => {
       return res.status(404).json({ success: false, mensaje: 'No encontrado.' });
     }
 
-    const {
-      fecha_solicitud_usuario,
-      area,
-      concepto,
-      monto,
-      ruc_proveedor: rucProveedorBody,
-      numero_documento: numeroDocumentoBody
-    } = req.body;
+    const { fecha_solicitud_usuario, area, concepto, monto } = req.body;
 
     if (!fecha_solicitud_usuario || !String(concepto || '').trim()) {
       return res.status(400).json({ success: false, mensaje: 'Fecha y concepto son obligatorios.' });
     }
     if (!area || !RendicionPresupuesto.AREAS_VALIDAS.includes(area)) {
       return res.status(400).json({ success: false, mensaje: 'Indique un área válida.' });
-    }
-
-    const tComp = !!r.tiene_comprobante;
-    const rucProveedor = String(rucProveedorBody || '').trim();
-    const numeroDocumento = String(numeroDocumentoBody || '').trim();
-    if (tComp && !rucProveedor) {
-      return res.status(400).json({ success: false, mensaje: 'Indique el RUC del emisor.' });
-    }
-    if (tComp && !numeroDocumento) {
-      return res.status(400).json({ success: false, mensaje: 'Indique el número de documento (factura).' });
     }
 
     const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : 0;
@@ -409,10 +313,12 @@ const actualizarAdmin = async (req, res) => {
 
     let archivo_comprobante_nombre = r.archivo_comprobante_nombre;
     let archivo_comprobante_path = r.archivo_comprobante_path;
-    if (req.file && tComp) {
+    let tieneComprobante = !!r.tiene_comprobante;
+    if (req.file) {
       unlinkSeguro(r.archivo_comprobante_path);
       archivo_comprobante_nombre = req.file.originalname;
       archivo_comprobante_path = req.file.path;
+      tieneComprobante = true;
     }
 
     const ok = await RendicionPresupuesto.actualizarPorAdmin(id, {
@@ -420,8 +326,7 @@ const actualizarAdmin = async (req, res) => {
       area,
       concepto: String(concepto).trim(),
       monto: montoNum,
-      ruc_proveedor: tComp ? rucProveedor : null,
-      numero_documento: tComp ? numeroDocumento : null,
+      tiene_comprobante: tieneComprobante,
       archivo_comprobante_nombre,
       archivo_comprobante_path
     });
@@ -454,7 +359,6 @@ module.exports = {
   listarPendientes,
   listarTodos,
   obtener,
-  descargarReciboPdf,
   descargarComprobante,
   aprobar,
   rechazar,
