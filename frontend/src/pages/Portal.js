@@ -81,17 +81,21 @@ const Portal = () => {
         subAccesoVacaciones && {
           id: 'vacaciones',
           label: 'Vacaciones',
+          descripcion: 'Solicita y aprueba vacaciones del personal',
           to: '/vacaciones',
           icono: CalendarDaysIcon
         },
         subAccesoPermisos && {
           id: 'permisos',
           label: 'Permisos y Descansos',
+          descripcion: 'Descansos médicos y permisos personales',
           to: '/permisos',
           icono: ClipboardDocumentCheckIcon
         }
-      ].filter(Boolean),
-      adminLink: subAccesoPermisos ? '/permisos/gestion' : null
+      ].filter(Boolean)
+      /* El botón "Gestionar" ya no vive en el portal para este módulo;
+       * vive dentro de la página de "Mis Permisos y Descansos" para los
+       * roles que pueden gestionar. */
     });
   }
 
@@ -444,38 +448,38 @@ const Portal = () => {
         const SelectorIcono = moduloSelector.icono;
         return (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby="selector-titulo"
             onClick={() => setModuloSelector(null)}
           >
             <div
-              className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-8"
+              className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-8 sm:p-10 md:p-12 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
                 onClick={() => setModuloSelector(null)}
-                className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                className="absolute top-5 right-5 w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 aria-label="Cerrar"
               >
-                <XMarkIcon className="w-5 h-5" />
+                <XMarkIcon className="w-6 h-6" />
               </button>
 
-              <div className="flex items-center gap-3 mb-5">
-                <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${moduloSelector.color} flex items-center justify-center shadow-lg ${moduloSelector.shadowColor}`}>
-                  <SelectorIcono className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-4 mb-8">
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${moduloSelector.color} flex items-center justify-center shadow-lg ${moduloSelector.shadowColor}`}>
+                  <SelectorIcono className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h3 id="selector-titulo" className="text-lg font-bold text-slate-800">
+                  <h3 id="selector-titulo" className="text-2xl sm:text-3xl font-bold text-slate-800">
                     {moduloSelector.titulo}
                   </h3>
-                  <p className="text-xs text-slate-500">¿A qué quieres acceder?</p>
+                  <p className="text-sm sm:text-base text-slate-500 mt-1">¿A qué quieres acceder?</p>
                 </div>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-3">
+              <div className="grid sm:grid-cols-2 gap-5">
                 {moduloSelector.subAccesos.map((sa) => {
                   const SubIcono = sa.icono;
                   return (
@@ -486,18 +490,21 @@ const Portal = () => {
                         setModuloSelector(null);
                         navigate(sa.to);
                       }}
-                      className="group flex flex-col items-start gap-3 p-5 rounded-2xl border border-slate-200 bg-white hover:border-teal-400 hover:bg-teal-50/40 hover:shadow-md transition-all text-left"
+                      className="group flex flex-col items-start gap-4 p-6 sm:p-8 rounded-2xl border-2 border-slate-200 bg-white hover:border-teal-400 hover:bg-teal-50/40 hover:shadow-lg transition-all text-left min-h-[180px]"
                     >
-                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${moduloSelector.color} flex items-center justify-center shadow ${moduloSelector.shadowColor} group-hover:scale-105 transition-transform`}>
-                        {SubIcono && <SubIcono className="w-5 h-5 text-white" />}
+                      <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${moduloSelector.color} flex items-center justify-center shadow ${moduloSelector.shadowColor} group-hover:scale-110 transition-transform`}>
+                        {SubIcono && <SubIcono className="w-7 h-7 text-white" />}
                       </div>
-                      <div>
-                        <p className="font-semibold text-slate-800 text-sm">{sa.label}</p>
-                        <p className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${moduloSelector.textColor}`}>
-                          Acceder
-                          <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                        </p>
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-800 text-lg mb-1">{sa.label}</p>
+                        {sa.descripcion && (
+                          <p className="text-sm text-slate-500 leading-snug">{sa.descripcion}</p>
+                        )}
                       </div>
+                      <span className={`inline-flex items-center gap-1.5 text-sm font-semibold ${moduloSelector.textColor}`}>
+                        Acceder
+                        <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </span>
                     </button>
                   );
                 })}

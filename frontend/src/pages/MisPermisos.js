@@ -16,12 +16,14 @@ import {
   FunnelIcon,
   CalendarDaysIcon,
   DocumentTextIcon,
-  Squares2X2Icon
+  Squares2X2Icon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import { formatoFechaDMY } from '../utils/dateUtils';
 
 const MisPermisos = () => {
-  const { usuario } = useAuth();
+  const { usuario, esAdmin, esContadora } = useAuth();
+  const puedeGestionar = (esAdmin && esAdmin()) || (esContadora && esContadora());
   const [permisos, setPermisos] = useState([]);
   const [resumen, setResumen] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -216,9 +218,21 @@ const MisPermisos = () => {
             Registra tus descansos médicos y solicita permisos
           </p>
         </div>
-        <Button icon={PlusIcon} onClick={() => setShowModal(true)}>
-          Nuevo Registro
-        </Button>
+        <div className="flex items-center gap-2">
+          {puedeGestionar && (
+            <Link
+              to="/permisos/gestion"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium transition-colors"
+              title="Ir al panel de gestión (admin/contadora)"
+            >
+              <Cog6ToothIcon className="w-4 h-4" />
+              Gestionar
+            </Link>
+          )}
+          <Button icon={PlusIcon} onClick={() => setShowModal(true)}>
+            Nuevo Registro
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
