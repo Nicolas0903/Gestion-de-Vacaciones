@@ -20,6 +20,14 @@ function esStaffRendicion(usuario) {
   return usuario?.rol_nombre === 'admin';
 }
 
+/** Admin: cualquier registro. Colaborador: solo propios y no aprobados. */
+function puedeEliminarRendicion(usuario, rendicion) {
+  if (!usuario || !rendicion) return false;
+  if (esStaffRendicion(usuario)) return true;
+  if (rendicion.empleado_id !== usuario.id) return false;
+  return rendicion.estado !== 'aprobado';
+}
+
 const crear = async (req, res) => {
   try {
     const { fecha_solicitud_usuario, area, concepto, monto } = req.body;
@@ -276,8 +284,18 @@ const eliminar = async (req, res) => {
     if (!r) {
       return res.status(404).json({ success: false, mensaje: 'No encontrado.' });
     }
+    if (!puedeEliminarRendicion(req.usuario, r)) {
+      return res.status(403).json({
+        success: false,
+        mensaje:
+          r.estado === 'aprobado' && r.empleado_id === req.usuario.id
+            ? 'No puede eliminar una rendición ya aprobada. Contacte a administración.'
+            : 'Sin permiso para eliminar esta rendición.'
+      });
+    }
     unlinkSeguro(r.archivo_comprobante_path);
     unlinkSeguro(r.archivo_recibo_generado_path);
+    unlinkSeguro(r.comprobante_deposito_path);
     const ok = await RendicionPresupuesto.eliminarPorId(id);
     if (!ok) {
       return res.status(400).json({ success: false, mensaje: 'No se pudo eliminar.' });

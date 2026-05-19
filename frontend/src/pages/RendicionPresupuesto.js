@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { BanknotesIcon, ArrowLeftIcon, PaperClipIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import {
+  BanknotesIcon,
+  ArrowLeftIcon,
+  PaperClipIcon,
+  Cog6ToothIcon,
+  TrashIcon
+} from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { rendicionPresupuestoService } from '../services/api';
 import {
@@ -102,6 +108,28 @@ const RendicionPresupuesto = () => {
     cargarLista();
     cargarAreas();
   }, []);
+
+  const eliminarRegistro = async (r) => {
+    if (!puedeEliminar(r)) return;
+    const codigo = r.codigo_ticket || `RDP-${r.id}`;
+    if (
+      !window.confirm(
+        `¿Eliminar definitivamente la rendición ${codigo}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    setEliminandoId(r.id);
+    try {
+      await rendicionPresupuestoService.eliminar(r.id);
+      toast.success('Rendición eliminada.');
+      cargarLista();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo eliminar.');
+    } finally {
+      setEliminandoId(null);
+    }
+  };
 
   const onSubmit = async (ev) => {
     ev.preventDefault();
@@ -316,7 +344,11 @@ const RendicionPresupuesto = () => {
       </div>
 
       <div className="rounded-3xl bg-white border border-slate-100 shadow-lg p-8 md:p-10">
-        <h2 className="text-lg font-bold text-slate-800 mb-4">Mis rendiciones</h2>
+        <h2 className="text-lg font-bold text-slate-800 mb-1">Mis rendiciones</h2>
+        <p className="text-xs text-slate-500 mb-4">
+          Puedes eliminar tus rendiciones en estado pendiente, rechazado u observado. Las aprobadas solo las elimina
+          administración.
+        </p>
         {loading ? (
           <p className="text-slate-500 text-sm">Cargando…</p>
         ) : lista.length === 0 ? (
@@ -366,7 +398,7 @@ const RendicionPresupuesto = () => {
                       </p>
                     )}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${estadoBadge(r.estado)}`}>
                     {estadoLabel(r.estado)}
                   </span>
@@ -377,6 +409,22 @@ const RendicionPresupuesto = () => {
                       className="text-xs font-medium text-sky-600 hover:underline"
                     >
                       Ver archivo
+                    </button>
+                  )}
+                  {puedeEliminar(r) && (
+                    <button
+                      type="button"
+                      disabled={eliminandoId === r.id}
+                      onClick={() => eliminarRegistro(r)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                      title={
+                        puedeGestionar
+                          ? 'Eliminar rendición (administrador)'
+                          : 'Eliminar esta rendición'
+                      }
+                    >
+                      <TrashIcon className="w-3.5 h-3.5 shrink-0" />
+                      {eliminandoId === r.id ? 'Eliminando…' : 'Eliminar'}
                     </button>
                   )}
                 </div>

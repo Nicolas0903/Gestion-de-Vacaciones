@@ -54,7 +54,7 @@ router.get('/todos', autenticar, verificarRol('admin'), rendicionPresupuestoCont
 router.put('/:id/observar', autenticar, verificarRol('admin'), rendicionPresupuestoController.observar);
 router.put('/:id/aprobar', autenticar, verificarRol('admin'), rendicionPresupuestoController.aprobar);
 router.put('/:id/rechazar', autenticar, verificarRol('admin'), rendicionPresupuestoController.rechazar);
-router.delete('/:id', autenticar, verificarRol('admin'), rendicionPresupuestoController.eliminar);
+router.delete('/:id', autenticar, rendicionPresupuestoController.eliminar);
 
 router.put(
   '/:id/admin',

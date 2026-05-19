@@ -678,7 +678,23 @@ const GestionRendicionPresupuesto = () => {
               </div>
             </div>
 
-            <div className="flex justify-end shrink-0 p-6 pt-4 border-t border-slate-100 bg-white shadow-[inset_0_1px_0_0_rgb(248_250_252)]">
+            <div className="flex flex-wrap justify-end gap-2 shrink-0 p-6 pt-4 border-t border-slate-100 bg-white shadow-[inset_0_1px_0_0_rgb(248_250_252)]">
+              {esAdmin() && (
+                <button
+                  type="button"
+                  disabled={procesando}
+                  onClick={() => {
+                    const codigo = fichaModal.codigo_ticket;
+                    const id = fichaModal.id;
+                    setFichaModal(null);
+                    eliminarRegistro(id, codigo);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                >
+                  <TrashIcon className="w-4 h-4 shrink-0" />
+                  Eliminar
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setFichaModal(null)}
