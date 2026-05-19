@@ -259,10 +259,14 @@ const Portal = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30">
       {/* Header */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-teal-600 to-cyan-600 opacity-5"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-teal-400/20 to-cyan-400/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-        
+      <div className="relative">
+        {/* Decoración de fondo aislada con overflow-hidden para que el blob no
+         * recorte elementos posicionados (como el menú del usuario). */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-r from-teal-600 to-cyan-600 opacity-5"></div>
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-teal-400/20 to-cyan-400/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        </div>
+
         <div className="relative max-w-7xl mx-auto px-6 py-12">
           <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-4">
