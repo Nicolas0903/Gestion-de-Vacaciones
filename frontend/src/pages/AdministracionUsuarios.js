@@ -18,6 +18,7 @@ import {
 import { adminPortalUsuariosService, solicitudService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { parseFechaSegura, formatoFechaDMY } from '../utils/dateUtils';
+import { generarPasswordSegura } from '../utils/generarPasswordSegura';
 
 const DETALLE_TABS = [
   { id: 'cuenta', label: 'Cuenta' },
@@ -139,6 +140,7 @@ export default function AdministracionUsuarios() {
   const [salidasCargando, setSalidasCargando] = useState(false);
 
   const [modalAlta, setModalAlta] = useState(false);
+  const [mostrarPasswordAlta, setMostrarPasswordAlta] = useState(false);
   const [guardandoCuenta, setGuardandoCuenta] = useState(false);
   const [formCuenta, setFormCuenta] = useState({
     nombres: '',
@@ -510,14 +512,20 @@ export default function AdministracionUsuarios() {
 
   const crearUsuario = async (e) => {
     e.preventDefault();
+    const password = formAlta.password || generarPasswordSegura();
+    if (!password || password.length < 12) {
+      toast.error('Genera una contraseña válida antes de crear el usuario.');
+      return;
+    }
     try {
       const body = {
         ...formAlta,
+        password,
         rol_id: parseInt(formAlta.rol_id, 10),
         jefe_id: null
       };
       await adminPortalUsuariosService.crear(body);
-      toast.success('Usuario creado');
+      toast.success('Usuario creado. Recuerda copiar y enviar la contraseña inicial al colaborador.');
       setModalAlta(false);
       prevRolAltaRef.current = '';
       ultimoCodigoSugeridoAltaRef.current = '';
@@ -527,7 +535,7 @@ export default function AdministracionUsuarios() {
         apellidos: '',
         dni: '',
         email: '',
-        password: '',
+        password: generarPasswordSegura(),
         cargo: '',
         area: '',
         fecha_ingreso: '',
@@ -548,16 +556,31 @@ export default function AdministracionUsuarios() {
     return sugerirCodigoParaRolAlta(formAlta.rol_id);
   }, [formAlta.rol_id, sugerirCodigoParaRolAlta]);
 
+  const regenerarPasswordAlta = () => {
+    setFormAlta((f) => ({ ...f, password: generarPasswordSegura() }));
+  };
+
+  const copiarPasswordAlta = async () => {
+    if (!formAlta.password) return;
+    try {
+      await navigator.clipboard.writeText(formAlta.password);
+      toast.success('Contraseña copiada al portapapeles');
+    } catch {
+      toast.error('No se pudo copiar. Selecciona y copia manualmente.');
+    }
+  };
+
   const abrirModalAlta = () => {
     prevRolAltaRef.current = '';
     ultimoCodigoSugeridoAltaRef.current = '';
+    setMostrarPasswordAlta(false);
     setFormAlta({
       codigo_empleado: '',
       nombres: '',
       apellidos: '',
       dni: '',
       email: '',
-      password: '',
+      password: generarPasswordSegura(),
       cargo: '',
       area: '',
       fecha_ingreso: '',
@@ -1310,14 +1333,47 @@ export default function AdministracionUsuarios() {
                 value={formAlta.email}
                 onChange={(e) => setFormAlta((f) => ({ ...f, email: e.target.value }))}
               />
-              <input
-                required
-                type="password"
-                placeholder="Contraseña inicial"
-                className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
-                value={formAlta.password}
-                onChange={(e) => setFormAlta((f) => ({ ...f, password: e.target.value }))}
-              />
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                  Contraseña inicial
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    type={mostrarPasswordAlta ? 'text' : 'password'}
+                    className="flex-1 px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white font-mono text-xs"
+                    value={formAlta.password}
+                    aria-label="Contraseña generada automáticamente"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarPasswordAlta((v) => !v)}
+                    className="px-3 py-2 rounded border border-white/15 text-gray-300 text-xs hover:bg-white/5 shrink-0"
+                    title={mostrarPasswordAlta ? 'Ocultar' : 'Mostrar'}
+                  >
+                    {mostrarPasswordAlta ? 'Ocultar' : 'Ver'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={copiarPasswordAlta}
+                    className="px-3 py-2 rounded border border-white/15 text-blue-400 text-xs hover:bg-white/5 shrink-0"
+                  >
+                    Copiar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={regenerarPasswordAlta}
+                    className="px-3 py-2 rounded border border-white/15 text-violet-300 text-xs hover:bg-white/5 shrink-0"
+                    title="Generar otra contraseña"
+                  >
+                    Nueva
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Se genera al azar (12+ caracteres: mayúsculas, minúsculas, números y símbolos). Compártela
+                  con el usuario por un canal seguro.
+                </p>
+              </div>
               <input
                 placeholder="Cargo (opcional)"
                 className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
@@ -1335,13 +1391,21 @@ export default function AdministracionUsuarios() {
                   <option key={a.value} value={a.value}>{a.label}</option>
                 ))}
               </select>
-              <input
-                required
-                type="date"
-                className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
-                value={formAlta.fecha_ingreso}
-                onChange={(e) => setFormAlta((f) => ({ ...f, fecha_ingreso: e.target.value }))}
-              />
+              <div>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                  Fecha de ingreso a la organización
+                </label>
+                <input
+                  required
+                  type="date"
+                  className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                  value={formAlta.fecha_ingreso}
+                  onChange={(e) => setFormAlta((f) => ({ ...f, fecha_ingreso: e.target.value }))}
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Día en que la persona se incorporó a Prayaga (base para vacaciones y antigüedad).
+                </p>
+              </div>
               <select
                 required
                 className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
