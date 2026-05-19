@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LogoTransparente from '../components/LogoTransparente';
@@ -14,7 +14,8 @@ import {
   WalletIcon,
   UsersIcon,
   BriefcaseIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
@@ -28,6 +29,18 @@ const Portal = () => {
     esAprobadorReembolsos,
     esAdminPortalUsuarios
   } = useAuth();
+
+  /* Módulo cuya card abrió el selector de sub-opciones (null = cerrado). */
+  const [moduloSelector, setModuloSelector] = useState(null);
+
+  useEffect(() => {
+    if (!moduloSelector) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setModuloSelector(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [moduloSelector]);
 
   const handleLogout = () => {
     if (!window.confirm('¿Cerrar sesión?')) return;
@@ -305,10 +318,41 @@ const Portal = () => {
               );
             }
             
+            const tieneSubAccesos = !!modulo.subAccesos;
+            const cardInteractiva = tieneSubAccesos;
+
+            const cardClassName = `relative group p-8 rounded-3xl bg-white border border-slate-100 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden ${
+              cardInteractiva ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2' : ''
+            }`;
+
+            const abrirSelector = () => {
+              if (!cardInteractiva) return;
+              /* Si el usuario solo puede acceder a un sub-módulo, saltamos el
+               * modal y navegamos directo. */
+              if (modulo.subAccesos.length === 1) {
+                navigate(modulo.subAccesos[0].to);
+                return;
+              }
+              setModuloSelector(modulo);
+            };
+            const handleCardClick = () => abrirSelector();
+            const handleCardKey = (e) => {
+              if (!cardInteractiva) return;
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                abrirSelector();
+              }
+            };
+
             return (
               <div
                 key={modulo.id}
-                className={`relative group p-8 rounded-3xl bg-white border border-slate-100 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden`}
+                className={cardClassName}
+                role={cardInteractiva ? 'button' : undefined}
+                tabIndex={cardInteractiva ? 0 : undefined}
+                onClick={cardInteractiva ? handleCardClick : undefined}
+                onKeyDown={cardInteractiva ? handleCardKey : undefined}
+                aria-haspopup={cardInteractiva ? 'dialog' : undefined}
               >
                 {/* Efecto de fondo al hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${modulo.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none`}></div>
@@ -334,21 +378,11 @@ const Portal = () => {
                 
                 <div className="flex flex-wrap items-center justify-between gap-y-3 gap-x-4">
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    {modulo.subAccesos ? (
-                      modulo.subAccesos.map((sa) => {
-                        const SubIcono = sa.icono;
-                        return (
-                          <Link
-                            key={sa.id}
-                            to={sa.to}
-                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 ${modulo.textColor} text-sm font-medium hover:underline transition-colors`}
-                          >
-                            {SubIcono && <SubIcono className="w-4 h-4" />}
-                            <span>{sa.label}</span>
-                            <ArrowRightIcon className="w-3.5 h-3.5" />
-                          </Link>
-                        );
-                      })
+                    {tieneSubAccesos ? (
+                      <span className={`inline-flex items-center gap-2 ${modulo.textColor} font-medium text-sm`}>
+                        <span>Elegir opción</span>
+                        <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                      </span>
                     ) : (
                       <Link
                         to={modulo.link}
@@ -362,6 +396,7 @@ const Portal = () => {
                       <Link
                         key={el.to}
                         to={el.to}
+                        onClick={(e) => e.stopPropagation()}
                         className={`text-sm font-medium ${modulo.textColor} hover:opacity-80 hover:underline`}
                       >
                         {el.label}
@@ -383,6 +418,7 @@ const Portal = () => {
                               : esAdmin() || esContadora()) && (
                     <Link
                       to={modulo.adminLink}
+                      onClick={(e) => e.stopPropagation()}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors shrink-0"
                     >
                       <Cog6ToothIcon className="w-3.5 h-3.5" />
@@ -402,6 +438,74 @@ const Portal = () => {
           © 2026 PRAYAGA · Portal Prayaga Interno
         </p>
       </div>
+
+      {/* Modal selector de sub-opciones (Vacaciones / Permisos, etc.) */}
+      {moduloSelector && (() => {
+        const SelectorIcono = moduloSelector.icono;
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="selector-titulo"
+            onClick={() => setModuloSelector(null)}
+          >
+            <div
+              className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setModuloSelector(null)}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                aria-label="Cerrar"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${moduloSelector.color} flex items-center justify-center shadow-lg ${moduloSelector.shadowColor}`}>
+                  <SelectorIcono className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 id="selector-titulo" className="text-lg font-bold text-slate-800">
+                    {moduloSelector.titulo}
+                  </h3>
+                  <p className="text-xs text-slate-500">¿A qué quieres acceder?</p>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                {moduloSelector.subAccesos.map((sa) => {
+                  const SubIcono = sa.icono;
+                  return (
+                    <button
+                      key={sa.id}
+                      type="button"
+                      onClick={() => {
+                        setModuloSelector(null);
+                        navigate(sa.to);
+                      }}
+                      className="group flex flex-col items-start gap-3 p-5 rounded-2xl border border-slate-200 bg-white hover:border-teal-400 hover:bg-teal-50/40 hover:shadow-md transition-all text-left"
+                    >
+                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${moduloSelector.color} flex items-center justify-center shadow ${moduloSelector.shadowColor} group-hover:scale-105 transition-transform`}>
+                        {SubIcono && <SubIcono className="w-5 h-5 text-white" />}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-800 text-sm">{sa.label}</p>
+                        <p className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${moduloSelector.textColor}`}>
+                          Acceder
+                          <ArrowRightIcon className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
