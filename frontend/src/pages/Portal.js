@@ -99,49 +99,56 @@ const Portal = () => {
     });
   }
 
-  modulos.push(
-    {
-      id: 'boletas',
-      titulo: 'Boletas de Pago',
-      descripcion: 'Visualiza y firma tus boletas de pago mensuales',
-      icono: DocumentTextIcon,
-      color: 'from-violet-500 to-purple-500',
-      shadowColor: 'shadow-violet-500/30',
-      bgLight: 'bg-violet-50',
-      textColor: 'text-violet-600',
-      link: '/boletas',
-      activo: true,
-      adminLink: '/boletas/gestion' // Link especial para admin
-    },
-    {
-      id: 'reembolsos',
-      titulo: 'Solicitud de reintegro',
-      descripcion: 'Registra y da seguimiento a tus solicitudes de reintegro de gastos',
+  modulos.push({
+    id: 'boletas',
+    titulo: 'Boletas de Pago',
+    descripcion: 'Visualiza y firma tus boletas de pago mensuales',
+    icono: DocumentTextIcon,
+    color: 'from-violet-500 to-purple-500',
+    shadowColor: 'shadow-violet-500/30',
+    bgLight: 'bg-violet-50',
+    textColor: 'text-violet-600',
+    link: '/boletas',
+    activo: true,
+    adminLink: '/boletas/gestion' // Link especial para admin
+  });
+
+  /* Card unificada Reintegros + Rendiciones. Visualmente es una sola entrada
+   * pero cada sub-acceso respeta su permiso individual y `Gestionar` se
+   * agrega dentro de cada página, no en el portal. */
+  const subAccesoReembolsos = puedeAccederModuloPortal('reembolsos');
+  const subAccesoRendicion = puedeAccederModuloPortal('rendicion-presupuesto');
+
+  if (subAccesoReembolsos || subAccesoRendicion) {
+    modulos.push({
+      id: 'reintegros-rendiciones',
+      titulo: 'Reintegros y Rendiciones',
+      descripcion: 'Solicita reintegros de gastos y registra rendiciones de presupuesto',
       icono: BanknotesIcon,
       color: 'from-sky-500 to-indigo-600',
       shadowColor: 'shadow-sky-500/30',
       bgLight: 'bg-sky-50',
       textColor: 'text-sky-600',
-      link: '/reembolsos',
       activo: true,
-      adminLink: '/reembolsos/gestion'
-    }
-  );
-
-  if (puedeAccederModuloPortal('rendicion-presupuesto')) {
-    modulos.push({
-      id: 'rendicion-presupuesto',
-      titulo: 'Rendición de Presupuesto',
-      descripcion: 'Reembolsos y rendición de gastos por área (acceso restringido)',
-      icono: BanknotesIcon,
-      color: 'from-teal-500 to-sky-600',
-      shadowColor: 'shadow-teal-500/30',
-      bgLight: 'bg-teal-50',
-      textColor: 'text-teal-600',
-      link: '/rendicion-presupuesto',
-      activo: true,
-      restringido: true,
-      adminLink: '/rendicion-presupuesto/gestion'
+      /* La etiqueta de "Acceso Restringido" solo tiene sentido si únicamente
+       * el sub-módulo restringido (rendición) está disponible. */
+      restringido: !subAccesoReembolsos && subAccesoRendicion,
+      subAccesos: [
+        subAccesoReembolsos && {
+          id: 'reembolsos',
+          label: 'Solicitud de Reintegro',
+          descripcion: 'Reintegro de gastos personales (boletas, comprobantes)',
+          to: '/reembolsos',
+          icono: BanknotesIcon
+        },
+        subAccesoRendicion && {
+          id: 'rendicion-presupuesto',
+          label: 'Rendición de Presupuesto',
+          descripcion: 'Rendición de gastos por área (acceso restringido)',
+          to: '/rendicion-presupuesto',
+          icono: BanknotesIcon
+        }
+      ].filter(Boolean)
     });
   }
 

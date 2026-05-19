@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { BanknotesIcon, ArrowLeftIcon, PaperClipIcon } from '@heroicons/react/24/outline';
+import { BanknotesIcon, ArrowLeftIcon, PaperClipIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { rendicionPresupuestoService } from '../services/api';
 import {
@@ -47,7 +47,8 @@ function descargarBlob(blob, nombre) {
 }
 
 const RendicionPresupuesto = () => {
-  const { usuario } = useAuth();
+  const { usuario, esAdmin } = useAuth();
+  const puedeGestionar = esAdmin && esAdmin();
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -153,13 +154,25 @@ const RendicionPresupuesto = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <Link
-        to="/portal"
-        className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-sky-600 mb-8 transition-colors"
-      >
-        <ArrowLeftIcon className="w-4 h-4" />
-        Volver al portal
-      </Link>
+      <div className="flex items-center justify-between gap-3 mb-8">
+        <Link
+          to="/portal"
+          className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-sky-600 transition-colors"
+        >
+          <ArrowLeftIcon className="w-4 h-4" />
+          Volver al portal
+        </Link>
+        {puedeGestionar && (
+          <Link
+            to="/rendicion-presupuesto/gestion"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium transition-colors"
+            title="Ir al panel de gestión (admin)"
+          >
+            <Cog6ToothIcon className="w-4 h-4" />
+            Gestionar
+          </Link>
+        )}
+      </div>
 
       <div className="rounded-3xl bg-white border border-slate-100 shadow-lg p-8 md:p-10 mb-8">
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-sky-600 flex items-center justify-center shadow-lg shadow-teal-500/25 mb-6">
