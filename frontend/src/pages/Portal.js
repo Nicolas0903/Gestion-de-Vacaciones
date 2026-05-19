@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LogoTransparente from '../components/LogoTransparente';
@@ -15,7 +15,8 @@ import {
   UsersIcon,
   BriefcaseIcon,
   ArrowRightOnRectangleIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
@@ -33,6 +34,10 @@ const Portal = () => {
   /* Módulo cuya card abrió el selector de sub-opciones (null = cerrado). */
   const [moduloSelector, setModuloSelector] = useState(null);
 
+  /* Menú dropdown del chip de usuario (con opciones admin) */
+  const [menuUsuarioAbierto, setMenuUsuarioAbierto] = useState(false);
+  const menuUsuarioRef = useRef(null);
+
   useEffect(() => {
     if (!moduloSelector) return undefined;
     const onKey = (e) => {
@@ -41,6 +46,24 @@ const Portal = () => {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [moduloSelector]);
+
+  useEffect(() => {
+    if (!menuUsuarioAbierto) return undefined;
+    const onClickOutside = (e) => {
+      if (menuUsuarioRef.current && !menuUsuarioRef.current.contains(e.target)) {
+        setMenuUsuarioAbierto(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMenuUsuarioAbierto(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuUsuarioAbierto]);
 
   const handleLogout = () => {
     if (!window.confirm('¿Cerrar sesión?')) return;
@@ -201,38 +224,29 @@ const Portal = () => {
     });
   }
 
-  if (puedeAccederModuloPortal('solicitudes-registro')) {
-    modulos.push({
+  /* Las opciones administrativas "Solicitudes de Registro" y "Administración
+   * de Usuarios" ya no son cards del portal; viven en el menú del usuario
+   * (esquina superior derecha) como atajos rápidos. */
+  const opcionesUsuario = [
+    puedeAccederModuloPortal('solicitudes-registro') && {
       id: 'solicitudes-registro',
-      titulo: 'Solicitudes de Registro',
-      descripcion: 'Revisa y aprueba las solicitudes de nuevos usuarios',
+      label: 'Solicitudes de Registro',
+      descripcion: 'Revisa y aprueba registros de nuevos usuarios',
+      to: '/admin/solicitudes-registro',
       icono: UserPlusIcon,
-      color: 'from-emerald-500 to-green-500',
-      shadowColor: 'shadow-emerald-500/30',
-      bgLight: 'bg-emerald-50',
       textColor: 'text-emerald-600',
-      link: '/admin/solicitudes-registro',
-      activo: true,
-      restringido: true
-    });
-  }
-
-  if (esAdminPortalUsuarios()) {
-    modulos.push({
+      bgLight: 'bg-emerald-50'
+    },
+    esAdminPortalUsuarios() && {
       id: 'admin-portal-usuarios',
-      titulo: 'Administración de Usuarios',
-      descripcion: 'Activa usuarios, restablece contraseñas y define acceso a módulos del portal',
+      label: 'Administración de Usuarios',
+      descripcion: 'Activa cuentas, contraseñas y acceso a módulos',
+      to: '/admin-portal/usuarios',
       icono: UsersIcon,
-      color: 'from-slate-600 to-slate-800',
-      shadowColor: 'shadow-slate-500/30',
-      bgLight: 'bg-slate-100',
       textColor: 'text-slate-700',
-      link: '/admin-portal/usuarios',
-      activo: true,
-      restringido: true,
-      soloAdminPersonal: true
-    });
-  }
+      bgLight: 'bg-slate-100'
+    }
+  ].filter(Boolean);
 
   const modulosVisibles = modulos.filter((m) => {
     if (m.soloAdminPersonal) return true;
@@ -264,29 +278,97 @@ const Portal = () => {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 ml-auto">
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-xs font-semibold flex items-center justify-center">
-                  {inicialUsuario}
-                </div>
-                <div className="leading-tight pr-1">
-                  <div className="text-xs font-medium text-slate-800 max-w-[180px] truncate">
-                    {usuario?.nombres} {usuario?.apellidos}
+              <div className="relative" ref={menuUsuarioRef}>
+                <button
+                  type="button"
+                  onClick={() => setMenuUsuarioAbierto((v) => !v)}
+                  className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors"
+                  aria-haspopup="menu"
+                  aria-expanded={menuUsuarioAbierto}
+                  title="Mi cuenta"
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-xs font-semibold flex items-center justify-center">
+                    {inicialUsuario}
                   </div>
-                  <div className="text-[10px] text-slate-400 capitalize">
-                    {usuario?.rol_nombre?.replace(/_/g, ' ')}
+                  <div className="hidden sm:block leading-tight pr-1 text-left">
+                    <div className="text-xs font-medium text-slate-800 max-w-[180px] truncate">
+                      {usuario?.nombres} {usuario?.apellidos}
+                    </div>
+                    <div className="text-[10px] text-slate-400 capitalize">
+                      {usuario?.rol_nombre?.replace(/_/g, ' ')}
+                    </div>
                   </div>
-                </div>
+                  <ChevronDownIcon
+                    className={`w-3.5 h-3.5 text-slate-400 transition-transform ${menuUsuarioAbierto ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {menuUsuarioAbierto && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden z-40"
+                  >
+                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-semibold flex items-center justify-center">
+                          {inicialUsuario}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-800 truncate">
+                            {usuario?.nombres} {usuario?.apellidos}
+                          </div>
+                          <div className="text-xs text-slate-500 capitalize truncate">
+                            {usuario?.rol_nombre?.replace(/_/g, ' ')}
+                          </div>
+                          {usuario?.email && (
+                            <div className="text-[11px] text-slate-400 truncate">{usuario.email}</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {opcionesUsuario.length > 0 && (
+                      <div className="py-1.5">
+                        {opcionesUsuario.map((opc) => {
+                          const Ic = opc.icono;
+                          return (
+                            <Link
+                              key={opc.id}
+                              to={opc.to}
+                              role="menuitem"
+                              onClick={() => setMenuUsuarioAbierto(false)}
+                              className="flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors"
+                            >
+                              <div className={`w-9 h-9 rounded-lg ${opc.bgLight} flex items-center justify-center shrink-0`}>
+                                <Ic className={`w-5 h-5 ${opc.textColor}`} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-slate-800">{opc.label}</p>
+                                <p className="text-xs text-slate-500 leading-snug">{opc.descripcion}</p>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className={`${opcionesUsuario.length > 0 ? 'border-t border-slate-100' : ''} py-1.5`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuUsuarioAbierto(false);
+                          handleLogout();
+                        }}
+                        role="menuitem"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
+                      >
+                        <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                        Cerrar sesión
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 text-sm font-medium shadow-sm transition-colors"
-                aria-label="Cerrar sesión"
-                title="Cerrar sesión"
-              >
-                <ArrowRightOnRectangleIcon className="w-5 h-5" />
-                <span className="hidden sm:inline">Cerrar sesión</span>
-              </button>
             </div>
           </div>
 
