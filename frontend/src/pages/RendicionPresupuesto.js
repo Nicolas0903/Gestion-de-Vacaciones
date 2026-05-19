@@ -66,8 +66,15 @@ const RendicionPresupuesto = () => {
   const [archivo, setArchivo] = useState(null);
   const [monto, setMonto] = useState('0');
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [eliminandoId, setEliminandoId] = useState(null);
 
   const nombreCompleto = `${usuario?.nombres || ''} ${usuario?.apellidos || ''}`.trim();
+
+  const puedeEliminar = (r) => {
+    if (!r) return false;
+    if (puedeGestionar) return true;
+    return r.estado !== 'aprobado';
+  };
   const dni = usuario?.dni || '—';
 
   const areaLabelOf = (v) => areas.find((a) => a.value === v)?.label || v;
