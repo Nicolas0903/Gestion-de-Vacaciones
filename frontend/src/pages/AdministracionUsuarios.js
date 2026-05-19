@@ -25,6 +25,17 @@ const DETALLE_TABS = [
   { id: 'vacaciones', label: 'Vacaciones ganadas' }
 ];
 
+/* Áreas organizacionales. Debe estar en sync con el ENUM `empleados.area`
+ * de la base de datos y `backend/src/constants/areasEmpleado.js`. */
+const AREAS_EMPLEADO = [
+  { value: 'gerencia_general', label: 'Gerencia General' },
+  { value: 'consultoria', label: 'Consultoría' },
+  { value: 'administracion', label: 'Administración' },
+  { value: 'operaciones', label: 'Operaciones' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'comercial', label: 'Comercial' }
+];
+
 function badgeClaseVacacion(estado) {
   switch (estado) {
     case 'gozadas':
@@ -135,6 +146,7 @@ export default function AdministracionUsuarios() {
     email: '',
     dni: '',
     cargo: '',
+    area: '',
     fecha_ingreso: '',
     codigo_empleado: '',
     rol_id: '',
@@ -149,6 +161,7 @@ export default function AdministracionUsuarios() {
     email: '',
     password: '',
     cargo: '',
+    area: '',
     fecha_ingreso: '',
     rol_id: ''
   });
@@ -267,6 +280,7 @@ export default function AdministracionUsuarios() {
         email: empleado.email || '',
         dni: empleado.dni || '',
         cargo: empleado.cargo || '',
+        area: empleado.area || '',
         fecha_ingreso: (empleado.fecha_ingreso || '').slice(0, 10),
         codigo_empleado: empleado.codigo_empleado || '',
         rol_id: empleado.rol_id != null ? String(empleado.rol_id) : '',
@@ -462,6 +476,7 @@ export default function AdministracionUsuarios() {
         email: formCuenta.email,
         dni: formCuenta.dni,
         cargo: formCuenta.cargo,
+        area: formCuenta.area,
         fecha_ingreso: formCuenta.fecha_ingreso,
         codigo_empleado: formCuenta.codigo_empleado,
         rol_id: formCuenta.rol_id ? parseInt(formCuenta.rol_id, 10) : undefined,
@@ -478,6 +493,7 @@ export default function AdministracionUsuarios() {
         email: em.email || '',
         dni: em.dni || '',
         cargo: em.cargo || '',
+        area: em.area || '',
         fecha_ingreso: (em.fecha_ingreso || '').slice(0, 10),
         codigo_empleado: em.codigo_empleado || '',
         rol_id: em.rol_id != null ? String(em.rol_id) : '',
@@ -513,6 +529,7 @@ export default function AdministracionUsuarios() {
         email: '',
         password: '',
         cargo: '',
+        area: '',
         fecha_ingreso: '',
         rol_id: ''
       });
@@ -542,6 +559,7 @@ export default function AdministracionUsuarios() {
       email: '',
       password: '',
       cargo: '',
+      area: '',
       fecha_ingreso: '',
       rol_id: ''
     });
@@ -907,6 +925,21 @@ export default function AdministracionUsuarios() {
                       value={formCuenta.cargo}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, cargo: e.target.value }))}
                     />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                      Área
+                    </label>
+                    <select
+                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      value={formCuenta.area}
+                      onChange={(e) => setFormCuenta((f) => ({ ...f, area: e.target.value }))}
+                    >
+                      <option value="">Sin área asignada</option>
+                      {AREAS_EMPLEADO.map((a) => (
+                        <option key={a.value} value={a.value}>{a.label}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
@@ -1291,6 +1324,17 @@ export default function AdministracionUsuarios() {
                 value={formAlta.cargo}
                 onChange={(e) => setFormAlta((f) => ({ ...f, cargo: e.target.value }))}
               />
+              <select
+                className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                value={formAlta.area}
+                onChange={(e) => setFormAlta((f) => ({ ...f, area: e.target.value }))}
+                title="Área organizacional (opcional)"
+              >
+                <option value="">Área… (opcional)</option>
+                {AREAS_EMPLEADO.map((a) => (
+                  <option key={a.value} value={a.value}>{a.label}</option>
+                ))}
+              </select>
               <input
                 required
                 type="date"

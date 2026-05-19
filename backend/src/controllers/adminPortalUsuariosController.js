@@ -2,7 +2,20 @@ const bcrypt = require('bcryptjs');
 const { Empleado, PeriodoVacaciones } = require('../models');
 const { pool } = require('../config/database');
 const { MODULOS_PORTAL, MODULO_IDS } = require('../constants/portalModulos');
+const { AREAS_EMPLEADO_VALIDAS } = require('../constants/areasEmpleado');
 const { tieneAccesoEfectivoModulo, accesoPortalDetalleCompleto } = require('../utils/portalAcceso');
+
+/** Normaliza el valor `area` recibido del body. Acepta '' / null como "sin área". */
+function normalizarArea(valor) {
+  if (valor === undefined) return undefined;
+  if (valor === null || valor === '') return null;
+  const v = String(valor).trim();
+  if (!v) return null;
+  if (!AREAS_EMPLEADO_VALIDAS.includes(v)) {
+    return { error: 'Área no válida' };
+  }
+  return v;
+}
 
 function sinPassword(empleado) {
   if (!empleado) return null;
@@ -92,11 +105,17 @@ const crearEmpleado = async (req, res) => {
       email,
       password,
       cargo,
+      area,
       fecha_ingreso,
       rol_id,
       jefe_id,
       modulos_portal
     } = req.body;
+
+    const areaNormalizada = normalizarArea(area);
+    if (areaNormalizada && typeof areaNormalizada === 'object' && areaNormalizada.error) {
+      return res.status(400).json({ success: false, mensaje: areaNormalizada.error });
+    }
 
     if (
       !codigo_empleado ||
@@ -137,6 +156,7 @@ const crearEmpleado = async (req, res) => {
       email,
       password,
       cargo,
+      area: areaNormalizada === undefined ? null : areaNormalizada,
       fecha_ingreso,
       rol_id,
       jefe_id,
@@ -246,6 +266,7 @@ const actualizarCuenta = async (req, res) => {
       'email',
       'dni',
       'cargo',
+      'area',
       'fecha_ingreso',
       'codigo_empleado',
       'rol_id',
@@ -256,6 +277,14 @@ const actualizarCuenta = async (req, res) => {
       if (req.body[k] === undefined) continue;
       if (k === 'cargo') {
         datos.cargo = req.body[k] === '' || req.body[k] == null ? null : String(req.body[k]).trim();
+        continue;
+      }
+      if (k === 'area') {
+        const a = normalizarArea(req.body[k]);
+        if (a && typeof a === 'object' && a.error) {
+          return res.status(400).json({ success: false, mensaje: a.error });
+        }
+        datos.area = a === undefined ? null : a;
         continue;
       }
       if (k === 'es_consultor_cp') {

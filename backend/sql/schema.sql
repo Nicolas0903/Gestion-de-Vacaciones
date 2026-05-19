@@ -25,6 +25,14 @@ CREATE TABLE empleados (
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     cargo VARCHAR(100),
+    area ENUM(
+        'gerencia_general',
+        'consultoria',
+        'administracion',
+        'operaciones',
+        'marketing',
+        'comercial'
+    ) NULL DEFAULT NULL COMMENT 'Área organizacional del empleado',
     fecha_ingreso DATE NOT NULL,
     rol_id INT NOT NULL,
     jefe_id INT NULL, -- Referencia al jefe directo

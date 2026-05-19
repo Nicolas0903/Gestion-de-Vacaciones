@@ -21,7 +21,7 @@ class Empleado {
   static async crear(datos) {
     const {
       codigo_empleado, nombres, apellidos, dni, email, password,
-      cargo, fecha_ingreso, rol_id, jefe_id, modulos_portal
+      cargo, area, fecha_ingreso, rol_id, jefe_id, modulos_portal
     } = datos;
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -32,8 +32,8 @@ class Empleado {
 
     const [result] = await pool.execute(
       `INSERT INTO empleados 
-       (codigo_empleado, nombres, apellidos, dni, email, password, cargo, fecha_ingreso, rol_id, jefe_id, modulos_portal)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (codigo_empleado, nombres, apellidos, dni, email, password, cargo, area, fecha_ingreso, rol_id, jefe_id, modulos_portal)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         codigo_empleado,
         nombres,
@@ -42,6 +42,7 @@ class Empleado {
         email,
         hashedPassword,
         cargo,
+        area || null,
         fecha_ingreso,
         rol_id,
         jefe_id || null,
