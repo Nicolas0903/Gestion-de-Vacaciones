@@ -177,7 +177,7 @@ class PermisoDescanso {
              e.apellidos as empleado_apellidos
       FROM permisos_descansos p
       JOIN empleados e ON p.empleado_id = e.id
-      WHERE p.estado = 'aprobado'
+      WHERE p.estado IN ('pendiente', 'aprobado')
         AND ((p.fecha_inicio BETWEEN ? AND ?) OR (p.fecha_fin BETWEEN ? AND ?)
              OR (p.fecha_inicio <= ? AND p.fecha_fin >= ?))
     `;

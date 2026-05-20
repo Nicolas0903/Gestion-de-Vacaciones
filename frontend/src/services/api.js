@@ -144,7 +144,12 @@ export const permisoService = {
   obtener: (id) => api.get(`/permisos/${id}`),
   eliminar: (id) => api.delete(`/permisos/${id}`),
   descargarDocumento: (id) => api.get(`/permisos/${id}/documento`, { responseType: 'blob' }),
-  
+
+  calendarioEquipo: (fechaInicio, fechaFin, empleadoId = null) =>
+    api.get('/permisos/calendario', {
+      params: { fecha_inicio: fechaInicio, fecha_fin: fechaFin, empleado_id: empleadoId }
+    }),
+
   // Admin
   listar: (filtros = {}) => api.get('/permisos', { params: filtros }),
   listarPendientes: () => api.get('/permisos/admin/pendientes'),

@@ -3,7 +3,7 @@ import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, addMonths, subMonths, addDays, isWeekend } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { parseFechaSegura, formatoFechaDMY } from '../utils/dateUtils';
-import { solicitudService, periodoService } from '../services/api';
+import { solicitudService, periodoService, permisoService } from '../services/api';
 import toast from 'react-hot-toast';
 import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XMarkIcon, PaperAirplaneIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { calcularDiasVacaciones, calcularFechaEfectivaRegreso } from '../utils/calcularDiasVacaciones';
@@ -20,6 +20,13 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+const TIPO_PERMISO_LABEL = {
+  descanso_medico: 'Descanso médico',
+  permiso_personal: 'Permiso personal',
+  permiso_sin_goce: 'Permiso sin goce',
+  otro: 'Permiso'
+};
+
 const messages = {
   allDay: 'Todo el día',
   previous: 'Anterior',
@@ -32,7 +39,7 @@ const messages = {
   date: 'Fecha',
   time: 'Hora',
   event: 'Evento',
-  noEventsInRange: 'No hay vacaciones en este período.',
+  noEventsInRange: 'No hay vacaciones, permisos ni descansos en este período.',
   showMore: total => `+ Ver ${total} más`,
 };
 
@@ -64,10 +71,13 @@ const Calendario = () => {
       setLoading(true);
       const inicio = format(startOfMonth(subMonths(date, 1)), 'yyyy-MM-dd');
       const fin = format(endOfMonth(addMonths(date, 1)), 'yyyy-MM-dd');
-      
-      const res = await solicitudService.calendario(inicio, fin);
-      
-      const eventosFormateados = res.data.data.map((solicitud) => {
+
+      const [resVac, resPerm] = await Promise.all([
+        solicitudService.calendario(inicio, fin),
+        permisoService.calendarioEquipo(inicio, fin)
+      ]);
+
+      const eventosVac = (resVac.data.data || []).map((solicitud) => {
         const calc = calcularDiasVacaciones(
           solicitud.fecha_inicio_vacaciones,
           solicitud.fecha_fin_vacaciones
@@ -79,16 +89,37 @@ const Calendario = () => {
             : parseFechaSegura(solicitud.fecha_fin_vacaciones);
         const finVisual = format(ultimaFecha, 'yyyy-MM-dd');
         return {
-          id: solicitud.id,
+          id: `v-${solicitud.id}`,
           title: `${solicitud.nombres} ${solicitud.apellidos}`,
           start: new Date(solicitud.fecha_inicio_vacaciones + 'T12:00:00'),
           end: new Date(finVisual + 'T23:59:59'),
-          resource: solicitud,
+          resource: { ...solicitud, kind: 'vacacion' },
+          kind: 'vacacion',
           estado: solicitud.estado
         };
       });
-      
-      setEventos(eventosFormateados);
+
+      const eventosPerm = (resPerm.data.data || []).map((p) => {
+        const nombre = `${p.empleado_nombres || ''} ${p.empleado_apellidos || ''}`.trim();
+        const tipoLabel = TIPO_PERMISO_LABEL[p.tipo] || 'Permiso';
+        const esDescanso = p.tipo === 'descanso_medico';
+        return {
+          id: `p-${p.id}`,
+          title: `${nombre} · ${tipoLabel}`,
+          start: new Date(String(p.fecha_inicio).slice(0, 10) + 'T12:00:00'),
+          end: new Date(String(p.fecha_fin).slice(0, 10) + 'T23:59:59'),
+          resource: {
+            ...p,
+            kind: esDescanso ? 'descanso_medico' : 'permiso',
+            nombres: p.empleado_nombres,
+            apellidos: p.empleado_apellidos
+          },
+          kind: esDescanso ? 'descanso_medico' : 'permiso',
+          estado: p.estado
+        };
+      });
+
+      setEventos([...eventosVac, ...eventosPerm]);
     } catch (error) {
       toast.error('Error al cargar calendario');
     } finally {
@@ -230,10 +261,20 @@ const Calendario = () => {
   };
 
   const eventStyleGetter = (event) => {
-    let backgroundColor = '#0d9488'; // teal default
+    let backgroundColor = '#0d9488';
     let borderColor = '#0f766e';
+    const pendiente =
+      event.estado === 'pendiente' ||
+      event.estado === 'pendiente_jefe' ||
+      event.estado === 'pendiente_contadora';
 
-    if (event.estado === 'pendiente_jefe' || event.estado === 'pendiente_contadora') {
+    if (event.kind === 'descanso_medico') {
+      backgroundColor = pendiente ? '#fb7185' : '#e11d48';
+      borderColor = pendiente ? '#f43f5e' : '#be123c';
+    } else if (event.kind === 'permiso') {
+      backgroundColor = pendiente ? '#818cf8' : '#6366f1';
+      borderColor = pendiente ? '#6366f1' : '#4f46e5';
+    } else if (pendiente) {
       backgroundColor = '#f59e0b';
       borderColor = '#d97706';
     } else if (event.estado === 'aprobada') {
@@ -261,11 +302,20 @@ const Calendario = () => {
 
   const getEstadoTexto = (estado) => {
     const textos = {
-      pendiente_jefe: 'Pendiente de Aprobación',
-      pendiente_contadora: 'Pendiente de Aprobación',
-      aprobada: 'Aprobada'
+      pendiente_jefe: 'Pendiente de aprobación',
+      pendiente_contadora: 'Pendiente de aprobación',
+      pendiente: 'Pendiente de aprobación',
+      aprobada: 'Aprobada',
+      aprobado: 'Aprobado'
     };
     return textos[estado] || estado;
+  };
+
+  const getTipoEventoLabel = (ev) => {
+    if (!ev) return 'Vacaciones';
+    if (ev.kind === 'descanso_medico') return 'Descanso médico';
+    if (ev.kind === 'permiso') return TIPO_PERMISO_LABEL[ev.tipo] || 'Permiso';
+    return 'Vacaciones';
   };
 
   return (
@@ -278,7 +328,7 @@ const Calendario = () => {
             Calendario de Vacaciones
           </h1>
           <p className="text-slate-500 mt-1">
-            Visualiza las vacaciones del equipo o selecciona un rango para crear una solicitud
+            Vacaciones, permisos y descansos médicos del equipo. Arrastra en el calendario para crear vacaciones.
           </p>
         </div>
         <button
@@ -308,15 +358,26 @@ const Calendario = () => {
       </div>
 
       {/* Leyenda */}
-      <div className="flex flex-wrap gap-4 bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+      <div className="flex flex-wrap gap-x-6 gap-y-3 bg-white rounded-xl p-4 shadow-sm border border-slate-100">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-amber-500"></div>
-          <span className="text-sm text-slate-600">Pendiente</span>
+          <div className="w-4 h-4 rounded bg-amber-500" />
+          <span className="text-sm text-slate-600">Vacaciones pendiente</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-emerald-500"></div>
-          <span className="text-sm text-slate-600">Aprobada</span>
+          <div className="w-4 h-4 rounded bg-emerald-500" />
+          <span className="text-sm text-slate-600">Vacaciones aprobada</span>
         </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-indigo-500" />
+          <span className="text-sm text-slate-600">Permiso (aprobado)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-rose-600" />
+          <span className="text-sm text-slate-600">Descanso médico (aprobado)</span>
+        </div>
+        <p className="text-xs text-slate-400 w-full sm:w-auto sm:ml-auto">
+          Los pendientes de permiso/descanso se ven en tono más claro.
+        </p>
       </div>
 
       {/* Calendario */}
@@ -398,23 +459,45 @@ const Calendario = () => {
             </div>
             
             <div className="space-y-3 mb-4">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-4">
+                <span className="text-sm text-slate-500">Tipo:</span>
+                <span className="text-sm font-medium text-slate-700">{getTipoEventoLabel(selectedEvent)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
                 <span className="text-sm text-slate-500">Fechas:</span>
-                <span className="text-sm font-medium text-slate-700">
-                  {formatoFechaDMY(selectedEvent.fecha_inicio_vacaciones)} –{' '}
-                  {formatoFechaDMY(selectedEvent.fecha_fin_vacaciones)}
+                <span className="text-sm font-medium text-slate-700 text-right">
+                  {selectedEvent.kind === 'vacacion'
+                    ? `${formatoFechaDMY(selectedEvent.fecha_inicio_vacaciones)} – ${formatoFechaDMY(selectedEvent.fecha_fin_vacaciones)}`
+                    : `${formatoFechaDMY(selectedEvent.fecha_inicio)} – ${formatoFechaDMY(selectedEvent.fecha_fin)}`}
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-4">
                 <span className="text-sm text-slate-500">Días:</span>
-                <span className="text-sm font-medium text-slate-700">{selectedEvent.dias_solicitados}</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {selectedEvent.dias_solicitados ?? selectedEvent.dias_totales ?? '—'}
+                </span>
               </div>
-              <div className="flex justify-between">
+              {selectedEvent.motivo && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-sm text-slate-500">Motivo:</span>
+                  <span className="text-sm font-medium text-slate-700 text-right max-w-[60%]">
+                    {selectedEvent.motivo}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between gap-4">
                 <span className="text-sm text-slate-500">Estado:</span>
-                <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
-                  selectedEvent.estado === 'aprobada' ? 'bg-emerald-100 text-emerald-700' :
-                  'bg-amber-100 text-amber-700'
-                }`}>
+                <span
+                  className={`text-sm font-medium px-2 py-0.5 rounded-full ${
+                    selectedEvent.estado === 'aprobada' || selectedEvent.estado === 'aprobado'
+                      ? selectedEvent.kind === 'descanso_medico'
+                        ? 'bg-rose-100 text-rose-700'
+                        : selectedEvent.kind === 'permiso'
+                          ? 'bg-indigo-100 text-indigo-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}
+                >
                   {getEstadoTexto(selectedEvent.estado)}
                 </span>
               </div>

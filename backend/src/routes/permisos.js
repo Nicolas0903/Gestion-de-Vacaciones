@@ -60,6 +60,9 @@ router.get('/mis-permisos', verificarToken, permisoController.misPermisos);
 // Obtener mi resumen
 router.get('/mi-resumen', verificarToken, permisoController.miResumen);
 
+// Calendario del equipo (permisos y descansos médicos aprobados o pendientes)
+router.get('/calendario', verificarToken, permisoController.calendario);
+
 // Crear nuevo permiso/descanso
 router.post('/', 
   verificarToken, 
