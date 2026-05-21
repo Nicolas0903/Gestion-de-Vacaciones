@@ -7,7 +7,8 @@ import {
   TrashIcon,
   BuildingStorefrontIcon,
   ClipboardDocumentListIcon,
-  TrophyIcon
+  TrophyIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { proveedoresService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
@@ -805,62 +806,97 @@ const Proveedores = () => {
       )}
 
       {modalLista && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
-            <h3 className="font-bold text-lg">
-              {modalLista === 'nuevo' ? 'Nuevo proveedor' : 'Editar proveedor'}
-            </h3>
-            <FormProveedor
-              form={formProv}
-              setForm={setFormProv}
-              catalogos={catalogos}
-            />
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                className="flex-1 rounded-xl border py-2 text-sm"
-                onClick={() => setModalLista(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={guardando}
-                className="flex-1 rounded-xl bg-teal-600 text-white py-2 text-sm disabled:opacity-50"
-                onClick={guardarProveedor}
-              >
-                Guardar
-              </button>
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-proveedor-titulo"
+        >
+          <div className="flex min-h-full items-start justify-center sm:items-center py-2 sm:py-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[min(calc(100dvh-2rem),42rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
+              <div className="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-slate-100">
+                <h3 id="modal-proveedor-titulo" className="font-bold text-lg text-slate-800">
+                  {modalLista === 'nuevo' ? 'Nuevo proveedor' : 'Editar proveedor'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setModalLista(null)}
+                  className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 shrink-0"
+                  aria-label="Cerrar"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
+                <FormProveedor form={formProv} setForm={setFormProv} catalogos={catalogos} />
+              </div>
+              <div className="shrink-0 flex gap-2 px-5 py-4 border-t border-slate-100 bg-white">
+                <button
+                  type="button"
+                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={() => setModalLista(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={guardando}
+                  className="flex-1 rounded-xl bg-teal-600 text-white py-2.5 text-sm font-medium disabled:opacity-50 hover:bg-teal-700"
+                  onClick={guardarProveedor}
+                >
+                  {guardando ? 'Guardando…' : 'Guardar'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {modalGanador && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
-            <h3 className="font-bold text-lg">Registrar ganador en lista</h3>
-            <p className="text-sm text-slate-600">
-              <strong>{modalGanador.razon_social}</strong> — {modalGanador.puntaje_total} puntos.
-              Complete los datos para la lista de proveedores.
-            </p>
-            <FormProveedor form={formGanador} setForm={setFormGanador} catalogos={catalogos} />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="flex-1 rounded-xl border py-2 text-sm"
-                onClick={() => setModalGanador(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={guardando}
-                className="flex-1 rounded-xl bg-teal-600 text-white py-2 text-sm"
-                onClick={confirmarRegistrarGanador}
-              >
-                Registrar en lista
-              </button>
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="flex min-h-full items-start justify-center sm:items-center py-2 sm:py-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[min(calc(100dvh-2rem),42rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
+              <div className="shrink-0 px-5 pt-5 pb-3 border-b border-slate-100">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-bold text-lg text-slate-800">Registrar ganador en lista</h3>
+                  <button
+                    type="button"
+                    onClick={() => setModalGanador(null)}
+                    className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 shrink-0"
+                    aria-label="Cerrar"
+                  >
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-sm text-slate-600 mt-2">
+                  <strong>{modalGanador.razon_social}</strong> — {modalGanador.puntaje_total} puntos.
+                  Complete los datos para la lista de proveedores.
+                </p>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4">
+                <FormProveedor form={formGanador} setForm={setFormGanador} catalogos={catalogos} />
+              </div>
+              <div className="shrink-0 flex gap-2 px-5 py-4 border-t border-slate-100 bg-white">
+                <button
+                  type="button"
+                  className="flex-1 rounded-xl border py-2.5 text-sm"
+                  onClick={() => setModalGanador(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={guardando}
+                  className="flex-1 rounded-xl bg-teal-600 text-white py-2.5 text-sm font-medium disabled:opacity-50"
+                  onClick={confirmarRegistrarGanador}
+                >
+                  Registrar en lista
+                </button>
+              </div>
             </div>
           </div>
         </div>
