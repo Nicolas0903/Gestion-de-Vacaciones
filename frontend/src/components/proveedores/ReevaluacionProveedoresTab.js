@@ -271,7 +271,7 @@ export default function ReevaluacionProveedoresTab({ listaProveedores, catalogos
       {modal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6" role="dialog" aria-modal="true">
           <div className="flex min-h-full items-start justify-center sm:items-center py-2 sm:py-4">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[min(calc(100dvh-2rem),44rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-2xl w-full max-w-[min(64rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-1.25rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
               <div className="shrink-0 flex items-center justify-between gap-3 px-5 pt-5 pb-3 border-b border-slate-100">
                 <h3 className="font-bold text-lg text-slate-800">
                   {modal === 'nuevo' ? 'Nueva reevaluación' : 'Editar reevaluación'}

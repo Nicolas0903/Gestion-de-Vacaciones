@@ -812,9 +812,9 @@ const Proveedores = () => {
           aria-modal="true"
           aria-labelledby="modal-proveedor-titulo"
         >
-          <div className="flex min-h-full items-start justify-center sm:items-center py-2 sm:py-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[min(calc(100dvh-2rem),42rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
-              <div className="shrink-0 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-slate-100">
+          <div className="flex min-h-full items-start justify-center py-2 sm:py-3 w-full">
+            <div className="bg-white rounded-2xl w-full max-w-[min(64rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-1.25rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
+              <div className="shrink-0 flex items-start justify-between gap-3 px-6 pt-5 pb-3 border-b border-slate-100">
                 <h3 id="modal-proveedor-titulo" className="font-bold text-lg text-slate-800">
                   {modalLista === 'nuevo' ? 'Nuevo proveedor' : 'Editar proveedor'}
                 </h3>
@@ -827,10 +827,10 @@ const Proveedores = () => {
                   <XMarkIcon className="w-5 h-5" />
                 </button>
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 [scrollbar-gutter:stable]">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5 [scrollbar-gutter:stable]">
                 <FormProveedor form={formProv} setForm={setFormProv} catalogos={catalogos} />
               </div>
-              <div className="shrink-0 flex gap-2 px-5 py-4 border-t border-slate-100 bg-white">
+              <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-slate-100 bg-white">
                 <button
                   type="button"
                   className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -858,9 +858,9 @@ const Proveedores = () => {
           role="dialog"
           aria-modal="true"
         >
-          <div className="flex min-h-full items-start justify-center sm:items-center py-2 sm:py-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[min(calc(100dvh-2rem),42rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
-              <div className="shrink-0 px-5 pt-5 pb-3 border-b border-slate-100">
+          <div className="flex min-h-full items-start justify-center py-2 sm:py-3 w-full">
+            <div className="bg-white rounded-2xl w-full max-w-[min(64rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-1.25rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
+              <div className="shrink-0 px-6 pt-5 pb-3 border-b border-slate-100">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-bold text-lg text-slate-800">Registrar ganador en lista</h3>
                   <button
@@ -877,10 +877,10 @@ const Proveedores = () => {
                   Complete los datos para la lista de proveedores.
                 </p>
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5">
                 <FormProveedor form={formGanador} setForm={setFormGanador} catalogos={catalogos} />
               </div>
-              <div className="shrink-0 flex gap-2 px-5 py-4 border-t border-slate-100 bg-white">
+              <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-slate-100 bg-white">
                 <button
                   type="button"
                   className="flex-1 rounded-xl border py-2.5 text-sm"
@@ -907,113 +907,136 @@ const Proveedores = () => {
 
 function FormProveedor({ form, setForm, catalogos }) {
   const ch = (name, value) => setForm((f) => ({ ...f, [name]: value }));
+  const inputCls =
+    'w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 outline-none';
+  const labelCls = 'text-xs font-medium text-slate-600';
+
   return (
-    <div className="space-y-3 text-sm">
-      <div>
-        <label className="text-xs text-slate-600">Razón social *</label>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-4 text-sm">
+      <div className="sm:col-span-2 lg:col-span-3">
+        <label className={labelCls}>Razón social *</label>
         <input
-          className="w-full mt-1 rounded-lg border px-3 py-2"
+          className={inputCls}
           value={form.razon_social}
           onChange={(e) => ch('razon_social', e.target.value)}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-slate-600">Tipo *</label>
-          <select
-            className="w-full mt-1 rounded-lg border px-3 py-2"
-            value={form.tipo_proveedor}
-            onChange={(e) => ch('tipo_proveedor', e.target.value)}
-          >
-            {(catalogos?.tipos_proveedor || []).map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        {form.tipo_proveedor === 'otros' && (
-          <div>
-            <label className="text-xs text-slate-600">Especifique tipo</label>
-            <input
-              className="w-full mt-1 rounded-lg border px-3 py-2"
-              value={form.tipo_proveedor_otro}
-              onChange={(e) => ch('tipo_proveedor_otro', e.target.value)}
-            />
-          </div>
-        )}
-      </div>
+
       <div>
-        <label className="text-xs text-slate-600">Website</label>
-        <input
-          className="w-full mt-1 rounded-lg border px-3 py-2"
-          value={form.website}
-          onChange={(e) => ch('website', e.target.value)}
-        />
+        <label className={labelCls}>Tipo de proveedor *</label>
+        <select
+          className={inputCls}
+          value={form.tipo_proveedor}
+          onChange={(e) => ch('tipo_proveedor', e.target.value)}
+        >
+          {(catalogos?.tipos_proveedor || []).map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+
+      {form.tipo_proveedor === 'otros' ? (
         <div>
-          <label className="text-xs text-slate-600">Fecha registro *</label>
+          <label className={labelCls}>Especifique tipo *</label>
           <input
-            type="date"
-            className="w-full mt-1 rounded-lg border px-3 py-2"
-            value={form.fecha_registro}
-            onChange={(e) => ch('fecha_registro', e.target.value)}
+            className={inputCls}
+            value={form.tipo_proveedor_otro}
+            onChange={(e) => ch('tipo_proveedor_otro', e.target.value)}
           />
         </div>
+      ) : (
         <div>
-          <label className="text-xs text-slate-600">Área solicitante *</label>
-          <select
-            className="w-full mt-1 rounded-lg border px-3 py-2"
-            value={form.area_solicitante}
-            onChange={(e) => ch('area_solicitante', e.target.value)}
-          >
-            {(catalogos?.areas_solicitante || []).map((a) => (
-              <option key={a.value} value={a.value}>
-                {a.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {form.area_solicitante === 'otros' && (
-        <div>
-          <label className="text-xs text-slate-600">Especifique área</label>
+          <label className={labelCls}>Website</label>
           <input
-            className="w-full mt-1 rounded-lg border px-3 py-2"
+            className={inputCls}
+            value={form.website}
+            onChange={(e) => ch('website', e.target.value)}
+            placeholder="https://"
+          />
+        </div>
+      )}
+
+      {form.tipo_proveedor === 'otros' && (
+        <div className="sm:col-span-2 lg:col-span-3">
+          <label className={labelCls}>Website</label>
+          <input
+            className={inputCls}
+            value={form.website}
+            onChange={(e) => ch('website', e.target.value)}
+            placeholder="https://"
+          />
+        </div>
+      )}
+
+      <div>
+        <label className={labelCls}>Fecha de registro *</label>
+        <input
+          type="date"
+          className={inputCls}
+          value={form.fecha_registro}
+          onChange={(e) => ch('fecha_registro', e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className={labelCls}>Área solicitante *</label>
+        <select
+          className={inputCls}
+          value={form.area_solicitante}
+          onChange={(e) => ch('area_solicitante', e.target.value)}
+        >
+          {(catalogos?.areas_solicitante || []).map((a) => (
+            <option key={a.value} value={a.value}>
+              {a.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {form.area_solicitante === 'otros' && (
+        <div className="sm:col-span-2 lg:col-span-3">
+          <label className={labelCls}>Especifique área *</label>
+          <input
+            className={inputCls}
             value={form.area_otro}
             onChange={(e) => ch('area_otro', e.target.value)}
           />
         </div>
       )}
-      <div>
-        <label className="text-xs text-slate-600">Producto / Servicio *</label>
+
+      <div className="sm:col-span-2 lg:col-span-3">
+        <label className={labelCls}>Producto / Servicio *</label>
         <input
-          className="w-full mt-1 rounded-lg border px-3 py-2"
+          className={inputCls}
           value={form.producto_servicio}
           onChange={(e) => ch('producto_servicio', e.target.value)}
         />
       </div>
+
       <div>
-        <label className="text-xs text-slate-600">Contacto Prayaga *</label>
+        <label className={labelCls}>Contacto Prayaga *</label>
         <input
-          className="w-full mt-1 rounded-lg border px-3 py-2"
+          className={inputCls}
           value={form.contacto_prayaga}
           onChange={(e) => ch('contacto_prayaga', e.target.value)}
         />
       </div>
-      <div>
-        <label className="text-xs text-slate-600">Nombre contacto proveedor</label>
+
+      <div className="sm:col-span-2">
+        <label className={labelCls}>Nombre contacto proveedor</label>
         <input
-          className="w-full mt-1 rounded-lg border px-3 py-2"
+          className={inputCls}
           value={form.nombre_contacto_proveedor}
           onChange={(e) => ch('nombre_contacto_proveedor', e.target.value)}
         />
       </div>
-      <div>
-        <label className="text-xs text-slate-600">Datos proveedor (correo, teléfono, etc.)</label>
+
+      <div className="sm:col-span-2 lg:col-span-3">
+        <label className={labelCls}>Datos proveedor (correo, teléfono, etc.)</label>
         <textarea
-          className="w-full mt-1 rounded-lg border px-3 py-2"
+          className={`${inputCls} resize-y min-h-[4rem]`}
           rows={2}
           value={form.datos_proveedor}
           onChange={(e) => ch('datos_proveedor', e.target.value)}
