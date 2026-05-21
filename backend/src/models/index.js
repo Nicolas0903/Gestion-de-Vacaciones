@@ -11,6 +11,8 @@ const BoletaPago = require('./BoletaPago');
 const SolicitudRegistro = require('./SolicitudRegistro');
 const RendicionPresupuesto = require('./RendicionPresupuesto');
 const RendicionCajaPeriodo = require('./RendicionCajaPeriodo');
+const Proveedor = require('./Proveedor');
+const EvaluacionProveedor = require('./EvaluacionProveedor');
 
 module.exports = {
   Empleado,
@@ -25,5 +27,7 @@ module.exports = {
   BoletaPago,
   SolicitudRegistro,
   RendicionPresupuesto,
-  RendicionCajaPeriodo
+  RendicionCajaPeriodo,
+  Proveedor,
+  EvaluacionProveedor
 };

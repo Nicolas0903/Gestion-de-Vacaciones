@@ -20,6 +20,7 @@ const rendicionCajaRoutes = require('./rendicionCaja');
 const adminPortalUsuariosRoutes = require('./adminPortalUsuarios');
 const controlProyectosRoutes = require('./controlProyectos');
 const asistenteIaRoutes = require('./asistenteIa');
+const proveedoresRoutes = require('./proveedores');
 
 router.use('/auth', authRoutes);
 router.use('/empleados', empleadosRoutes);
@@ -40,6 +41,7 @@ router.use('/caja-rendicion', rendicionCajaRoutes);
 router.use('/admin-portal-usuarios', adminPortalUsuariosRoutes);
 router.use('/control-proyectos', controlProyectosRoutes);
 router.use('/asistente-ia', asistenteIaRoutes);
+router.use('/proveedores', proveedoresRoutes);
 
 // Ruta de health check
 router.get('/health', (req, res) => {

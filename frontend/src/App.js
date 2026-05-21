@@ -36,6 +36,7 @@ import ControlProyectosReporteProyectos from './pages/ControlProyectosReportePro
 import ControlProyectosReporteActividades from './pages/ControlProyectosReporteActividades';
 import AdminCostoHoraProyectos from './pages/AdminCostoHoraProyectos';
 import AdministracionUsuarios from './pages/AdministracionUsuarios';
+import Proveedores from './pages/Proveedores';
 
 // Components
 import Layout from './components/Layout';
@@ -231,6 +232,14 @@ function AppRoutes() {
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="caja-rendicion">
             <PageWrapper><RendicionCaja /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/proveedores" element={
+        <ProtectedRoute roles={['admin', 'contadora']}>
+          <ModuloPortalRoute moduloId="proveedores">
+            <PageWrapper><Proveedores /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

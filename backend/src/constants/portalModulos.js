@@ -15,7 +15,12 @@ const MODULOS_PORTAL = [
     descripcion: 'Depósitos y comprobantes de rendiciones de presupuesto aprobadas'
   },
   { id: 'solicitudes-registro', etiqueta: 'Solicitudes de Registro', descripcion: 'Aprobación de nuevas cuentas' },
-  { id: 'control-proyectos', etiqueta: 'Bolsa de Horas', descripcion: 'Proyectos, bolsa de horas y registro de actividades' }
+  { id: 'control-proyectos', etiqueta: 'Bolsa de Horas', descripcion: 'Proyectos, bolsa de horas y registro de actividades' },
+  {
+    id: 'proveedores',
+    etiqueta: 'Gestión de Proveedores',
+    descripcion: 'Lista de proveedores y evaluación/selección de nuevos'
+  }
 ];
 
 const MODULO_IDS = new Set(MODULOS_PORTAL.map((m) => m.id));

@@ -14,6 +14,7 @@ import {
   WalletIcon,
   UsersIcon,
   BriefcaseIcon,
+  BuildingStorefrontIcon,
   ArrowRightOnRectangleIcon,
   XMarkIcon,
   ChevronDownIcon
@@ -218,6 +219,22 @@ const Portal = () => {
       bgLight: 'bg-violet-50',
       textColor: 'text-violet-600',
       link: '/caja-rendicion',
+      activo: true,
+      restringido: true
+    });
+  }
+
+  if (puedeAccederModuloPortal('proveedores')) {
+    modulos.push({
+      id: 'proveedores',
+      titulo: 'Gestión de Proveedores',
+      descripcion: 'Lista de proveedores y evaluación/selección de nuevos (solo ganador pasa a lista)',
+      icono: BuildingStorefrontIcon,
+      color: 'from-cyan-600 to-teal-700',
+      shadowColor: 'shadow-cyan-500/30',
+      bgLight: 'bg-cyan-50',
+      textColor: 'text-cyan-700',
+      link: '/proveedores',
       activo: true,
       restringido: true
     });

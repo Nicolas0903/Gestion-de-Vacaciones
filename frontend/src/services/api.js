@@ -282,6 +282,23 @@ export const rendicionCajaService = {
   reabrir: (id) => api.post(`/caja-rendicion/periodos/${id}/reabrir`)
 };
 
+// Gestión de proveedores (admin / contadora)
+export const proveedoresService = {
+  catalogos: () => api.get('/proveedores/catalogos'),
+  listar: (params = {}) => api.get('/proveedores', { params }),
+  obtener: (id) => api.get(`/proveedores/${id}`),
+  crear: (body) => api.post('/proveedores', body),
+  actualizar: (id, body) => api.put(`/proveedores/${id}`, body),
+  eliminar: (id) => api.delete(`/proveedores/${id}`),
+  listarEvaluaciones: () => api.get('/proveedores/evaluaciones'),
+  obtenerEvaluacion: (id) => api.get(`/proveedores/evaluaciones/${id}`),
+  crearEvaluacion: (body) => api.post('/proveedores/evaluaciones', body),
+  actualizarEvaluacion: (id, body) => api.put(`/proveedores/evaluaciones/${id}`, body),
+  eliminarEvaluacion: (id) => api.delete(`/proveedores/evaluaciones/${id}`),
+  registrarGanador: (evaluacionId, body) =>
+    api.post(`/proveedores/evaluaciones/${evaluacionId}/registrar-ganador`, body)
+};
+
 // Asistente IA (solo admin, lectura)
 export const asistenteIaService = {
   estado: () => api.get('/asistente-ia/estado'),
