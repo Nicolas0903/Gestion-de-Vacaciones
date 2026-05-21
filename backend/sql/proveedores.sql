@@ -51,13 +51,16 @@ CREATE TABLE IF NOT EXISTS proveedores (
   nombre_contacto_proveedor VARCHAR(200) NULL,
   datos_proveedor TEXT NULL,
   evaluacion_origen_id INT NULL,
+  candidato_origen_id INT NULL COMMENT 'Candidato evaluado (un ganador por candidato)',
   activo TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_prov_razon (razon_social),
   INDEX idx_prov_tipo (tipo_proveedor),
   INDEX idx_prov_eval_origen (evaluacion_origen_id),
-  FOREIGN KEY (evaluacion_origen_id) REFERENCES evaluaciones_proveedor(id) ON DELETE SET NULL
+  UNIQUE KEY uk_prov_candidato_origen (candidato_origen_id),
+  FOREIGN KEY (evaluacion_origen_id) REFERENCES evaluaciones_proveedor(id) ON DELETE SET NULL,
+  FOREIGN KEY (candidato_origen_id) REFERENCES evaluacion_proveedor_candidatos(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE evaluaciones_proveedor

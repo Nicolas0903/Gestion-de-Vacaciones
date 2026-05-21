@@ -228,7 +228,7 @@ const Portal = () => {
     modulos.push({
       id: 'proveedores',
       titulo: 'Gestión de Proveedores',
-      descripcion: 'Lista de proveedores y evaluación/selección de nuevos (solo ganador pasa a lista)',
+      descripcion: 'Lista de proveedores y evaluación/selección (puede registrar uno o varios ganadores)',
       icono: BuildingStorefrontIcon,
       color: 'from-cyan-600 to-teal-700',
       shadowColor: 'shadow-cyan-500/30',

@@ -284,7 +284,7 @@ const Proveedores = () => {
         candidato_id: modalGanador.id,
         ...formGanador
       });
-      toast.success('Ganador registrado en la lista de proveedores.');
+      toast.success('Proveedor registrado en la lista.');
       setModalGanador(null);
       await verEvaluacion(detalleEval.evaluacion.id);
       cargarLista();
@@ -544,7 +544,7 @@ const Proveedores = () => {
             </button>
           </div>
           <p className="px-5 py-2 text-xs text-slate-500 border-b border-slate-50">
-            Los proveedores también pueden ingresar desde una evaluación cerrada (solo el ganador).
+            Los proveedores también pueden ingresar desde una evaluación (uno o varios ganadores).
           </p>
           {lista.length === 0 ? (
             <p className="p-8 text-sm text-slate-500 text-center">No hay proveedores registrados.</p>
@@ -644,6 +644,10 @@ const Proveedores = () => {
           >
             + Agregar otro proveedor a evaluar
           </button>
+          <p className="text-xs text-slate-500">
+            Tras guardar, en el detalle puede registrar en la lista a uno o más candidatos como
+            ganadores.
+          </p>
 
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -680,7 +684,7 @@ const Proveedores = () => {
                 </p>
                 <p className="text-sm text-slate-700 mt-1">{detalleEval.evaluacion.detalle}</p>
               </div>
-              {!detalleEval.evaluacion.proveedor_registrado_id && (
+              {!(detalleEval.proveedores_registrados?.length > 0) && (
                 <button
                   type="button"
                   className="text-sm text-teal-700 hover:underline"
@@ -690,14 +694,22 @@ const Proveedores = () => {
                 </button>
               )}
             </div>
-            {detalleEval.evaluacion.proveedor_registrado_id ? (
+            {(detalleEval.proveedores_registrados?.length || 0) > 0 ? (
               <p className="text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
-                Ganador registrado en lista:{' '}
-                <strong>{detalleEval.proveedor_registrado?.razon_social}</strong>
+                En lista ({detalleEval.proveedores_registrados.length}):{' '}
+                <strong>
+                  {detalleEval.proveedores_registrados.map((p) => p.razon_social).join(', ')}
+                </strong>
+                {detalleEval.candidatos.some((c) => !c.registrado_en_lista) ? (
+                  <span className="block mt-1 text-emerald-800/90">
+                    Puede registrar otro ganador con el botón en la tabla.
+                  </span>
+                ) : null}
               </p>
             ) : (
               <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">
-                Pendiente: complete los datos del ganador y regístrelo en la lista de proveedores.
+                Registre en la lista a uno o más proveedores evaluados (no tiene que ser solo el de
+                mayor puntaje).
               </p>
             )}
           </div>
@@ -718,12 +730,17 @@ const Proveedores = () => {
                       <td className="py-2">
                         {c.razon_social}
                         {detalleEval.ganador?.id === c.id && (
-                          <span className="ml-2 text-xs text-amber-700 font-medium">★ Ganador</span>
+                          <span className="ml-2 text-xs text-amber-700 font-medium">★ Mayor puntaje</span>
+                        )}
+                        {c.registrado_en_lista && (
+                          <span className="ml-2 text-xs text-emerald-700 font-medium">✓ En lista</span>
                         )}
                       </td>
                       <td className="py-2 text-right font-bold tabular-nums">{c.puntaje_total}</td>
                       <td className="py-2 text-right">
-                        {!detalleEval.evaluacion.proveedor_registrado_id && (
+                        {c.registrado_en_lista ? (
+                          <span className="text-xs text-slate-500">Registrado</span>
+                        ) : (
                           <button
                             type="button"
                             className="text-xs text-teal-700 font-medium hover:underline inline-flex items-center gap-1"
@@ -783,11 +800,14 @@ const Proveedores = () => {
                       {e.detalle?.length > 60 ? '…' : ''}
                     </p>
                     <p className="text-xs text-slate-500">
-                      Ganador: {e.ganador_nombre || '—'} ·{' '}
-                      {e.proveedor_registrado_id ? (
-                        <span className="text-emerald-600">En lista</span>
+                      Mayor puntaje: {e.ganador_nombre || '—'} ·{' '}
+                      {Number(e.proveedores_registrados_count) > 0 ? (
+                        <span className="text-emerald-600">
+                          En lista ({e.proveedores_registrados_count}):{' '}
+                          {e.proveedores_registrados_nombres}
+                        </span>
                       ) : (
-                        <span className="text-amber-600">Pendiente registro</span>
+                        <span className="text-amber-600">Pendiente registro en lista</span>
                       )}
                     </p>
                   </div>

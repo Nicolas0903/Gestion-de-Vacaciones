@@ -53,8 +53,8 @@ class Proveedor {
       `INSERT INTO proveedores
        (razon_social, tipo_proveedor, tipo_proveedor_otro, website, fecha_registro,
         area_solicitante, area_otro, producto_servicio, contacto_prayaga,
-        nombre_contacto_proveedor, datos_proveedor, evaluacion_origen_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        nombre_contacto_proveedor, datos_proveedor, evaluacion_origen_id, candidato_origen_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         datos.razon_social.trim(),
         datos.tipo_proveedor,
@@ -67,7 +67,8 @@ class Proveedor {
         datos.contacto_prayaga.trim(),
         datos.nombre_contacto_proveedor?.trim() || null,
         datos.datos_proveedor?.trim() || null,
-        datos.evaluacion_origen_id || null
+        datos.evaluacion_origen_id || null,
+        datos.candidato_origen_id || null
       ]
     );
     return r.insertId;

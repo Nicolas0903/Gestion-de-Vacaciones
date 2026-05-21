@@ -30,13 +30,36 @@ function mapCandidatoRow(row) {
 }
 
 class EvaluacionProveedor {
+  static async contarProveedoresRegistrados(evaluacionId) {
+    const [rows] = await pool.execute(
+      `SELECT COUNT(*) AS n FROM proveedores
+       WHERE evaluacion_origen_id = ? AND activo = 1`,
+      [evaluacionId]
+    );
+    return Number(rows[0]?.n || 0);
+  }
+
+  static async listarProveedoresRegistrados(evaluacionId) {
+    const [rows] = await pool.execute(
+      `SELECT id, razon_social, candidato_origen_id
+       FROM proveedores
+       WHERE evaluacion_origen_id = ? AND activo = 1
+       ORDER BY id ASC`,
+      [evaluacionId]
+    );
+    return rows;
+  }
+
   static async listar() {
     const [rows] = await pool.execute(
       `SELECT e.*,
-              p.razon_social AS proveedor_registrado_nombre,
-              c.razon_social AS ganador_nombre
+              c.razon_social AS ganador_nombre,
+              (SELECT COUNT(*) FROM proveedores pr
+               WHERE pr.evaluacion_origen_id = e.id AND pr.activo = 1) AS proveedores_registrados_count,
+              (SELECT GROUP_CONCAT(pr.razon_social ORDER BY pr.id SEPARATOR ', ')
+               FROM proveedores pr
+               WHERE pr.evaluacion_origen_id = e.id AND pr.activo = 1) AS proveedores_registrados_nombres
        FROM evaluaciones_proveedor e
-       LEFT JOIN proveedores p ON e.proveedor_registrado_id = p.id
        LEFT JOIN evaluacion_proveedor_candidatos c ON e.candidato_ganador_id = c.id
        ORDER BY e.fecha DESC, e.id DESC`
     );
@@ -66,15 +89,26 @@ class EvaluacionProveedor {
     if (ev.candidato_ganador_id) {
       ganador = candidatos.find((c) => c.id === ev.candidato_ganador_id) || ganador;
     }
-    const [provRows] = await pool.execute(
-      `SELECT id, razon_social FROM proveedores WHERE evaluacion_origen_id = ? AND activo = 1 LIMIT 1`,
-      [id]
-    );
+    const proveedores_registrados = await this.listarProveedoresRegistrados(id);
+    const candidatosConEstado = candidatos.map((c) => {
+      const prov = proveedores_registrados.find(
+        (p) =>
+          p.candidato_origen_id === c.id ||
+          (!p.candidato_origen_id &&
+            p.razon_social?.trim().toLowerCase() === c.razon_social?.trim().toLowerCase())
+      );
+      return {
+        ...c,
+        registrado_en_lista: !!prov,
+        proveedor_id: prov?.id || null
+      };
+    });
     return {
       evaluacion: ev,
-      candidatos,
+      candidatos: candidatosConEstado,
       ganador,
-      proveedor_registrado: provRows[0] || null
+      proveedores_registrados,
+      proveedor_registrado: proveedores_registrados[0] || null
     };
   }
 
@@ -150,8 +184,9 @@ class EvaluacionProveedor {
   static async actualizar(id, datos) {
     const ev = await this.buscarPorId(id);
     if (!ev) throw new Error('Evaluación no encontrada');
-    if (ev.proveedor_registrado_id) {
-      throw new Error('No se puede editar: el ganador ya fue registrado en la lista');
+    const registrados = await this.contarProveedoresRegistrados(id);
+    if (registrados > 0) {
+      throw new Error('No se puede editar: ya hay proveedor(es) registrados en la lista desde esta evaluación');
     }
     if (!datos.fecha || !datos.detalle?.trim()) {
       throw new Error('Fecha y detalle son requeridos');
@@ -223,33 +258,35 @@ class EvaluacionProveedor {
   static async registrarGanadorEnLista(evaluacionId, candidatoId, datosProveedor) {
     const det = await this.obtenerDetalle(evaluacionId);
     if (!det) throw new Error('Evaluación no encontrada');
-    if (det.evaluacion.proveedor_registrado_id) {
-      throw new Error('Ya existe un proveedor registrado desde esta evaluación');
-    }
     const candidato = det.candidatos.find((c) => c.id === candidatoId);
     if (!candidato) throw new Error('Candidato no pertenece a esta evaluación');
+    if (candidato.registrado_en_lista) {
+      throw new Error('Este proveedor ya está registrado en la lista');
+    }
 
     const Proveedor = require('./Proveedor');
     const proveedorId = await Proveedor.crear({
       ...datosProveedor,
       razon_social: datosProveedor.razon_social?.trim() || candidato.razon_social,
-      evaluacion_origen_id: evaluacionId
+      evaluacion_origen_id: evaluacionId,
+      candidato_origen_id: candidatoId
     });
 
-    await pool.execute(
-      `UPDATE evaluaciones_proveedor
-       SET candidato_ganador_id = ?, proveedor_registrado_id = ?, estado = 'cerrada'
-       WHERE id = ?`,
-      [candidatoId, proveedorId, evaluacionId]
-    );
+    if (!det.evaluacion.proveedor_registrado_id) {
+      await pool.execute(
+        `UPDATE evaluaciones_proveedor SET proveedor_registrado_id = ? WHERE id = ?`,
+        [proveedorId, evaluacionId]
+      );
+    }
     return { proveedorId, candidato };
   }
 
   static async eliminar(id) {
     const ev = await this.buscarPorId(id);
     if (!ev) return false;
-    if (ev.proveedor_registrado_id) {
-      throw new Error('No se puede eliminar: ya hay proveedor registrado en la lista');
+    const registrados = await this.contarProveedoresRegistrados(id);
+    if (registrados > 0) {
+      throw new Error('No se puede eliminar: ya hay proveedor(es) registrados en la lista');
     }
     const [r] = await pool.execute(`DELETE FROM evaluaciones_proveedor WHERE id = ?`, [id]);
     return r.affectedRows > 0;
