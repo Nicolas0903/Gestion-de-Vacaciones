@@ -296,7 +296,12 @@ export const proveedoresService = {
   actualizarEvaluacion: (id, body) => api.put(`/proveedores/evaluaciones/${id}`, body),
   eliminarEvaluacion: (id) => api.delete(`/proveedores/evaluaciones/${id}`),
   registrarGanador: (evaluacionId, body) =>
-    api.post(`/proveedores/evaluaciones/${evaluacionId}/registrar-ganador`, body)
+    api.post(`/proveedores/evaluaciones/${evaluacionId}/registrar-ganador`, body),
+  listarReevaluaciones: (params = {}) => api.get('/proveedores/reevaluaciones', { params }),
+  obtenerReevaluacion: (id) => api.get(`/proveedores/reevaluaciones/${id}`),
+  crearReevaluacion: (body) => api.post('/proveedores/reevaluaciones', body),
+  actualizarReevaluacion: (id, body) => api.put(`/proveedores/reevaluaciones/${id}`, body),
+  eliminarReevaluacion: (id) => api.delete(`/proveedores/reevaluaciones/${id}`)
 };
 
 // Asistente IA (solo admin, lectura)

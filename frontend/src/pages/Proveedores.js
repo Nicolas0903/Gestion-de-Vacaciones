@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { proveedoresService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
+import ReevaluacionProveedoresTab from '../components/proveedores/ReevaluacionProveedoresTab';
 
 const CRITERIOS = [
   { puntaje: 'puntaje_experiencia', obs: 'obs_experiencia', label: 'Experiencia en el mercado' },
@@ -480,7 +481,7 @@ const Proveedores = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Gestión de Proveedores</h1>
           <p className="text-sm text-slate-500">
-            Evalúe candidatos y registre en la lista solo al ganador del proceso de selección.
+            Lista, evaluación de nuevos y reevaluación periódica de proveedores afiliados.
           </p>
         </div>
       </div>
@@ -510,10 +511,24 @@ const Proveedores = () => {
         >
           Evaluación / Selección
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setTab('reevaluacion');
+            setVistaEval(null);
+          }}
+          className={`px-4 py-2 rounded-xl text-sm font-medium ${
+            tab === 'reevaluacion' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'
+          }`}
+        >
+          Reevaluación
+        </button>
       </div>
 
-      {cargando ? (
+      {cargando && tab !== 'reevaluacion' ? (
         <p className="text-slate-500 text-sm">Cargando…</p>
+      ) : tab === 'reevaluacion' ? (
+        <ReevaluacionProveedoresTab listaProveedores={lista} catalogos={catalogos} />
       ) : tab === 'lista' ? (
         <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center">

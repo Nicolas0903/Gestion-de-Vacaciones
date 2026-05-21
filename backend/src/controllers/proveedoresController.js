@@ -1,9 +1,14 @@
 const Proveedor = require('../models/Proveedor');
 const EvaluacionProveedor = require('../models/EvaluacionProveedor');
+const ReevaluacionProveedor = require('../models/ReevaluacionProveedor');
 const {
   TIPOS_PROVEEDOR,
   AREAS_SOLICITANTE,
-  PUNTAJE_CRITERIO_OPCIONES
+  PUNTAJE_CRITERIO_OPCIONES,
+  CRITERIOS_SELECCION_REEVAL,
+  CONFORMIDAD_REEVAL,
+  calcularPuntajeReeval,
+  calcularResultadoReeval
 } = require('../constants/proveedoresCatalogos');
 
 function enriquecerProveedor(p) {
@@ -32,7 +37,11 @@ const catalogos = (req, res) => {
         { value: 'si', label: 'Sí' },
         { value: 'no', label: 'No' },
         { value: 'na', label: 'N.A' }
-      ]
+      ],
+      criterios_seleccion_reeval: CRITERIOS_SELECCION_REEVAL,
+      conformidad_reeval: CONFORMIDAD_REEVAL,
+      puntaje_habido_opciones: [10, 0],
+      puntaje_precio_mercado_opciones: [5, 0]
     }
   });
 };
@@ -174,6 +183,71 @@ const registrarGanador = async (req, res) => {
   }
 };
 
+const listarReevaluaciones = async (req, res) => {
+  try {
+    const rows = await ReevaluacionProveedor.listar({
+      q: req.query.q,
+      proveedor_id: req.query.proveedor_id
+    });
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al listar reevaluaciones.' });
+  }
+};
+
+const obtenerReevaluacion = async (req, res) => {
+  try {
+    const row = await ReevaluacionProveedor.buscarPorId(parseInt(req.params.id, 10));
+    if (!row) return res.status(404).json({ success: false, mensaje: 'No encontrada.' });
+    res.json({ success: true, data: row });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al obtener reevaluación.' });
+  }
+};
+
+const crearReevaluacion = async (req, res) => {
+  try {
+    const id = await ReevaluacionProveedor.crear(req.body, req.usuario?.id);
+    const row = await ReevaluacionProveedor.buscarPorId(id);
+    res.status(201).json({ success: true, data: row });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al crear.' });
+  }
+};
+
+const actualizarReevaluacion = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const ok = await ReevaluacionProveedor.actualizar(id, req.body);
+    if (!ok) return res.status(404).json({ success: false, mensaje: 'No encontrada.' });
+    const row = await ReevaluacionProveedor.buscarPorId(id);
+    res.json({ success: true, data: row });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al actualizar.' });
+  }
+};
+
+const eliminarReevaluacion = async (req, res) => {
+  try {
+    const ok = await ReevaluacionProveedor.eliminar(parseInt(req.params.id, 10));
+    if (!ok) return res.status(404).json({ success: false, mensaje: 'No encontrada.' });
+    res.json({ success: true, mensaje: 'Reevaluación eliminada.' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al eliminar.' });
+  }
+};
+
+const previewResultadoReeval = (req, res) => {
+  const puntaje = calcularPuntajeReeval(req.body);
+  const resultado = calcularResultadoReeval(puntaje);
+  res.json({ success: true, data: { puntaje, resultado } });
+};
+
 module.exports = {
   catalogos,
   listarProveedores,
@@ -186,5 +260,11 @@ module.exports = {
   crearEvaluacion,
   actualizarEvaluacion,
   eliminarEvaluacion,
-  registrarGanador
+  registrarGanador,
+  listarReevaluaciones,
+  obtenerReevaluacion,
+  crearReevaluacion,
+  actualizarReevaluacion,
+  eliminarReevaluacion,
+  previewResultadoReeval
 };
