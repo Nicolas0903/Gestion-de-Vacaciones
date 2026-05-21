@@ -232,7 +232,7 @@ export const adminPortalUsuariosService = {
   roles: () => api.get('/admin-portal-usuarios/roles')
 };
 
-// Caja chica (admin / contadora)
+// Rendición Caja Chica (admin / contadora)
 export const cajaChicaService = {
   listarPeriodos: () => api.get('/caja-chica/periodos'),
   crearPeriodo: (anio, mes) => api.post('/caja-chica/periodos', { anio, mes }),
@@ -254,7 +254,7 @@ export const cajaChicaService = {
     api.get(`/caja-chica/periodos/${id}/resumen-pdf`, { responseType: 'blob' }),
 };
 
-// Caja rendición de presupuesto (sin ingresos; depósitos sobre rendiciones aprobadas)
+// Rendición Presupuesto — depósitos sobre rendiciones aprobadas
 export const rendicionCajaService = {
   listarPeriodos: () => api.get('/caja-rendicion/periodos'),
   crearPeriodo: (anio, mes) => api.post('/caja-rendicion/periodos', { anio, mes }),

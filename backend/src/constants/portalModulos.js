@@ -8,10 +8,14 @@ const MODULOS_PORTAL = [
   { id: 'reembolsos', etiqueta: 'Reintegros / Reembolsos', descripcion: 'Solicitudes de reintegro de gastos' },
   { id: 'rendicion-presupuesto', etiqueta: 'Rendición de Presupuesto', descripcion: 'Reembolsos y rendición por área (acceso restringido)' },
   { id: 'asistencia', etiqueta: 'Reporte de Asistencia', descripcion: 'Visualización del reporte de asistencia' },
-  { id: 'caja-chica', etiqueta: 'Caja chica', descripcion: 'Reporte mensual de caja chica' },
+  {
+    id: 'caja-chica',
+    etiqueta: 'Rendición Caja Chica',
+    descripcion: 'Reporte mensual: ingresos y egresos de caja chica'
+  },
   {
     id: 'caja-rendicion',
-    etiqueta: 'Caja rendición presupuesto',
+    etiqueta: 'Rendición Presupuesto',
     descripcion: 'Depósitos y comprobantes de rendiciones de presupuesto aprobadas'
   },
   { id: 'solicitudes-registro', etiqueta: 'Solicitudes de Registro', descripcion: 'Aprobación de nuevas cuentas' },

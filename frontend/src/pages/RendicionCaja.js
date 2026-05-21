@@ -234,7 +234,7 @@ const RendicionCaja = () => {
           <BanknotesIcon className="w-7 h-7 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Caja rendición de presupuesto</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Rendición Presupuesto</h1>
           <p className="text-sm text-slate-500">
             Rendiciones aprobadas del mes y registro de depósito: fecha, monto y comprobante de transferencia.
           </p>

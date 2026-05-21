@@ -354,7 +354,7 @@ const CajaChica = () => {
           <WalletIcon className="w-7 h-7 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Caja chica</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Rendición Caja Chica</h1>
           <p className="text-sm text-slate-500">
             Ingresos manuales por período y egresos desde reintegros aprobados (fecha de documento del mes).
           </p>

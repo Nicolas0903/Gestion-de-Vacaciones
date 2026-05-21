@@ -192,35 +192,38 @@ const Portal = () => {
     });
   }
 
-  if (puedeAccederModuloPortal('caja-chica')) {
+  const subAccesoCajaChica = puedeAccederModuloPortal('caja-chica');
+  const subAccesoRendicionCaja = puedeAccederModuloPortal('caja-rendicion');
+
+  if (subAccesoCajaChica || subAccesoRendicionCaja) {
     modulos.push({
-      id: 'caja-chica',
-      titulo: 'Caja chica',
-      descripcion: 'Reporte mensual: ingresos manuales y egresos desde reintegros aprobados',
+      id: 'rendiciones-caja',
+      titulo: 'Rendiciones de caja',
+      descripcion:
+        'Reportes mensuales de caja chica y registro de depósitos de rendiciones de presupuesto',
       icono: WalletIcon,
-      color: 'from-emerald-500 to-teal-600',
+      color: 'from-emerald-500 to-violet-600',
       shadowColor: 'shadow-emerald-500/30',
       bgLight: 'bg-emerald-50',
       textColor: 'text-emerald-600',
-      link: '/caja-chica',
       activo: true,
-      restringido: true
-    });
-  }
-
-  if (puedeAccederModuloPortal('caja-rendicion')) {
-    modulos.push({
-      id: 'caja-rendicion',
-      titulo: 'Caja rendición presupuesto',
-      descripcion: 'Rendiciones aprobadas del mes y registro de depósitos (fecha, monto, comprobante)',
-      icono: BanknotesIcon,
-      color: 'from-violet-500 to-purple-600',
-      shadowColor: 'shadow-violet-500/30',
-      bgLight: 'bg-violet-50',
-      textColor: 'text-violet-600',
-      link: '/caja-rendicion',
-      activo: true,
-      restringido: true
+      restringido: true,
+      subAccesos: [
+        subAccesoCajaChica && {
+          id: 'caja-chica',
+          label: 'Rendición Caja Chica',
+          descripcion: 'Ingresos manuales y egresos desde reintegros aprobados del mes',
+          to: '/caja-chica',
+          icono: WalletIcon
+        },
+        subAccesoRendicionCaja && {
+          id: 'caja-rendicion',
+          label: 'Rendición Presupuesto',
+          descripcion: 'Rendiciones aprobadas del mes: depósito, monto y comprobante',
+          to: '/caja-rendicion',
+          icono: BanknotesIcon
+        }
+      ].filter(Boolean)
     });
   }
 
