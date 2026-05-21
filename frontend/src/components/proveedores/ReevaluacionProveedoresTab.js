@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { PlusIcon, PencilSquareIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import ModalPortal from '../ModalPortal';
 import { proveedoresService } from '../../services/api';
 import { formatoFechaDMY } from '../../utils/dateUtils';
 
@@ -268,25 +269,32 @@ export default function ReevaluacionProveedoresTab({ listaProveedores, catalogos
         </div>
       )}
 
-      {modal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6" role="dialog" aria-modal="true">
-          <div className="flex min-h-full items-start justify-center sm:items-center py-2 sm:py-4">
-            <div className="bg-white rounded-2xl w-full max-w-[min(64rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-1.25rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
-              <div className="shrink-0 flex items-center justify-between gap-3 px-5 pt-5 pb-3 border-b border-slate-100">
-                <h3 className="font-bold text-lg text-slate-800">
-                  {modal === 'nuevo' ? 'Nueva reevaluación' : 'Editar reevaluación'}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setModal(null)}
-                  className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 shrink-0"
-                  aria-label="Cerrar"
-                >
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
+      <ModalPortal
+        open={!!modal}
+        onClose={() => setModal(null)}
+        title={modal === 'nuevo' ? 'Nueva reevaluación' : modal ? 'Editar reevaluación' : ''}
+        maxWidth="max-w-5xl"
+        footer={
+          <>
+            <button
+              type="button"
+              className="flex-1 min-w-[8rem] rounded-xl border border-slate-200 bg-white py-2.5 text-sm"
+              onClick={() => setModal(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={guardando}
+              className="flex-1 min-w-[8rem] rounded-xl bg-teal-600 text-white py-2.5 text-sm font-medium disabled:opacity-50"
+              onClick={guardar}
+            >
+              {guardando ? 'Guardando…' : 'Guardar'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-3 text-sm">
               <div className="sm:col-span-2">
                 <label className="text-xs text-slate-600">Nombre del proveedor *</label>
@@ -417,29 +425,8 @@ export default function ReevaluacionProveedoresTab({ listaProveedores, catalogos
                 </p>
               </div>
             </div>
-              </div>
-
-              <div className="shrink-0 flex gap-2 px-5 py-4 border-t border-slate-100 bg-white">
-              <button
-                type="button"
-                className="flex-1 rounded-xl border py-2.5 text-sm"
-                onClick={() => setModal(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={guardando}
-                className="flex-1 rounded-xl bg-teal-600 text-white py-2.5 text-sm font-medium disabled:opacity-50"
-                onClick={guardar}
-              >
-                {guardando ? 'Guardando…' : 'Guardar'}
-              </button>
-              </div>
-            </div>
-          </div>
         </div>
-      )}
+      </ModalPortal>
     </div>
   );
 }

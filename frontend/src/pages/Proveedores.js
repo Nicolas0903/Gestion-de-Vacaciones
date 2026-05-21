@@ -7,12 +7,12 @@ import {
   TrashIcon,
   BuildingStorefrontIcon,
   ClipboardDocumentListIcon,
-  TrophyIcon,
-  XMarkIcon
+  TrophyIcon
 } from '@heroicons/react/24/outline';
 import { proveedoresService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
 import ReevaluacionProveedoresTab from '../components/proveedores/ReevaluacionProveedoresTab';
+import ModalPortal from '../components/ModalPortal';
 
 const CRITERIOS = [
   { puntaje: 'puntaje_experiencia', obs: 'obs_experiencia', label: 'Experiencia en el mercado' },
@@ -805,102 +805,69 @@ const Proveedores = () => {
         </div>
       )}
 
-      {modalLista && (
-        <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-proveedor-titulo"
-        >
-          <div className="flex min-h-full items-start justify-center py-2 sm:py-3 w-full">
-            <div className="bg-white rounded-2xl w-full max-w-[min(64rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-1.25rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
-              <div className="shrink-0 flex items-start justify-between gap-3 px-6 pt-5 pb-3 border-b border-slate-100">
-                <h3 id="modal-proveedor-titulo" className="font-bold text-lg text-slate-800">
-                  {modalLista === 'nuevo' ? 'Nuevo proveedor' : 'Editar proveedor'}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setModalLista(null)}
-                  className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 shrink-0"
-                  aria-label="Cerrar"
-                >
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5 [scrollbar-gutter:stable]">
-                <FormProveedor form={formProv} setForm={setFormProv} catalogos={catalogos} />
-              </div>
-              <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-slate-100 bg-white">
-                <button
-                  type="button"
-                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  onClick={() => setModalLista(null)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={guardando}
-                  className="flex-1 rounded-xl bg-teal-600 text-white py-2.5 text-sm font-medium disabled:opacity-50 hover:bg-teal-700"
-                  onClick={guardarProveedor}
-                >
-                  {guardando ? 'Guardando…' : 'Guardar'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModalPortal
+        open={!!modalLista}
+        onClose={() => setModalLista(null)}
+        title={modalLista === 'nuevo' ? 'Nuevo proveedor' : modalLista ? 'Editar proveedor' : ''}
+        maxWidth="max-w-5xl"
+        footer={
+          <>
+            <button
+              type="button"
+              className="flex-1 min-w-[8rem] rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() => setModalLista(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={guardando}
+              className="flex-1 min-w-[8rem] rounded-xl bg-teal-600 text-white py-2.5 text-sm font-medium disabled:opacity-50 hover:bg-teal-700"
+              onClick={guardarProveedor}
+            >
+              {guardando ? 'Guardando…' : 'Guardar'}
+            </button>
+          </>
+        }
+      >
+        <FormProveedor form={formProv} setForm={setFormProv} catalogos={catalogos} />
+      </ModalPortal>
 
-      {modalGanador && (
-        <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="flex min-h-full items-start justify-center py-2 sm:py-3 w-full">
-            <div className="bg-white rounded-2xl w-full max-w-[min(64rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-1.25rem)] flex flex-col shadow-xl border border-slate-200 overflow-hidden">
-              <div className="shrink-0 px-6 pt-5 pb-3 border-b border-slate-100">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="font-bold text-lg text-slate-800">Registrar ganador en lista</h3>
-                  <button
-                    type="button"
-                    onClick={() => setModalGanador(null)}
-                    className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 shrink-0"
-                    aria-label="Cerrar"
-                  >
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
-                </div>
-                <p className="text-sm text-slate-600 mt-2">
-                  <strong>{modalGanador.razon_social}</strong> — {modalGanador.puntaje_total} puntos.
-                  Complete los datos para la lista de proveedores.
-                </p>
-              </div>
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5">
-                <FormProveedor form={formGanador} setForm={setFormGanador} catalogos={catalogos} />
-              </div>
-              <div className="shrink-0 flex gap-3 px-6 py-4 border-t border-slate-100 bg-white">
-                <button
-                  type="button"
-                  className="flex-1 rounded-xl border py-2.5 text-sm"
-                  onClick={() => setModalGanador(null)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={guardando}
-                  className="flex-1 rounded-xl bg-teal-600 text-white py-2.5 text-sm font-medium disabled:opacity-50"
-                  onClick={confirmarRegistrarGanador}
-                >
-                  Registrar en lista
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModalPortal
+        open={!!modalGanador}
+        onClose={() => setModalGanador(null)}
+        title="Registrar ganador en lista"
+        subtitle={
+          modalGanador ? (
+            <>
+              <strong>{modalGanador.razon_social}</strong> — {modalGanador.puntaje_total} puntos. Complete
+              los datos para la lista de proveedores.
+            </>
+          ) : null
+        }
+        maxWidth="max-w-5xl"
+        footer={
+          <>
+            <button
+              type="button"
+              className="flex-1 min-w-[8rem] rounded-xl border border-slate-200 bg-white py-2.5 text-sm"
+              onClick={() => setModalGanador(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={guardando}
+              className="flex-1 min-w-[8rem] rounded-xl bg-teal-600 text-white py-2.5 text-sm font-medium disabled:opacity-50"
+              onClick={confirmarRegistrarGanador}
+            >
+              Registrar en lista
+            </button>
+          </>
+        }
+      >
+        <FormProveedor form={formGanador} setForm={setFormGanador} catalogos={catalogos} />
+      </ModalPortal>
     </div>
   );
 };
