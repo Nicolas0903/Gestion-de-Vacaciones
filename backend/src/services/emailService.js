@@ -1657,6 +1657,86 @@ const enviarEmailPrueba = async (destinatario) => {
   return true;
 };
 
+const formatearTamanoArchivo = (bytes) => {
+  if (bytes == null || bytes <= 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+/**
+ * Envía por correo el respaldo diario (Excel legible; SQL si cabe en el límite).
+ */
+const enviarRespaldoArchivo = async ({
+  destinatarios,
+  turno,
+  fechaLabel,
+  excelPath,
+  sqlPath,
+  incluirSql,
+  excelBytes,
+  sqlBytes,
+  maxEmailMb
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('Email no configurado — respaldo archivado solo en servidor');
+    return false;
+  }
+  const toList = (destinatarios || []).filter(Boolean);
+  if (!toList.length) {
+    console.warn('BACKUP_EMAILS vacío — no se envía correo de respaldo');
+    return false;
+  }
+  if (!excelPath || !fs.existsSync(excelPath)) {
+    throw new Error('Archivo Excel de respaldo no encontrado');
+  }
+
+  const turnoLabel = turno === 'manana' ? '08:30 — inicio de jornada' : '17:30 — fin de jornada';
+  const notaSql = incluirSql
+    ? `<p>Se adjunta también el volcado SQL técnico (${formatearTamanoArchivo(sqlBytes)}).</p>`
+    : `<p>El volcado SQL (${formatearTamanoArchivo(sqlBytes || 0)}) supera el límite de ${maxEmailMb} MB para correo; descárguelo desde el módulo <strong>Archivo / Respaldos</strong> en el portal.</p>`;
+
+  const contenido = `
+    <p>Respaldo automático del portal interno Prayaga.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Fecha (Perú)</span><span class="info-value">${escapeHtml(fechaLabel)}</span></div>
+      <div class="info-row"><span class="info-label">Turno</span><span class="info-value">${escapeHtml(turnoLabel)}</span></div>
+      <div class="info-row"><span class="info-label">Excel</span><span class="info-value">${formatearTamanoArchivo(excelBytes)} — datos legibles por hoja</span></div>
+    </div>
+    ${notaSql}
+    <p style="font-size:13px;color:#64748b;">Copia off-site: conserve este correo como archivo histórico. Los respaldos también quedan en el servidor (módulo Archivo / Respaldos).</p>
+  `;
+
+  const attachments = [
+    {
+      filename: path.basename(excelPath),
+      path: excelPath
+    }
+  ];
+  if (incluirSql && sqlPath && fs.existsSync(sqlPath)) {
+    attachments.push({
+      filename: path.basename(sqlPath),
+      path: sqlPath
+    });
+  }
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"Portal Prayaga — Archivo" <${process.env.SMTP_USER}>`,
+      to: toList.join(', '),
+      subject: `[Respaldo Prayaga] ${fechaLabel} (${turno === 'manana' ? 'mañana' : 'tarde'})`,
+      html: plantillaBase(contenido, 'Respaldo automático de datos'),
+      attachments
+    });
+    console.log(`📧 Respaldo enviado a: ${toList.join(', ')}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error al enviar correo de respaldo:', error.message);
+    throw error;
+  }
+};
+
 module.exports = {
   verificarConexion,
   notificarNuevaSolicitud,
@@ -1675,5 +1755,6 @@ module.exports = {
   notificarReembolsoResueltoEmpleado,
   notificarNuevaRendicionAdmin,
   notificarRendicionResueltaEmpleado,
-  enviarCajaChicaResumenRocio
+  enviarCajaChicaResumenRocio,
+  enviarRespaldoArchivo
 };

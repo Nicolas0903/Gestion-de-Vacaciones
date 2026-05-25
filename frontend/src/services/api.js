@@ -304,6 +304,12 @@ export const proveedoresService = {
   eliminarReevaluacion: (id) => api.delete(`/proveedores/reevaluaciones/${id}`)
 };
 
+export const backupsService = {
+  listar: (params) => api.get('/backups', { params }),
+  descargar: (id, tipo) => api.get(`/backups/${id}/descargar/${tipo}`, { responseType: 'blob' }),
+  ejecutar: (body) => api.post('/backups/ejecutar', body)
+};
+
 // Asistente IA (solo admin, lectura)
 export const asistenteIaService = {
   estado: () => api.get('/asistente-ia/estado'),

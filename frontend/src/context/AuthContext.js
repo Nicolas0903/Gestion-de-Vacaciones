@@ -186,7 +186,7 @@ export const AuthProvider = ({ children }) => {
       return esAdmin() || esContadora();
     }
 
-    if (moduloId === 'solicitudes-registro' || moduloId === 'proveedores') {
+    if (moduloId === 'solicitudes-registro' || moduloId === 'proveedores' || moduloId === 'archivo-respaldos') {
       return esAdmin() || esContadora();
     }
 

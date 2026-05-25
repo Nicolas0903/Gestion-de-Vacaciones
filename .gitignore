@@ -43,4 +43,5 @@ tmp/
 
 # Uploads y archivos generados
 uploads/
+backend/backups/
 *.pdf

@@ -37,6 +37,7 @@ import ControlProyectosReporteActividades from './pages/ControlProyectosReporteA
 import AdminCostoHoraProyectos from './pages/AdminCostoHoraProyectos';
 import AdministracionUsuarios from './pages/AdministracionUsuarios';
 import Proveedores from './pages/Proveedores';
+import ArchivoRespaldos from './pages/ArchivoRespaldos';
 
 // Components
 import Layout from './components/Layout';
@@ -240,6 +241,14 @@ function AppRoutes() {
         <ProtectedRoute roles={['admin', 'contadora']}>
           <ModuloPortalRoute moduloId="proveedores">
             <PageWrapper><Proveedores /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/archivo-respaldos" element={
+        <ProtectedRoute roles={['admin', 'contadora']}>
+          <ModuloPortalRoute moduloId="archivo-respaldos">
+            <PageWrapper><ArchivoRespaldos /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

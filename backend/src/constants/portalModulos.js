@@ -24,6 +24,11 @@ const MODULOS_PORTAL = [
     id: 'proveedores',
     etiqueta: 'Gestión de Proveedores',
     descripcion: 'Lista de proveedores y evaluación/selección de nuevos'
+  },
+  {
+    id: 'archivo-respaldos',
+    etiqueta: 'Archivo / Respaldos',
+    descripcion: 'Copias diarias legibles (Excel) y descarga de volcados SQL'
   }
 ];
 

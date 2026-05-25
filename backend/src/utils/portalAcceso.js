@@ -30,7 +30,7 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
     if (EMAILS_MODULO_CAJA_CHICA.includes(e)) return true;
     return rolNombre === 'admin' || rolNombre === 'contadora';
   }
-  if (moduloId === 'solicitudes-registro' || moduloId === 'proveedores') {
+  if (moduloId === 'solicitudes-registro' || moduloId === 'proveedores' || moduloId === 'archivo-respaldos') {
     return rolNombre === 'admin' || rolNombre === 'contadora';
   }
   // Rendición de presupuesto: acceso restringido. Solo admin tiene acceso por defecto;

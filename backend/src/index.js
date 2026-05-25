@@ -9,6 +9,7 @@ const {
 const { testConnection } = require('./config/database');
 const routes = require('./routes');
 const emailService = require('./services/emailService');
+const { iniciarBackupScheduler } = require('./services/backupScheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -99,6 +100,8 @@ const startServer = async () => {
 
   // Verificar configuración de email
   await emailService.verificarConexion();
+
+  iniciarBackupScheduler();
 
   app.listen(PORT, () => {
     console.log(`

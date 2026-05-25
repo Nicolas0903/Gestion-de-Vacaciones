@@ -15,6 +15,7 @@ import {
   UsersIcon,
   BriefcaseIcon,
   BuildingStorefrontIcon,
+  ArchiveBoxIcon,
   ArrowRightOnRectangleIcon,
   XMarkIcon,
   ChevronDownIcon
@@ -238,6 +239,22 @@ const Portal = () => {
       bgLight: 'bg-orange-50',
       textColor: 'text-orange-600',
       link: '/proveedores',
+      activo: true,
+      restringido: true
+    });
+  }
+
+  if (puedeAccederModuloPortal('archivo-respaldos')) {
+    modulos.push({
+      id: 'archivo-respaldos',
+      titulo: 'Archivo / Respaldos',
+      descripcion: 'Copias diarias en Excel (08:30 y 17:30) y descarga de volcados SQL',
+      icono: ArchiveBoxIcon,
+      color: 'from-slate-600 to-slate-800',
+      shadowColor: 'shadow-slate-600/30',
+      bgLight: 'bg-slate-50',
+      textColor: 'text-slate-700',
+      link: '/archivo-respaldos',
       activo: true,
       restringido: true
     });
