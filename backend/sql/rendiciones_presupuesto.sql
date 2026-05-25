@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS rendiciones_presupuesto (
   archivo_comprobante_path VARCHAR(500) NULL,
   archivo_recibo_generado_path VARCHAR(500) NULL COMMENT 'PDF generado si no adjuntó factura',
   monto DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  moneda ENUM('PEN', 'USD') NOT NULL DEFAULT 'PEN' COMMENT 'PEN=soles, USD=dólares',
   ruc_proveedor VARCHAR(32) NULL COMMENT 'Con comprobante: RUC del emisor',
   numero_documento VARCHAR(80) NULL COMMENT 'Con comprobante: N° de factura / documento',
   estado ENUM('pendiente', 'aprobado', 'rechazado', 'observado') NOT NULL DEFAULT 'pendiente',

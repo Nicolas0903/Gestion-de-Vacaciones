@@ -65,6 +65,31 @@ class RendicionPresupuesto {
     comercial: 'Comercial'
   };
 
+  static MONEDAS_VALIDAS = ['PEN', 'USD'];
+
+  static MONEDA_LABEL = {
+    PEN: 'Soles',
+    USD: 'Dólares'
+  };
+
+  static normalizarMoneda(v) {
+    const m = String(v || 'PEN')
+      .trim()
+      .toUpperCase();
+    return m === 'USD' ? 'USD' : 'PEN';
+  }
+
+  static simboloMoneda(moneda) {
+    return this.normalizarMoneda(moneda) === 'USD' ? '$' : 'S/';
+  }
+
+  static formatearMonto(monto, moneda) {
+    const n = Number(monto);
+    const sym = this.simboloMoneda(moneda);
+    if (Number.isNaN(n)) return `${sym} —`;
+    return `${sym} ${n.toFixed(2)}`;
+  }
+
   static codigoTicket(row) {
     const y = row.created_at ? new Date(row.created_at).getFullYear() : new Date().getFullYear();
     return `RDP-${y}-${String(row.id).padStart(5, '0')}`;
@@ -83,6 +108,7 @@ class RendicionPresupuesto {
       archivo_comprobante_path,
       archivo_recibo_generado_path,
       monto,
+      moneda,
       ruc_proveedor,
       numero_documento
     } = datos;
@@ -91,8 +117,8 @@ class RendicionPresupuesto {
       `INSERT INTO rendiciones_presupuesto
        (empleado_id, fecha_solicitud_usuario, area, concepto, nombre_completo, dni, tiene_comprobante,
         archivo_comprobante_nombre, archivo_comprobante_path, archivo_recibo_generado_path,
-        monto, ruc_proveedor, numero_documento, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+        monto, moneda, ruc_proveedor, numero_documento, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
       [
         empleado_id,
         fecha_solicitud_usuario,
@@ -105,6 +131,7 @@ class RendicionPresupuesto {
         archivo_comprobante_path || null,
         archivo_recibo_generado_path || null,
         monto != null ? monto : 0,
+        this.normalizarMoneda(moneda),
         ruc_proveedor || null,
         numero_documento || null
       ]
@@ -271,6 +298,7 @@ class RendicionPresupuesto {
       area,
       concepto,
       monto,
+      moneda,
       tiene_comprobante,
       archivo_comprobante_nombre,
       archivo_comprobante_path
@@ -282,6 +310,7 @@ class RendicionPresupuesto {
         area = ?,
         concepto = ?,
         monto = ?,
+        moneda = ?,
         tiene_comprobante = ?,
         archivo_comprobante_nombre = ?,
         archivo_comprobante_path = ?
@@ -291,6 +320,7 @@ class RendicionPresupuesto {
         area,
         concepto,
         monto,
+        this.normalizarMoneda(moneda),
         tiene_comprobante ? 1 : 0,
         archivo_comprobante_nombre || null,
         archivo_comprobante_path || null,

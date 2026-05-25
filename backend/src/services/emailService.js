@@ -1511,7 +1511,7 @@ const notificarNuevaRendicionAdmin = async ({
       <div class="info-row"><span class="info-label">Área</span><span class="info-value">${escapeHtml(areaLabel)}</span></div>
       <div class="info-row"><span class="info-label">Fecha (usuario)</span><span class="info-value">${escapeHtml(rendicion.fecha_solicitud_usuario)}</span></div>
       <div class="info-row"><span class="info-label">Concepto</span><span class="info-value">${escapeHtml(rendicion.concepto)}</span></div>
-      <div class="info-row"><span class="info-label">Monto</span><span class="info-value">S/ ${Number(rendicion.monto || 0).toFixed(2)}</span></div>
+      <div class="info-row"><span class="info-label">Monto</span><span class="info-value">${escapeHtml(rendicion.monto_formateado || `S/ ${Number(rendicion.monto || 0).toFixed(2)}`)} (${escapeHtml(rendicion.moneda === 'USD' ? 'Dólares' : 'Soles')})</span></div>
     </div>
     ${bloqueArchivo}
     <p style="text-align:center; margin:24px 0 10px;"><strong>¿Aprobar o rechazar?</strong></p>

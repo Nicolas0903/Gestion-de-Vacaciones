@@ -35,6 +35,7 @@ function rangoMes(anio, mes) {
 
 function mapRendicionFila(r) {
   const codigo = RendicionPresupuesto.codigoTicket(r);
+  const moneda = RendicionPresupuesto.normalizarMoneda(r.moneda);
   const montoRend = Number(r.monto) || 0;
   const montoDep =
     r.monto_deposito != null && r.monto_deposito !== '' ? Number(r.monto_deposito) : null;
@@ -46,7 +47,9 @@ function mapRendicionFila(r) {
     area_label: RendicionPresupuesto.AREAS_LABEL[r.area] || r.area,
     empleado_nombre: `${r.empleado_nombres || ''} ${r.empleado_apellidos || ''}`.trim(),
     concepto: r.concepto,
+    moneda,
     monto_rendicion: montoRend,
+    monto_rendicion_fmt: RendicionPresupuesto.formatearMonto(montoRend, moneda),
     fecha_deposito: RendicionPresupuesto.normalizarFechaDepositoApi(r.fecha_deposito),
     monto_deposito: montoDep,
     comprobante_deposito_nombre: r.comprobante_deposito_nombre || null,

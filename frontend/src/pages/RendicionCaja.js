@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { rendicionCajaService, rendicionPresupuestoService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
+import { formatoMontoRendicion } from '../utils/monedaRendicion';
 
 const MESES = [
   { v: 1, l: 'Enero' },
@@ -429,7 +430,7 @@ const RendicionCaja = () => {
                                 {m.concepto}
                               </td>
                               <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">
-                                {fmt(m.monto_rendicion)}
+                                {m.monto_rendicion_fmt || formatoMontoRendicion(m.monto_rendicion, m.moneda)}
                               </td>
                               <td className="py-2 pr-2">
                                 {m.tiene_comprobante_solicitud ? (

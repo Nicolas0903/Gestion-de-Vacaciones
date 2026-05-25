@@ -7,8 +7,12 @@ const API_URL = process.env.API_URL || 'http://localhost:3001/api';
 
 function enriquecer(r) {
   if (!r) return null;
+  const moneda = RendicionPresupuesto.normalizarMoneda(r.moneda);
   return {
     ...r,
+    moneda,
+    moneda_label: RendicionPresupuesto.MONEDA_LABEL[moneda],
+    monto_formateado: RendicionPresupuesto.formatearMonto(r.monto, moneda),
     codigo_ticket: RendicionPresupuesto.codigoTicket(r),
     area_label: RendicionPresupuesto.AREAS_LABEL[r.area] || r.area,
     fecha_registro_ticket: r.created_at
@@ -30,7 +34,7 @@ function puedeEliminarRendicion(usuario, rendicion) {
 
 const crear = async (req, res) => {
   try {
-    const { fecha_solicitud_usuario, area, concepto, monto } = req.body;
+    const { fecha_solicitud_usuario, area, concepto, monto, moneda } = req.body;
 
     const nombre_completo = `${req.usuario.nombres || ''} ${req.usuario.apellidos || ''}`.trim();
     const dni = req.usuario.dni || '';
@@ -66,6 +70,7 @@ const crear = async (req, res) => {
       archivo_comprobante_path,
       archivo_recibo_generado_path: null,
       monto: montoNum,
+      moneda: RendicionPresupuesto.normalizarMoneda(moneda),
       ruc_proveedor: null,
       numero_documento: null
     });
@@ -315,7 +320,7 @@ const actualizarAdmin = async (req, res) => {
       return res.status(404).json({ success: false, mensaje: 'No encontrado.' });
     }
 
-    const { fecha_solicitud_usuario, area, concepto, monto } = req.body;
+    const { fecha_solicitud_usuario, area, concepto, monto, moneda } = req.body;
 
     if (!fecha_solicitud_usuario || !String(concepto || '').trim()) {
       return res.status(400).json({ success: false, mensaje: 'Fecha y concepto son obligatorios.' });
@@ -344,6 +349,7 @@ const actualizarAdmin = async (req, res) => {
       area,
       concepto: String(concepto).trim(),
       monto: montoNum,
+      moneda: RendicionPresupuesto.normalizarMoneda(moneda),
       tiene_comprobante: tieneComprobante,
       archivo_comprobante_nombre,
       archivo_comprobante_path

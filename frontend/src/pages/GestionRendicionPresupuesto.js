@@ -16,6 +16,7 @@ import {
 } from '../config/rendicionPresupuestoUpload';
 import { rendicionPresupuestoService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
+import { formatoMontoRendicion, MONEDAS_RENDICION } from '../utils/monedaRendicion';
 
 const AREAS_FALLBACK = [
   { value: 'gerencia_general', label: 'Gerencia General' },
@@ -26,11 +27,7 @@ const AREAS_FALLBACK = [
   { value: 'comercial', label: 'Comercial' }
 ];
 
-const formatoMonto = (m) => {
-  const n = Number(m);
-  if (Number.isNaN(n)) return '—';
-  return `S/ ${n.toFixed(2)}`;
-};
+const formatoMonto = (m, moneda) => formatoMontoRendicion(m, moneda);
 
 const estadoBadge = (e) => {
   const map = {
@@ -127,7 +124,8 @@ const GestionRendicionPresupuesto = () => {
       fecha_solicitud_usuario: editar.fecha_solicitud_usuario?.slice(0, 10) || '',
       area: editar.area || '',
       concepto: editar.concepto || '',
-      monto: String(editar.monto ?? '0')
+      monto: String(editar.monto ?? '0'),
+      moneda: editar.moneda || 'PEN'
     });
     setArchivoReemplazo(null);
   }, [editar]);
@@ -305,6 +303,7 @@ const GestionRendicionPresupuesto = () => {
       fd.append('area', formEdit.area);
       fd.append('concepto', formEdit.concepto.trim());
       fd.append('monto', formEdit.monto || '0');
+      fd.append('moneda', formEdit.moneda || 'PEN');
       if (archivoReemplazo) {
         fd.append('comprobante', archivoReemplazo);
       }
@@ -499,7 +498,7 @@ const GestionRendicionPresupuesto = () => {
                       {r.concepto}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap tabular-nums text-slate-800">
-                      {formatoMonto(r.monto)}
+                      {formatoMonto(r.monto, r.moneda)}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2 py-1 rounded-full ${estadoBadge(r.estado)}`}>
@@ -631,7 +630,7 @@ const GestionRendicionPresupuesto = () => {
                   <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium text-slate-700 bg-slate-100 border border-slate-200">
                     {estadoLabel(fichaModal.estado)}
                   </span>{' '}
-                  · Monto {formatoMonto(fichaModal.monto)}
+                  · Monto {formatoMonto(fichaModal.monto, fichaModal.moneda)}
                 </p>
               </div>
               <button
@@ -819,16 +818,32 @@ const GestionRendicionPresupuesto = () => {
                   onChange={(e) => setFormEdit({ ...formEdit, concepto: e.target.value })}
                 />
               </div>
-              <div>
-                <label className="block text-slate-600 mb-1">Monto (S/) *</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
-                  value={formEdit.monto}
-                  onChange={(e) => setFormEdit({ ...formEdit, monto: e.target.value })}
-                />
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 mb-1">Moneda *</label>
+                  <select
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"
+                    value={formEdit.moneda}
+                    onChange={(e) => setFormEdit({ ...formEdit, moneda: e.target.value })}
+                  >
+                    {MONEDAS_RENDICION.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-600 mb-1">Monto *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                    value={formEdit.monto}
+                    onChange={(e) => setFormEdit({ ...formEdit, monto: e.target.value })}
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-slate-600 mb-1">

@@ -15,6 +15,7 @@ import {
   RENDICION_PRESUPUESTO_MAX_FILE_BYTES
 } from '../config/rendicionPresupuestoUpload';
 import { formatoFechaDMY, formatoFechaHoraDMY } from '../utils/dateUtils';
+import { formatoMontoRendicion, MONEDAS_RENDICION } from '../utils/monedaRendicion';
 
 const estadoBadge = (e) => {
   const map = {
@@ -65,6 +66,7 @@ const RendicionPresupuesto = () => {
   const [concepto, setConcepto] = useState('');
   const [archivo, setArchivo] = useState(null);
   const [monto, setMonto] = useState('0');
+  const [moneda, setMoneda] = useState('PEN');
   const [fileInputKey, setFileInputKey] = useState(0);
   const [eliminandoId, setEliminandoId] = useState(null);
 
@@ -85,6 +87,7 @@ const RendicionPresupuesto = () => {
     setConcepto('');
     setArchivo(null);
     setMonto('0');
+    setMoneda('PEN');
     setFileInputKey((k) => k + 1);
   };
 
@@ -160,6 +163,7 @@ const RendicionPresupuesto = () => {
     fd.append('area', area);
     fd.append('concepto', concepto.trim());
     fd.append('monto', monto || '0');
+    fd.append('moneda', moneda);
     if (archivo) {
       fd.append('comprobante', archivo);
     }
@@ -282,17 +286,37 @@ const RendicionPresupuesto = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Monto (S/)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="w-full max-w-xs rounded-xl border border-slate-200 px-4 py-2.5"
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
-            />
-            <p className="text-xs text-slate-500 mt-1.5">Importe del gasto en soles.</p>
+          <div className="grid sm:grid-cols-2 gap-4 max-w-xl">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Moneda *</label>
+              <select
+                required
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 bg-white"
+                value={moneda}
+                onChange={(e) => setMoneda(e.target.value)}
+              >
+                {MONEDAS_RENDICION.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Monto *</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5"
+                value={monto}
+                onChange={(e) => setMonto(e.target.value)}
+              />
+              <p className="text-xs text-slate-500 mt-1.5">
+                Importe en {moneda === 'USD' ? 'dólares americanos' : 'soles peruanos'}.
+              </p>
+            </div>
           </div>
 
           <div>
@@ -379,8 +403,8 @@ const RendicionPresupuesto = () => {
                     <span className="text-slate-700 line-clamp-2 align-middle">{r.concepto}</span>
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Fecha gasto: {formatoFechaDMY(r.fecha_solicitud_usuario)} · Monto: S/{' '}
-                    {Number(r.monto || 0).toFixed(2)}
+                    Fecha gasto: {formatoFechaDMY(r.fecha_solicitud_usuario)} · Monto:{' '}
+                    {r.monto_formateado || formatoMontoRendicion(r.monto, r.moneda)}
                   </p>
                   <details className="mt-2 text-xs text-slate-600">
                     <summary className="cursor-pointer text-sky-600 font-medium select-none">Ver todos los datos</summary>
