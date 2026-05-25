@@ -57,7 +57,7 @@ const listarPorEmpleado = async (req, res) => {
   }
 };
 
-// Listar mis períodos (lo ya ganado + período vigente; sin períodos con inicio futuro)
+// Listar mis períodos (solo períodos ya cerrados — año cumplido)
 const listarMios = async (req, res) => {
   try {
     const periodos = await PeriodoVacaciones.listarPorEmpleado(req.usuario.id, { vistaEmpleado: true });

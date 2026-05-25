@@ -138,44 +138,12 @@ class PeriodoVacaciones {
   }
 
   /**
-   * Fecha máxima de fin que el portal del empleado debe mostrar:
-   * GREATER(período activo que NO viene de renovación automática del sistema,
-   *          último período ya cerrado).
-   * Los bloques creados solo por backend (campo renovacion_automatica) siguen guardados
-   * para RRHH, pero no se cuentan en la vista hasta que exista período cargado como empresa (flag 0).
+   * Vista empleado / portal: solo períodos **cerrados** (año cumplido).
+   * Ej.: ingreso 25/05/2025 → los 30 días aparecen recién cuando fecha_fin < hoy
+   * (p. ej. después del 24/05/2026), no al iniciar el período ni en años futuros.
    */
-  static async _fechaTopeVistaEmpleado(empleadoId) {
-    const [rows] = await pool.execute(
-      `SELECT GREATEST(
-          COALESCE(
-            (SELECT MAX(p.fecha_fin_periodo)
-             FROM periodos_vacaciones p
-             WHERE p.empleado_id = ?
-               AND p.fecha_inicio_periodo <= CURDATE()
-               AND p.fecha_fin_periodo >= CURDATE()
-               AND COALESCE(p.renovacion_automatica, 0) = 0),
-            '1000-01-01'),
-          COALESCE(
-            (SELECT MAX(p2.fecha_fin_periodo)
-             FROM periodos_vacaciones p2
-             WHERE p2.empleado_id = ?
-                 AND p2.fecha_fin_periodo < CURDATE()),
-            '1000-01-01')
-       ) AS fecha_tope`,
-      [empleadoId, empleadoId]
-    );
-    const raw = rows[0]?.fecha_tope;
-    if (raw == null) return null;
-    const s = typeof raw === 'string' ? raw.slice(0, 10) : String(raw).slice(0, 10);
-    if (!s || s.startsWith('1000')) return null;
-    return s;
-  }
-
-  static async _whereVistaEmpleado(empleadoId) {
-    const tope = await this._fechaTopeVistaEmpleado(empleadoId);
-    const base = ' AND fecha_inicio_periodo <= CURDATE()';
-    if (!tope) return { clause: base, params: [] };
-    return { clause: `${base} AND fecha_fin_periodo <= ?`, params: [tope] };
+  static _whereVistaEmpleado() {
+    return { clause: ' AND fecha_fin_periodo < CURDATE()', params: [] };
   }
 
   // Listar períodos de un empleado (con renovación automática y estado calculado)
@@ -192,7 +160,7 @@ class PeriodoVacaciones {
        WHERE empleado_id = ?`;
     const execParams = [empleadoId];
     if (vistaEmpleado) {
-      const { clause, params } = await this._whereVistaEmpleado(empleadoId);
+      const { clause, params } = this._whereVistaEmpleado();
       sql += clause;
       execParams.push(...params);
     }
@@ -219,7 +187,7 @@ class PeriodoVacaciones {
        WHERE empleado_id = ? AND dias_pendientes > 0`;
     const execParams = [empleadoId];
     if (vistaEmpleado) {
-      const { clause, params } = await this._whereVistaEmpleado(empleadoId);
+      const { clause, params } = this._whereVistaEmpleado();
       sql += clause;
       execParams.push(...params);
     }
@@ -249,7 +217,7 @@ class PeriodoVacaciones {
        WHERE empleado_id = ?`;
     const execParams = [empleadoId];
     if (vistaEmpleado) {
-      const { clause, params } = await this._whereVistaEmpleado(empleadoId);
+      const { clause, params } = this._whereVistaEmpleado();
       sql += clause;
       execParams.push(...params);
     }
@@ -328,17 +296,21 @@ class PeriodoVacaciones {
     return result.affectedRows > 0;
   }
 
-  // Generar períodos automáticamente para un empleado
+  // Generar períodos automáticamente para un empleado (solo años ya cerrados; el vigente lo crea renovarSiVencido)
   static async generarPeriodos(empleadoId, fechaIngreso, anioHasta = new Date().getFullYear()) {
     const fechaInicio = new Date(fechaIngreso);
     const anioIngreso = fechaInicio.getFullYear();
     const periodos = [];
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
 
     for (let anio = anioIngreso; anio <= anioHasta; anio++) {
       const fechaInicioPeriodo = new Date(anio, fechaInicio.getMonth(), fechaInicio.getDate());
       const fechaFinPeriodo = new Date(anio + 1, fechaInicio.getMonth(), fechaInicio.getDate() - 1);
+      fechaFinPeriodo.setHours(0, 0, 0, 0);
 
-      // Verificar si ya existe el período
+      if (fechaFinPeriodo >= hoy) continue;
+
       const [existente] = await pool.execute(
         `SELECT id FROM periodos_vacaciones 
          WHERE empleado_id = ? AND YEAR(fecha_inicio_periodo) = ?`,
