@@ -109,7 +109,8 @@ const crearEmpleado = async (req, res) => {
       fecha_ingreso,
       rol_id,
       jefe_id,
-      modulos_portal
+      modulos_portal,
+      es_consultor_cp
     } = req.body;
 
     const areaNormalizada = normalizarArea(area);
@@ -137,13 +138,26 @@ const crearEmpleado = async (req, res) => {
       return res.status(400).json({ success: false, mensaje: 'Ya existe un empleado con ese código' });
     }
 
+    const [rolesRows] = await pool.execute('SELECT nombre FROM roles WHERE id = ?', [rol_id]);
+    const rol_nombre = rolesRows[0]?.nombre;
+    if (!rol_nombre) {
+      return res.status(400).json({ success: false, mensaje: 'Rol no válido' });
+    }
+
+    const cargoNorm = (cargo || '').trim().toLowerCase();
+    const esCargoConsultor = cargoNorm === 'consultor' || cargoNorm.startsWith('consultor ');
+    const esRolConsultor = (rol_nombre || '').toLowerCase().trim() === 'consultor';
+    const esConsultorCp =
+      es_consultor_cp === true ||
+      es_consultor_cp === 1 ||
+      es_consultor_cp === '1' ||
+      esCargoConsultor ||
+      esRolConsultor
+        ? 1
+        : 0;
+
     let modulosJson = null;
     if (modulos_portal && typeof modulos_portal === 'object') {
-      const [rolesRows] = await pool.execute('SELECT nombre FROM roles WHERE id = ?', [rol_id]);
-      const rol_nombre = rolesRows[0]?.nombre;
-      if (!rol_nombre) {
-        return res.status(400).json({ success: false, mensaje: 'Rol no válido' });
-      }
       const fake = { rol_nombre, email, modulos_portal: null };
       modulosJson = construirModulosPortalDesdeBody(fake, modulos_portal);
     }
@@ -160,7 +174,8 @@ const crearEmpleado = async (req, res) => {
       fecha_ingreso,
       rol_id,
       jefe_id,
-      modulos_portal: modulosJson
+      modulos_portal: modulosJson,
+      es_consultor_cp: esConsultorCp
     });
 
     await PeriodoVacaciones.generarPeriodos(nuevoId, fecha_ingreso);

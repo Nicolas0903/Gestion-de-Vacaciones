@@ -99,6 +99,23 @@ function prefijoCodigoPorNombreRol(nombreRol) {
   return slug.toUpperCase() || 'EMP';
 }
 
+function esTextoCargoConsultor(cargo) {
+  const c = (cargo || '').trim().toLowerCase();
+  return c === 'consultor' || c.startsWith('consultor ');
+}
+
+function esRolConsultor(rolId, roles) {
+  const r = (roles || []).find((x) => String(x.id) === String(rolId));
+  return (r?.nombre || '').toLowerCase().trim() === 'consultor';
+}
+
+function aplicarDefaultConsultorCp(prev, { cargo, rol_id, roles }) {
+  if (esTextoCargoConsultor(cargo) || esRolConsultor(rol_id, roles)) {
+    return { ...prev, es_consultor_cp: true };
+  }
+  return prev;
+}
+
 function siguienteCodigoConPrefijo(prefijo, codigosExistentes) {
   const p = (prefijo || 'EMP').toUpperCase().slice(0, 8);
   const re = new RegExp(`^${p}(\\d+)$`, 'i');
@@ -165,7 +182,8 @@ export default function AdministracionUsuarios() {
     cargo: '',
     area: '',
     fecha_ingreso: '',
-    rol_id: ''
+    rol_id: '',
+    es_consultor_cp: false
   });
   const [codigosCatalogoAlta, setCodigosCatalogoAlta] = useState([]);
   const ultimoCodigoSugeridoAltaRef = useRef('');
@@ -522,7 +540,11 @@ export default function AdministracionUsuarios() {
         ...formAlta,
         password,
         rol_id: parseInt(formAlta.rol_id, 10),
-        jefe_id: null
+        jefe_id: null,
+        es_consultor_cp:
+          formAlta.es_consultor_cp ||
+          esTextoCargoConsultor(formAlta.cargo) ||
+          esRolConsultor(formAlta.rol_id, roles)
       };
       await adminPortalUsuariosService.crear(body);
       toast.success('Usuario creado. Recuerda copiar y enviar la contraseña inicial al colaborador.');
@@ -539,7 +561,8 @@ export default function AdministracionUsuarios() {
         cargo: '',
         area: '',
         fecha_ingreso: '',
-        rol_id: ''
+        rol_id: '',
+        es_consultor_cp: false
       });
       cargarLista();
     } catch (err) {
@@ -584,7 +607,8 @@ export default function AdministracionUsuarios() {
       cargo: '',
       area: '',
       fecha_ingreso: '',
-      rol_id: ''
+      rol_id: '',
+      es_consultor_cp: false
     });
     setModalAlta(true);
   };
@@ -906,7 +930,24 @@ export default function AdministracionUsuarios() {
                       required
                       className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
                       value={formCuenta.rol_id}
-                      onChange={(e) => setFormCuenta((f) => ({ ...f, rol_id: e.target.value }))}
+                      onChange={(e) => {
+                        const rol_id = e.target.value;
+                        setFormCuenta((f) => {
+                          const next = {
+                            ...f,
+                            rol_id,
+                            cargo:
+                              esRolConsultor(rol_id, roles) && !f.cargo.trim()
+                                ? 'Consultor'
+                                : f.cargo
+                          };
+                          return aplicarDefaultConsultorCp(next, {
+                            cargo: next.cargo,
+                            rol_id,
+                            roles
+                          });
+                        });
+                      }}
                     >
                       <option value="">Seleccionar…</option>
                       {roles.map((r) => (
@@ -946,7 +987,12 @@ export default function AdministracionUsuarios() {
                       className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
                       placeholder="Opcional"
                       value={formCuenta.cargo}
-                      onChange={(e) => setFormCuenta((f) => ({ ...f, cargo: e.target.value }))}
+                      onChange={(e) => {
+                        const cargo = e.target.value;
+                        setFormCuenta((f) =>
+                          aplicarDefaultConsultorCp({ ...f, cargo }, { cargo, rol_id: f.rol_id, roles })
+                        );
+                      }}
                     />
                   </div>
                   <div>
@@ -987,6 +1033,7 @@ export default function AdministracionUsuarios() {
                       <span className="font-medium text-gray-200 block">Consultor en control de proyectos</span>
                       <span className="text-xs text-gray-400 block mt-0.5">
                         Si está activo, esta persona aparece en el listado para asignar a proyectos (formulario reducido).
+                        Se activa automáticamente si el cargo es Consultor o el rol es consultor.
                       </span>
                     </span>
                   </label>
@@ -1378,8 +1425,27 @@ export default function AdministracionUsuarios() {
                 placeholder="Cargo (opcional)"
                 className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
                 value={formAlta.cargo}
-                onChange={(e) => setFormAlta((f) => ({ ...f, cargo: e.target.value }))}
+                onChange={(e) => {
+                  const cargo = e.target.value;
+                  setFormAlta((f) =>
+                    aplicarDefaultConsultorCp({ ...f, cargo }, { cargo, rol_id: f.rol_id, roles })
+                  );
+                }}
               />
+              <label className="flex gap-3 items-start p-3 rounded-lg border border-white/10 bg-[#1c1b1a] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formAlta.es_consultor_cp}
+                  onChange={(e) => setFormAlta((f) => ({ ...f, es_consultor_cp: e.target.checked }))}
+                  className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500"
+                />
+                <span>
+                  <span className="font-medium text-gray-200 block">Consultor en control de proyectos</span>
+                  <span className="text-xs text-gray-400 block mt-0.5">
+                    Se activa automáticamente si el cargo es Consultor o el rol es consultor.
+                  </span>
+                </span>
+              </label>
               <select
                 className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
                 value={formAlta.area}
@@ -1410,7 +1476,22 @@ export default function AdministracionUsuarios() {
                 required
                 className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
                 value={formAlta.rol_id}
-                onChange={(e) => setFormAlta((f) => ({ ...f, rol_id: e.target.value }))}
+                onChange={(e) => {
+                  const rol_id = e.target.value;
+                  setFormAlta((f) => {
+                    const next = {
+                      ...f,
+                      rol_id,
+                      cargo:
+                        esRolConsultor(rol_id, roles) && !f.cargo.trim() ? 'Consultor' : f.cargo
+                    };
+                    return aplicarDefaultConsultorCp(next, {
+                      cargo: next.cargo,
+                      rol_id,
+                      roles
+                    });
+                  });
+                }}
                 title="Al cambiar el rol se actualiza el código propuesto"
               >
                 <option value="">Rol…</option>
