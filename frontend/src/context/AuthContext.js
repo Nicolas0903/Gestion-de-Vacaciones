@@ -168,6 +168,10 @@ export const AuthProvider = ({ children }) => {
     if (moduloId === 'rendicion-presupuesto' && esAdmin()) {
       return true;
     }
+    // Admin siempre puede acceder a Proveedores.
+    if (moduloId === 'proveedores' && esAdmin()) {
+      return true;
+    }
 
     const m = usuario.modulos_portal;
     const tieneMapa = m && typeof m === 'object' && Object.keys(m).length > 0;
@@ -186,8 +190,13 @@ export const AuthProvider = ({ children }) => {
       return esAdmin() || esContadora();
     }
 
-    if (moduloId === 'solicitudes-registro' || moduloId === 'proveedores' || moduloId === 'archivo-respaldos') {
+    if (moduloId === 'solicitudes-registro' || moduloId === 'archivo-respaldos') {
       return esAdmin() || esContadora();
+    }
+
+    // Proveedores: acceso solo si está activado en Administración de usuarios (admin siempre).
+    if (moduloId === 'proveedores') {
+      return false;
     }
 
     // Rendición de Presupuesto: acceso restringido por defecto (solo admin

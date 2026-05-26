@@ -238,7 +238,7 @@ function AppRoutes() {
       } />
 
       <Route path="/proveedores" element={
-        <ProtectedRoute roles={['admin', 'contadora']}>
+        <ProtectedRoute>
           <ModuloPortalRoute moduloId="proveedores">
             <PageWrapper><Proveedores /></PageWrapper>
           </ModuloPortalRoute>

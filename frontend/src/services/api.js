@@ -282,7 +282,7 @@ export const rendicionCajaService = {
   reabrir: (id) => api.post(`/caja-rendicion/periodos/${id}/reabrir`)
 };
 
-// Gestión de proveedores (admin / contadora)
+// Gestión de proveedores (según modulos_portal; admin siempre)
 export const proveedoresService = {
   catalogos: () => api.get('/proveedores/catalogos'),
   listar: (params = {}) => api.get('/proveedores', { params }),

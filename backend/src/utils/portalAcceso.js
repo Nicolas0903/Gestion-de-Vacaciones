@@ -30,8 +30,12 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
     if (EMAILS_MODULO_CAJA_CHICA.includes(e)) return true;
     return rolNombre === 'admin' || rolNombre === 'contadora';
   }
-  if (moduloId === 'solicitudes-registro' || moduloId === 'proveedores' || moduloId === 'archivo-respaldos') {
+  if (moduloId === 'solicitudes-registro' || moduloId === 'archivo-respaldos') {
     return rolNombre === 'admin' || rolNombre === 'contadora';
+  }
+  // Proveedores: solo admin por defecto; el resto según modulos_portal en Administración de usuarios.
+  if (moduloId === 'proveedores') {
+    return rolNombre === 'admin';
   }
   // Rendición de presupuesto: acceso restringido. Solo admin tiene acceso por defecto;
   // para el resto del personal, debe activarse explícitamente vía modulos_portal.
@@ -58,9 +62,12 @@ function tieneAccesoEfectivoModulo(empleado, moduloId) {
   ) {
     return true;
   }
-  // Admin siempre puede acceder al módulo de Rendición de Presupuesto
-  // (aunque su mapa explícito lo tenga en false), porque es quien aprueba.
+  // Admin siempre puede acceder a Rendición de Presupuesto (es quien aprueba).
   if (moduloId === 'rendicion-presupuesto' && empleado.rol_nombre === 'admin') {
+    return true;
+  }
+  // Admin siempre puede acceder a Proveedores (gestión del catálogo).
+  if (moduloId === 'proveedores' && empleado.rol_nombre === 'admin') {
     return true;
   }
   if (tieneMapaPortalExplicito(empleado)) {
