@@ -27,6 +27,7 @@ const Portal = () => {
     usuario,
     logout,
     puedeAccederModuloPortal,
+    refrescarUsuario,
     esAdmin,
     esContadora,
     esAprobadorReembolsos,
@@ -39,6 +40,10 @@ const Portal = () => {
   /* Menú dropdown del chip de usuario (con opciones admin) */
   const [menuUsuarioAbierto, setMenuUsuarioAbierto] = useState(false);
   const menuUsuarioRef = useRef(null);
+
+  useEffect(() => {
+    refrescarUsuario();
+  }, [refrescarUsuario]);
 
   useEffect(() => {
     if (!moduloSelector) return undefined;

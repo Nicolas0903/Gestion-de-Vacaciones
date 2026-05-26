@@ -3,7 +3,11 @@ const { Empleado, PeriodoVacaciones } = require('../models');
 const { pool } = require('../config/database');
 const { MODULOS_PORTAL, MODULO_IDS } = require('../constants/portalModulos');
 const { AREAS_EMPLEADO_VALIDAS } = require('../constants/areasEmpleado');
-const { tieneAccesoEfectivoModulo, accesoPortalDetalleCompleto } = require('../utils/portalAcceso');
+const {
+  tieneAccesoEfectivoModulo,
+  accesoPortalDetalleCompleto,
+  tieneMapaPortalExplicito
+} = require('../utils/portalAcceso');
 
 /** Normaliza el valor `area` recibido del body. Acepta '' / null como "sin área". */
 function normalizarArea(valor) {
@@ -25,11 +29,32 @@ function sinPassword(empleado) {
 
 function construirModulosPortalDesdeBody(empleado, incoming) {
   const body = incoming && typeof incoming === 'object' ? incoming : {};
+  const modulosRestringidos = new Set([
+    'proveedores',
+    'rendicion-presupuesto',
+    'archivo-respaldos',
+    'solicitudes-registro',
+    'asistencia',
+    'caja-chica',
+    'caja-rendicion'
+  ]);
   const out = {};
   for (const mod of MODULOS_PORTAL) {
-    out[mod.id] = body[mod.id] === undefined ? true : !!body[mod.id];
+    if (body[mod.id] === undefined) {
+      out[mod.id] = modulosRestringidos.has(mod.id) ? false : true;
+    } else {
+      out[mod.id] = !!body[mod.id];
+    }
   }
   return out;
+}
+
+/** Valor del checkbox en admin: lo guardado en BD si hay mapa; si no, acceso efectivo legacy. */
+function valorModuloParaEditor(empleado, modId) {
+  if (tieneMapaPortalExplicito(empleado)) {
+    return empleado.modulos_portal[modId] === true;
+  }
+  return tieneAccesoEfectivoModulo(empleado, modId);
 }
 
 const listarCatalogoModulos = async (req, res) => {
@@ -79,7 +104,7 @@ const obtenerEmpleado = async (req, res) => {
       id: mod.id,
       etiqueta: mod.etiqueta,
       descripcion: mod.descripcion,
-      asignado: tieneAccesoEfectivoModulo(empleado, mod.id)
+      asignado: valorModuloParaEditor(empleado, mod.id)
     }));
 
     res.json({

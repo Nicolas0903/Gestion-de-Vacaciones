@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { evaluarAccesoModuloPortal, EMAILS_MODULO_CAJA_CHICA } from './utils/accesoPortal';
 
 // Pages
 import Login from './pages/Login';
@@ -65,11 +66,56 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 };
 
 function ModuloPortalRoute({ moduloId, children }) {
-  const { loading, puedeAccederModuloPortal } = useAuth();
-  if (loading) {
+  const {
+    loading,
+    usuario,
+    refrescarUsuario,
+    esAdmin,
+    esContadora,
+    puedeVerReporteAsistencia
+  } = useAuth();
+  const [verificando, setVerificando] = useState(true);
+  const [permitido, setPermitido] = useState(false);
+
+  useEffect(() => {
+    if (loading) return undefined;
+
+    let cancelado = false;
+    const opts = {
+      esAdmin,
+      esContadora,
+      puedeVerReporteAsistencia,
+      emailsCajaChica: EMAILS_MODULO_CAJA_CHICA
+    };
+
+    const evaluar = (u) => evaluarAccesoModuloPortal(u, moduloId, opts);
+
+    (async () => {
+      setVerificando(true);
+      let u = usuario;
+      if (!evaluar(u)) {
+        u = await refrescarUsuario();
+      }
+      if (cancelado) return;
+      const ok = evaluar(u);
+      setPermitido(ok);
+      setVerificando(false);
+      if (!ok) {
+        toast.error(
+          'No tienes acceso a este módulo. Si te lo acaban de asignar en Usuarios, recarga la página o cierra sesión y vuelve a entrar.'
+        );
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [loading, moduloId, usuario?.id, refrescarUsuario, esAdmin, esContadora, puedeVerReporteAsistencia]);
+
+  if (loading || verificando) {
     return <LoadingSpinner />;
   }
-  if (!puedeAccederModuloPortal(moduloId)) {
+  if (!permitido) {
     return <Navigate to="/portal" replace />;
   }
   return children;

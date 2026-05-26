@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authService } from '../services/api';
+import { evaluarAccesoModuloPortal, parseModulosPortal, EMAILS_MODULO_CAJA_CHICA } from '../utils/accesoPortal';
 
 const AuthContext = createContext(null);
 
@@ -21,12 +22,12 @@ export const AuthProvider = ({ children }) => {
     const usuarioGuardado = localStorage.getItem('usuario');
     
     if (token && usuarioGuardado) {
-      setUsuario(JSON.parse(usuarioGuardado));
-      // Verificar que el token siga siendo válido
+      setUsuario(normalizarUsuario(JSON.parse(usuarioGuardado)));
       authService.perfil()
         .then(res => {
-          setUsuario(res.data.data);
-          localStorage.setItem('usuario', JSON.stringify(res.data.data));
+          const data = normalizarUsuario(res.data.data);
+          setUsuario(data);
+          localStorage.setItem('usuario', JSON.stringify(data));
         })
         .catch(() => {
           logout();
@@ -44,8 +45,8 @@ export const AuthProvider = ({ children }) => {
       const { token, usuario: usuarioData } = response.data.data;
       
       localStorage.setItem('token', token);
-      localStorage.setItem('usuario', JSON.stringify(usuarioData));
-      setUsuario(usuarioData);
+      localStorage.setItem('usuario', JSON.stringify(normalizarUsuario(usuarioData)));
+      setUsuario(normalizarUsuario(usuarioData));
       
       return { success: true };
     } catch (err) {
@@ -73,6 +74,26 @@ export const AuthProvider = ({ children }) => {
     setUsuario(null);
   };
 
+  const normalizarUsuario = (data) => {
+    if (!data) return null;
+    return {
+      ...data,
+      modulos_portal: parseModulosPortal(data.modulos_portal)
+    };
+  };
+
+  const refrescarUsuario = useCallback(async () => {
+    try {
+      const res = await authService.perfil();
+      const data = normalizarUsuario(res.data.data);
+      setUsuario(data);
+      localStorage.setItem('usuario', JSON.stringify(data));
+      return data;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const tieneRol = (...roles) => {
     if (!usuario) return false;
     return roles.includes(usuario.rol_nombre);
@@ -91,15 +112,6 @@ export const AuthProvider = ({ children }) => {
   const USUARIOS_REPORTE_ASISTENCIA = [
     'rocio.picon@prayaga.biz',
     'enrique.prayaga@prayaga.biz',
-    'nicolas.valdivia@prayaga.biz'
-  ];
-
-  const EMAILS_MODULO_CAJA_CHICA = [
-    'rocio.picon@prayaga.biz',
-    'asistente@prayaga.biz',
-    'veronica.gonzales@prayaga.biz',
-    'enrique.prayaga@prayaga.biz',
-    'enrique.agapito@prayaga.biz',
     'nicolas.valdivia@prayaga.biz'
   ];
 
@@ -155,58 +167,18 @@ export const AuthProvider = ({ children }) => {
     return emailsGestionBolsaHorasCp().includes(em);
   };
 
-  const puedeAccederModuloPortal = (moduloId) => {
-    if (!usuario) return false;
-    const em = (usuario.email || '').toLowerCase().trim();
-    if (
-      (moduloId === 'caja-chica' || moduloId === 'caja-rendicion') &&
-      EMAILS_MODULO_CAJA_CHICA.includes(em)
-    ) {
-      return true;
-    }
-    // Admin siempre puede acceder a Rendición de Presupuesto (es quien aprueba).
-    if (moduloId === 'rendicion-presupuesto' && esAdmin()) {
-      return true;
-    }
-    // Admin siempre puede acceder a Proveedores.
-    if (moduloId === 'proveedores' && esAdmin()) {
-      return true;
-    }
+  const accesoPortalOpts = useMemo(
+    () => ({
+      esAdmin,
+      esContadora,
+      puedeVerReporteAsistencia,
+      emailsCajaChica: EMAILS_MODULO_CAJA_CHICA
+    }),
+    [usuario]
+  );
 
-    const m = usuario.modulos_portal;
-    const tieneMapa = m && typeof m === 'object' && Object.keys(m).length > 0;
-    if (tieneMapa) {
-      return m[moduloId] === true;
-    }
-
-    const baseColaborador = ['vacaciones', 'boletas', 'permisos', 'reembolsos', 'control-proyectos'];
-    if (baseColaborador.includes(moduloId)) return true;
-
-    if (moduloId === 'asistencia') {
-      return puedeVerReporteAsistencia();
-    }
-
-    if (moduloId === 'caja-chica' || moduloId === 'caja-rendicion') {
-      return esAdmin() || esContadora();
-    }
-
-    if (moduloId === 'solicitudes-registro' || moduloId === 'archivo-respaldos') {
-      return esAdmin() || esContadora();
-    }
-
-    // Proveedores: acceso solo si está activado en Administración de usuarios (admin siempre).
-    if (moduloId === 'proveedores') {
-      return false;
-    }
-
-    // Rendición de Presupuesto: acceso restringido por defecto (solo admin
-    // o si está activado explícitamente en modulos_portal del empleado).
-    if (moduloId === 'rendicion-presupuesto') {
-      return false;
-    }
-
-    return true;
-  };
+  const puedeAccederModuloPortal = (moduloId) =>
+    evaluarAccesoModuloPortal(usuario, moduloId, accesoPortalOpts);
 
   const esAprobadorReembolsos = () =>
     !!usuario &&
@@ -232,6 +204,7 @@ export const AuthProvider = ({ children }) => {
     esAdminPortalUsuarios,
     puedeAccederModuloPortal,
     puedeGestionarProyectosCp,
+    refrescarUsuario,
     isAuthenticated: !!usuario
   };
 
