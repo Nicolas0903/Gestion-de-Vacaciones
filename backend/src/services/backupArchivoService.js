@@ -500,7 +500,7 @@ function etiquetaTurno(turno) {
 function destinatariosBackup() {
   const raw =
     process.env.BACKUP_EMAILS ||
-    'rocio.picon@prayaga.biz,nicolas.valdivia@prayaga.biz';
+    'nicolas.valdivia@prayaga.biz';
   return raw
     .split(',')
     .map((s) => s.trim())
