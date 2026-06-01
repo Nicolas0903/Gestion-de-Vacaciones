@@ -39,6 +39,7 @@ import AdminCostoHoraProyectos from './pages/AdminCostoHoraProyectos';
 import AdministracionUsuarios from './pages/AdministracionUsuarios';
 import Proveedores from './pages/Proveedores';
 import ArchivoRespaldos from './pages/ArchivoRespaldos';
+import ComisionesPorPagar from './pages/ComisionesPorPagar';
 
 // Components
 import Layout from './components/Layout';
@@ -295,6 +296,14 @@ function AppRoutes() {
         <ProtectedRoute roles={['admin', 'contadora']}>
           <ModuloPortalRoute moduloId="archivo-respaldos">
             <PageWrapper><ArchivoRespaldos /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/comisiones-por-pagar" element={
+        <ProtectedRoute>
+          <ModuloPortalRoute moduloId="comisiones-por-pagar">
+            <PageWrapper wide><ComisionesPorPagar /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

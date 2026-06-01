@@ -48,6 +48,7 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
 
   if (moduloId === 'rendicion-presupuesto' && esAdmin()) return true;
   if (moduloId === 'proveedores' && esAdmin()) return true;
+  if (moduloId === 'comisiones-por-pagar' && esAdmin()) return true;
 
   const m = parseModulosPortal(usuario.modulos_portal);
   const tieneMapa = m && Object.keys(m).length > 0;
@@ -68,7 +69,7 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
     return esAdmin() || esContadora();
   }
 
-  if (moduloId === 'proveedores' || moduloId === 'rendicion-presupuesto') {
+  if (moduloId === 'proveedores' || moduloId === 'rendicion-presupuesto' || moduloId === 'comisiones-por-pagar') {
     return false;
   }
 

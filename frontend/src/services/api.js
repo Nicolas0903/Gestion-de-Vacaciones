@@ -310,6 +310,17 @@ export const backupsService = {
   ejecutar: (body) => api.post('/backups/ejecutar', body)
 };
 
+export const comisionesPorPagarService = {
+  listar: () => api.get('/comisiones-por-pagar'),
+  obtener: (id) => api.get(`/comisiones-por-pagar/${id}`),
+  crear: (body) => api.post('/comisiones-por-pagar', body),
+  actualizar: (id, body) => api.put(`/comisiones-por-pagar/${id}`, body),
+  eliminar: (id) => api.delete(`/comisiones-por-pagar/${id}`),
+  crearPago: (id, body) => api.post(`/comisiones-por-pagar/${id}/pagos`, body),
+  actualizarPago: (id, pagoId, body) => api.put(`/comisiones-por-pagar/${id}/pagos/${pagoId}`, body),
+  eliminarPago: (id, pagoId) => api.delete(`/comisiones-por-pagar/${id}/pagos/${pagoId}`)
+};
+
 // Asistente IA (solo admin, lectura)
 export const asistenteIaService = {
   estado: () => api.get('/asistente-ia/estado'),

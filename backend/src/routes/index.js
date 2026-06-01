@@ -21,6 +21,7 @@ const adminPortalUsuariosRoutes = require('./adminPortalUsuarios');
 const controlProyectosRoutes = require('./controlProyectos');
 const asistenteIaRoutes = require('./asistenteIa');
 const proveedoresRoutes = require('./proveedores');
+const comisionesPorPagarRoutes = require('./comisionesPorPagar');
 const backupsRoutes = require('./backups');
 
 router.use('/auth', authRoutes);
@@ -43,6 +44,7 @@ router.use('/admin-portal-usuarios', adminPortalUsuariosRoutes);
 router.use('/control-proyectos', controlProyectosRoutes);
 router.use('/asistente-ia', asistenteIaRoutes);
 router.use('/proveedores', proveedoresRoutes);
+router.use('/comisiones-por-pagar', comisionesPorPagarRoutes);
 router.use('/backups', backupsRoutes);
 
 // Ruta de health check

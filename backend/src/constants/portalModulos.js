@@ -29,6 +29,11 @@ const MODULOS_PORTAL = [
     id: 'archivo-respaldos',
     etiqueta: 'Archivo / Respaldos',
     descripcion: 'Copias diarias legibles (Excel) y descarga de volcados SQL'
+  },
+  {
+    id: 'comisiones-por-pagar',
+    etiqueta: 'Comisiones por Pagar',
+    descripcion: 'Seguimiento de comisiones por vendedor, cliente y cuotas de pago'
   }
 ];
 

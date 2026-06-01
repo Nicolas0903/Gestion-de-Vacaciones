@@ -31,6 +31,7 @@ function construirModulosPortalDesdeBody(empleado, incoming) {
   const body = incoming && typeof incoming === 'object' ? incoming : {};
   const modulosRestringidos = new Set([
     'proveedores',
+    'comisiones-por-pagar',
     'rendicion-presupuesto',
     'archivo-respaldos',
     'solicitudes-registro',
