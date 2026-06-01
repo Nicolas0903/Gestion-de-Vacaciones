@@ -250,17 +250,17 @@ const Portal = () => {
     });
   }
 
-  if (puedeAccederModuloPortal('archivo-respaldos')) {
+  if (puedeAccederModuloPortal('comisiones-por-pagar')) {
     modulos.push({
-      id: 'archivo-respaldos',
-      titulo: 'Archivo / Respaldos',
-      descripcion: 'Copias diarias en Excel (08:30 y 17:30) y descarga de volcados SQL',
-      icono: ArchiveBoxIcon,
-      color: 'from-slate-600 to-slate-800',
-      shadowColor: 'shadow-slate-600/30',
-      bgLight: 'bg-slate-50',
-      textColor: 'text-slate-700',
-      link: '/archivo-respaldos',
+      id: 'comisiones-por-pagar',
+      titulo: 'Comisiones por Pagar',
+      descripcion: 'Seguimiento de comisiones por vendedor, cliente y cuotas de facturación',
+      icono: CurrencyDollarIcon,
+      color: 'from-emerald-600 to-teal-700',
+      shadowColor: 'shadow-emerald-600/30',
+      bgLight: 'bg-emerald-50',
+      textColor: 'text-emerald-700',
+      link: '/comisiones-por-pagar',
       activo: true,
       restringido: true
     });
@@ -285,14 +285,14 @@ const Portal = () => {
 
   /* Atajos admin / restringidos en el menú del usuario (esquina superior derecha). */
   const opcionesUsuario = [
-    puedeAccederModuloPortal('comisiones-por-pagar') && {
-      id: 'comisiones-por-pagar',
-      label: 'Comisiones por Pagar',
-      descripcion: 'Comisiones por vendedor, cliente y cuotas de facturación',
-      to: '/comisiones-por-pagar',
-      icono: CurrencyDollarIcon,
-      textColor: 'text-emerald-700',
-      bgLight: 'bg-emerald-50'
+    puedeAccederModuloPortal('archivo-respaldos') && {
+      id: 'archivo-respaldos',
+      label: 'Archivo / Respaldos',
+      descripcion: 'Copias diarias en Excel (08:30 y 17:30) y descarga de volcados SQL',
+      to: '/archivo-respaldos',
+      icono: ArchiveBoxIcon,
+      textColor: 'text-slate-700',
+      bgLight: 'bg-slate-50'
     },
     puedeAccederModuloPortal('solicitudes-registro') && {
       id: 'solicitudes-registro',
