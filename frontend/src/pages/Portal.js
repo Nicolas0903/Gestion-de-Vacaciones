@@ -266,22 +266,6 @@ const Portal = () => {
     });
   }
 
-  if (puedeAccederModuloPortal('comisiones-por-pagar')) {
-    modulos.push({
-      id: 'comisiones-por-pagar',
-      titulo: 'Comisiones por Pagar',
-      descripcion: 'Seguimiento de comisiones por vendedor, cliente y cuotas de facturación',
-      icono: CurrencyDollarIcon,
-      color: 'from-emerald-600 to-teal-700',
-      shadowColor: 'shadow-emerald-600/30',
-      bgLight: 'bg-emerald-50',
-      textColor: 'text-emerald-700',
-      link: '/comisiones-por-pagar',
-      activo: true,
-      restringido: true
-    });
-  }
-
   if (puedeAccederModuloPortal('control-proyectos')) {
     modulos.push({
       id: 'control-proyectos',
@@ -299,10 +283,17 @@ const Portal = () => {
     });
   }
 
-  /* Las opciones administrativas "Solicitudes de Registro" y "Administración
-   * de Usuarios" ya no son cards del portal; viven en el menú del usuario
-   * (esquina superior derecha) como atajos rápidos. */
+  /* Atajos admin / restringidos en el menú del usuario (esquina superior derecha). */
   const opcionesUsuario = [
+    puedeAccederModuloPortal('comisiones-por-pagar') && {
+      id: 'comisiones-por-pagar',
+      label: 'Comisiones por Pagar',
+      descripcion: 'Comisiones por vendedor, cliente y cuotas de facturación',
+      to: '/comisiones-por-pagar',
+      icono: CurrencyDollarIcon,
+      textColor: 'text-emerald-700',
+      bgLight: 'bg-emerald-50'
+    },
     puedeAccederModuloPortal('solicitudes-registro') && {
       id: 'solicitudes-registro',
       label: 'Solicitudes de Registro',
