@@ -14,6 +14,10 @@ function etiquetaFormaPago(orden) {
 }
 
 class ComisionPorPagar {
+  static normalizarMoneda(v) {
+    return String(v || 'PEN').trim().toUpperCase() === 'USD' ? 'USD' : 'PEN';
+  }
+
   static async listar() {
     const [rows] = await pool.query(
       `SELECT c.*,
@@ -69,6 +73,7 @@ class ComisionPorPagar {
       vendedor,
       cliente,
       valor_servicio: Math.round(valor * 100) / 100,
+      moneda: this.normalizarMoneda(data.moneda),
       porcentaje_comision: Math.round(pct * 100) / 100,
       condiciones_pago: data.condiciones_pago != null ? String(data.condiciones_pago).trim() : null,
       estado: ['borrador', 'activo', 'cerrado'].includes(data.estado) ? data.estado : 'activo'
@@ -79,12 +84,13 @@ class ComisionPorPagar {
     const v = this.validarEncabezado(data);
     const [result] = await pool.query(
       `INSERT INTO comisiones_por_pagar
-        (vendedor, cliente, valor_servicio, porcentaje_comision, condiciones_pago, estado, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (vendedor, cliente, valor_servicio, moneda, porcentaje_comision, condiciones_pago, estado, creado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         v.vendedor,
         v.cliente,
         v.valor_servicio,
+        v.moneda,
         v.porcentaje_comision,
         v.condiciones_pago,
         v.estado,
@@ -100,13 +106,14 @@ class ComisionPorPagar {
     const v = this.validarEncabezado({ ...actual, ...data });
     await pool.query(
       `UPDATE comisiones_por_pagar SET
-        vendedor = ?, cliente = ?, valor_servicio = ?, porcentaje_comision = ?,
+        vendedor = ?, cliente = ?, valor_servicio = ?, moneda = ?, porcentaje_comision = ?,
         condiciones_pago = ?, estado = ?
        WHERE id = ?`,
       [
         v.vendedor,
         v.cliente,
         v.valor_servicio,
+        v.moneda,
         v.porcentaje_comision,
         v.condiciones_pago,
         v.estado,

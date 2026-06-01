@@ -12,18 +12,14 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { comisionesPorPagarService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
+import { formatoMontoRendicion, MONEDAS_RENDICION, normalizarMonedaRendicion } from '../utils/monedaRendicion';
 import ModalPortal from '../components/ModalPortal';
-
-const formatoUsd = (n) => {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return '—';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
-};
 
 const encabezadoVacio = () => ({
   vendedor: '',
   cliente: '',
   valor_servicio: '',
+  moneda: 'PEN',
   porcentaje_comision: '10',
   condiciones_pago: '',
   estado: 'activo'
@@ -104,6 +100,8 @@ const ComisionesPorPagar = () => {
 
   const comision = detalle?.comision;
   const pagos = detalle?.pagos || [];
+  const monedaActiva = normalizarMonedaRendicion(comision?.moneda);
+  const fmt = (n) => formatoMontoRendicion(n, monedaActiva);
 
   const totales = useMemo(() => {
     const sumaImportes = pagos.reduce((s, p) => s + Number(p.importe || 0), 0);
@@ -123,6 +121,7 @@ const ComisionesPorPagar = () => {
       vendedor: comision.vendedor || '',
       cliente: comision.cliente || '',
       valor_servicio: String(comision.valor_servicio ?? ''),
+      moneda: normalizarMonedaRendicion(comision.moneda),
       porcentaje_comision: String(comision.porcentaje_comision ?? ''),
       condiciones_pago: comision.condiciones_pago || '',
       estado: comision.estado || 'activo'
@@ -136,6 +135,7 @@ const ComisionesPorPagar = () => {
       const body = {
         ...formEnc,
         valor_servicio: Number(formEnc.valor_servicio),
+        moneda: normalizarMonedaRendicion(formEnc.moneda),
         porcentaje_comision: Number(formEnc.porcentaje_comision)
       };
       if (modalEncabezado === 'nuevo') {
@@ -295,7 +295,9 @@ const ComisionesPorPagar = () => {
                   >
                     <div className="font-medium text-slate-800 truncate">{c.cliente}</div>
                     <div className="text-xs text-slate-500 truncate">Vendedor: {c.vendedor}</div>
-                    <div className="text-xs text-emerald-700 mt-1">{formatoUsd(c.valor_servicio)} · {c.porcentaje_comision}%</div>
+                    <div className="text-xs text-emerald-700 mt-1">
+                      {formatoMontoRendicion(c.valor_servicio, c.moneda)} · {c.porcentaje_comision}%
+                    </div>
                   </button>
                 </li>
               ))}
@@ -351,7 +353,8 @@ const ComisionesPorPagar = () => {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-sm">
                   <div><span className="text-slate-500">Vendedor:</span> <strong>{comision.vendedor}</strong></div>
                   <div><span className="text-slate-500">Cliente:</span> <strong>{comision.cliente}</strong></div>
-                  <div><span className="text-slate-500">Valor del servicio:</span> <strong>{formatoUsd(comision.valor_servicio)}</strong></div>
+                  <div><span className="text-slate-500">Valor del servicio:</span> <strong>{fmt(comision.valor_servicio)}</strong></div>
+                  <div><span className="text-slate-500">Moneda:</span> <strong>{monedaActiva === 'USD' ? 'Dólares (USD)' : 'Soles (PEN)'}</strong></div>
                   <div><span className="text-slate-500">Comisión:</span> <strong>{comision.porcentaje_comision}%</strong></div>
                   <div className="sm:col-span-2 lg:col-span-3">
                     <span className="text-slate-500">Condiciones de pago:</span>{' '}
@@ -386,11 +389,11 @@ const ComisionesPorPagar = () => {
                       pagos.map((p) => (
                         <tr key={p.id} className="hover:bg-slate-50">
                           <td className="px-3 py-2 whitespace-nowrap">{p.forma}</td>
-                          <td className="px-3 py-2 text-right whitespace-nowrap">{formatoUsd(p.importe)}</td>
+                          <td className="px-3 py-2 text-right whitespace-nowrap">{fmt(p.importe)}</td>
                           <td className="px-3 py-2">{p.no_factura || '—'}</td>
                           <td className="px-3 py-2 whitespace-nowrap">{formatoFechaDMY(p.fecha_emision_factura)}</td>
                           <td className="px-3 py-2 text-right whitespace-nowrap font-medium text-emerald-700">
-                            {formatoUsd(p.comision_monto)}
+                            {fmt(p.comision_monto)}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap">{formatoFechaDMY(p.fecha_pago)}</td>
                           <td className="px-3 py-2">{p.firma || '—'}</td>
@@ -421,16 +424,16 @@ const ComisionesPorPagar = () => {
                     <tfoot className="bg-slate-50 font-medium">
                       <tr>
                         <td className="px-3 py-2">Totales</td>
-                        <td className="px-3 py-2 text-right">{formatoUsd(totales.sumaImportes)}</td>
+                        <td className="px-3 py-2 text-right">{fmt(totales.sumaImportes)}</td>
                         <td colSpan={2} className="px-3 py-2 text-xs text-slate-500">
                           {totales.pendiente !== 0 && (
                             <span className={totales.pendiente < 0 ? 'text-red-600' : 'text-amber-700'}>
                               {totales.pendiente > 0 ? 'Pendiente por registrar: ' : 'Excede valor servicio: '}
-                              {formatoUsd(Math.abs(totales.pendiente))}
+                              {fmt(Math.abs(totales.pendiente))}
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-right text-emerald-800">{formatoUsd(totales.sumaComisiones)}</td>
+                        <td className="px-3 py-2 text-right text-emerald-800">{fmt(totales.sumaComisiones)}</td>
                         <td colSpan={4} />
                       </tr>
                     </tfoot>
@@ -482,7 +485,23 @@ const ComisionesPorPagar = () => {
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium text-slate-700">Valor del servicio (USD)</span>
+            <span className="text-sm font-medium text-slate-700">Moneda</span>
+            <select
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
+              value={formEnc.moneda}
+              onChange={(e) => setFormEnc((f) => ({ ...f, moneda: e.target.value }))}
+            >
+              {MONEDAS_RENDICION.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">
+              Valor del servicio ({formEnc.moneda === 'USD' ? 'USD' : 'PEN'})
+            </span>
             <input
               type="number"
               min="0"
@@ -520,7 +539,7 @@ const ComisionesPorPagar = () => {
         open={!!modalPago}
         onClose={() => setModalPago(null)}
         title={modalPago === 'nuevo' ? 'Agregar fila de pago' : 'Editar fila de pago'}
-        subtitle={`Comisión ${comision?.porcentaje_comision ?? '—'}% sobre el importe de la fila.`}
+        subtitle={`Comisión ${comision?.porcentaje_comision ?? '—'}% · ${monedaActiva === 'USD' ? 'Dólares' : 'Soles'}.`}
         maxWidth="max-w-2xl"
         footer={
           <div className="flex justify-end gap-2">
@@ -566,7 +585,9 @@ const ComisionesPorPagar = () => {
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium text-slate-700">Importe (USD)</span>
+            <span className="text-sm font-medium text-slate-700">
+              Importe ({monedaActiva === 'USD' ? 'USD' : 'PEN'})
+            </span>
             <input
               type="number"
               min="0"
@@ -579,7 +600,7 @@ const ComisionesPorPagar = () => {
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Comisión calculada</span>
             <div className="mt-1 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-800 font-semibold">
-              {comisionPreview != null ? formatoUsd(comisionPreview) : '—'}
+              {comisionPreview != null ? formatoMontoRendicion(comisionPreview, monedaActiva) : '—'}
             </div>
           </label>
           <label className="block">

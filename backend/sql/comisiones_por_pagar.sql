@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS comisiones_por_pagar (
   vendedor VARCHAR(200) NOT NULL,
   cliente VARCHAR(200) NOT NULL,
   valor_servicio DECIMAL(14, 2) NOT NULL DEFAULT 0,
+  moneda ENUM('PEN', 'USD') NOT NULL DEFAULT 'PEN' COMMENT 'PEN=soles, USD=dólares',
   porcentaje_comision DECIMAL(5, 2) NOT NULL DEFAULT 0 COMMENT 'Ej. 10 = 10%',
   condiciones_pago TEXT NULL,
   estado ENUM('borrador', 'activo', 'cerrado') NOT NULL DEFAULT 'activo',
