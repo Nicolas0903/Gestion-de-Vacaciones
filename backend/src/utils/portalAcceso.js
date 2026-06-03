@@ -40,6 +40,9 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
   if (moduloId === 'comisiones-por-pagar') {
     return rolNombre === 'admin';
   }
+  if (moduloId === 'consumo-fabric') {
+    return rolNombre === 'admin';
+  }
   // Rendición de presupuesto: acceso restringido. Solo admin tiene acceso por defecto;
   // para el resto del personal, debe activarse explícitamente vía modulos_portal.
   if (moduloId === 'rendicion-presupuesto') {
@@ -74,6 +77,9 @@ function tieneAccesoEfectivoModulo(empleado, moduloId) {
     return true;
   }
   if (moduloId === 'comisiones-por-pagar' && empleado.rol_nombre === 'admin') {
+    return true;
+  }
+  if (moduloId === 'consumo-fabric' && empleado.rol_nombre === 'admin') {
     return true;
   }
   if (tieneMapaPortalExplicito(empleado)) {

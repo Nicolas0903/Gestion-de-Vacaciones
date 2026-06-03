@@ -310,6 +310,27 @@ export const backupsService = {
   ejecutar: (body) => api.post('/backups/ejecutar', body)
 };
 
+export const consumoFabricService = {
+  listarMontos: (params) => api.get('/consumo-fabric/montos', { params }),
+  guardarMonto: (body) => api.post('/consumo-fabric/montos', body),
+  eliminarMonto: (id) => api.delete(`/consumo-fabric/montos/${id}`),
+  importarMontos: (file) => {
+    const fd = new FormData();
+    fd.append('archivo', file);
+    return api.post('/consumo-fabric/montos/importar', fd);
+  },
+  listarCargas: () => api.get('/consumo-fabric/cargas'),
+  subirPayg: (file) => {
+    const fd = new FormData();
+    fd.append('archivo', file);
+    return api.post('/consumo-fabric/cargas', fd);
+  },
+  obtenerCarga: (id) => api.get(`/consumo-fabric/cargas/${id}`),
+  exportarCarga: (id) =>
+    api.get(`/consumo-fabric/cargas/${id}/exportar`, { responseType: 'blob' }),
+  eliminarCarga: (id) => api.delete(`/consumo-fabric/cargas/${id}`)
+};
+
 export const comisionesPorPagarService = {
   listar: () => api.get('/comisiones-por-pagar'),
   obtener: (id) => api.get(`/comisiones-por-pagar/${id}`),

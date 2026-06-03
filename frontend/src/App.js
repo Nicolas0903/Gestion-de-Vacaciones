@@ -40,6 +40,7 @@ import AdministracionUsuarios from './pages/AdministracionUsuarios';
 import Proveedores from './pages/Proveedores';
 import ArchivoRespaldos from './pages/ArchivoRespaldos';
 import ComisionesPorPagar from './pages/ComisionesPorPagar';
+import ConsumoFabric from './pages/ConsumoFabric';
 
 // Components
 import Layout from './components/Layout';
@@ -304,6 +305,14 @@ function AppRoutes() {
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="comisiones-por-pagar">
             <PageWrapper wide><ComisionesPorPagar /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/consumo-fabric" element={
+        <ProtectedRoute roles={['admin']}>
+          <ModuloPortalRoute moduloId="consumo-fabric">
+            <PageWrapper wide><ConsumoFabric /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

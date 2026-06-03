@@ -34,6 +34,11 @@ const MODULOS_PORTAL = [
     id: 'comisiones-por-pagar',
     etiqueta: 'Comisiones por Pagar',
     descripcion: 'Seguimiento de comisiones por vendedor, cliente y cuotas de pago'
+  },
+  {
+    id: 'consumo-fabric',
+    etiqueta: 'Consumo Fabric',
+    descripcion: 'Reporte de uso Microsoft Fabric desde PAYG y monto mensual por cliente'
   }
 ];
 

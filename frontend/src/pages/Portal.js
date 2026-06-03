@@ -7,6 +7,7 @@ import {
   DocumentTextIcon,
   ClipboardDocumentCheckIcon,
   ChartBarSquareIcon,
+  ServerStackIcon,
   ArrowRightIcon,
   Cog6ToothIcon,
   UserPlusIcon,
@@ -261,6 +262,22 @@ const Portal = () => {
       bgLight: 'bg-emerald-50',
       textColor: 'text-emerald-700',
       link: '/comisiones-por-pagar',
+      activo: true,
+      restringido: true
+    });
+  }
+
+  if (puedeAccederModuloPortal('consumo-fabric')) {
+    modulos.push({
+      id: 'consumo-fabric',
+      titulo: 'Consumo Fabric',
+      descripcion: 'Reporte de uso Microsoft Fabric (PAYG) y monto mensual por cliente',
+      icono: ServerStackIcon,
+      color: 'from-indigo-600 to-violet-700',
+      shadowColor: 'shadow-indigo-600/30',
+      bgLight: 'bg-indigo-50',
+      textColor: 'text-indigo-700',
+      link: '/consumo-fabric',
       activo: true,
       restringido: true
     });
