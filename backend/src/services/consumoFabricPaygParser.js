@@ -30,6 +30,17 @@ function normCliente(s) {
     .replace(/\s+/g, ' ');
 }
 
+function claveCliente(name) {
+  return String(name || '')
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\./g, '')
+    .replace(/\s+(SAC|SA)\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function parseMesInput(val) {
   if (val == null || val === '') return null;
   const n = parseInt(val, 10);
@@ -253,6 +264,7 @@ async function parseMontosWorkbook(inputPathOrBuffer, isBuffer = false) {
 module.exports = {
   MESES_NOMBRE,
   normCliente,
+  claveCliente,
   parseMesInput,
   parsePaygWorkbook,
   parseMontosWorkbook

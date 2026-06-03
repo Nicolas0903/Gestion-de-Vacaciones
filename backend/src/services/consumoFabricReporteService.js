@@ -30,10 +30,12 @@ function fmtMonto(n, moneda = 'US$') {
 
 function generarInsights(meta, porComponente, porDia, montoMensual) {
   const tips = [];
-  if (porComponente.length) {
-    const top = porComponente[0];
+  const compCu = porComponente.filter((c) => /hour|hora|cu/i.test(c.unit));
+  if (compCu.length) {
+    const top = compCu[0];
+    const totalTop = compCu.reduce((s, x) => s + x.quantity, 0);
     tips.push(
-      `${top.key} es el componente con mayor consumo (${fmtNum(top.quantity)} ${top.unit}, ${pct(top.quantity, porComponente.reduce((s, x) => s + x.quantity, 0))}% del total en su unidad).`
+      `${top.key} es el componente con mayor consumo (${fmtNum(top.quantity)} ${top.unit}, ${pct(top.quantity, totalTop)}% del total CU).`
     );
   }
   if (porDia.length >= 3) {
@@ -60,10 +62,41 @@ function generarInsights(meta, porComponente, porDia, montoMensual) {
   return tips;
 }
 
+function combinarHistorico(historicoMontos = [], historicoCu = []) {
+  const map = new Map();
+  for (const m of historicoMontos) {
+    const k = `${m.anio}-${m.mes}`;
+    map.set(k, {
+      mes: m.mes,
+      anio: m.anio,
+      mesLabel: MESES_NOMBRE[m.mes],
+      monto: Number(m.monto),
+      moneda: m.moneda || 'US$',
+      cuHoras: 0
+    });
+  }
+  for (const c of historicoCu) {
+    const k = `${c.anio}-${c.mes}`;
+    const prev = map.get(k) || {
+      mes: c.mes,
+      anio: c.anio,
+      mesLabel: MESES_NOMBRE[c.mes],
+      monto: null,
+      moneda: 'US$',
+      cuHoras: 0
+    };
+    prev.cuHoras = Number(c.totalCuHoras) || 0;
+    map.set(k, prev);
+  }
+  return [...map.values()].sort((a, b) => a.anio - b.anio || a.mes - b.mes);
+}
+
 /**
  * Construye el JSON del reporte (uso + monto manual embebido).
+ * Vinculación monto ↔ PAYG: mismo customer_name + mes + anio.
  */
-function construirReporte(meta, filas, montoMensual) {
+function construirReporte(meta, filas, montoMensual, opciones = {}) {
+  const { historicoMontos = [], historicoCu = [] } = opciones;
   const porUnidad = agruparSum(filas, (f) => f.unit);
   const totalCu = filas
     .filter((f) => /hour|hora|cu/i.test(f.unit))
@@ -74,12 +107,18 @@ function construirReporte(meta, filas, montoMensual) {
     pct: pct(x.quantity, filas.reduce((s, f) => s + f.quantity, 0))
   }));
 
-  const porComponente = agruparSum(filas, (f) => f.skuName).map((x) => ({
+  const porComponenteRaw = agruparSum(filas, (f) => f.skuName);
+  const porComponenteCuRaw = porComponenteRaw.filter((x) => /hour|hora|cu/i.test(x.unit));
+  const totalCuComponentes = porComponenteCuRaw.reduce((s, x) => s + x.quantity, 0);
+
+  const porComponente = porComponenteRaw.map((x) => ({
     ...x,
-    pct: pct(
-      x.quantity,
-      agruparSum(filas, (f) => f.skuName).reduce((s, a) => s + a.quantity, 0)
-    )
+    pct: pct(x.quantity, porComponenteRaw.reduce((s, a) => s + a.quantity, 0))
+  }));
+
+  const porComponenteCu = porComponenteCuRaw.map((x) => ({
+    ...x,
+    pct: pct(x.quantity, totalCuComponentes)
   }));
 
   const porResourceGroup = agruparSum(filas, (f) => f.resourceGroup);
@@ -92,8 +131,16 @@ function construirReporte(meta, filas, montoMensual) {
 
   const mes = meta.month || montoMensual?.mes;
   const anio = meta.year || montoMensual?.anio;
+  const historicoCombinado = combinarHistorico(historicoMontos, historicoCu);
 
   const reporte = {
+    vinculacion: {
+      customerName: meta.customerName,
+      mes,
+      anio,
+      criterio: 'customer_name + mes + anio',
+      montoEncontrado: !!montoMensual
+    },
     meta: {
       ...meta,
       mes,
@@ -118,9 +165,11 @@ function construirReporte(meta, filas, montoMensual) {
     },
     porProducto,
     porComponente,
+    porComponenteCu,
     porResourceGroup,
-    porDia,
+    porDia: porDia.sort((a, b) => String(a.key).localeCompare(String(b.key))),
     topMeters,
+    historicoCombinado,
     insights: []
   };
 
@@ -194,6 +243,7 @@ async function exportarReporteExcel(reporte) {
 
 module.exports = {
   construirReporte,
+  combinarHistorico,
   exportarReporteExcel,
   fmtNum,
   fmtMonto

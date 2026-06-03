@@ -1,4 +1,5 @@
 const { pool } = require('../config/database');
+const { normCliente, claveCliente } = require('../services/consumoFabricPaygParser');
 
 class ConsumoFabricCarga {
   static async listar() {
@@ -65,6 +66,32 @@ class ConsumoFabricCarga {
     if (!row) return null;
     await pool.query(`DELETE FROM fabric_consumo_cargas WHERE id = ?`, [id]);
     return row;
+  }
+
+  /** CU horas por mes/año de cargas PAYG del mismo cliente. */
+  static async historicoCuPorCliente(customerName) {
+    const clave = claveCliente(normCliente(customerName));
+    const [rows] = await pool.query(
+      `SELECT customer_name, mes, anio, reporte_json
+       FROM fabric_consumo_cargas ORDER BY anio ASC, mes ASC`
+    );
+    return rows
+      .filter((r) => claveCliente(r.customer_name) === clave)
+      .map((r) => {
+        let json = r.reporte_json;
+        if (typeof json === 'string') {
+          try {
+            json = JSON.parse(json);
+          } catch (_) {
+            json = {};
+          }
+        }
+        return {
+          mes: r.mes,
+          anio: r.anio,
+          totalCuHoras: Number(json?.resumen?.totalCuHoras) || 0
+        };
+      });
   }
 }
 

@@ -328,6 +328,8 @@ export const consumoFabricService = {
   obtenerCarga: (id) => api.get(`/consumo-fabric/cargas/${id}`),
   exportarCarga: (id) =>
     api.get(`/consumo-fabric/cargas/${id}/exportar`, { responseType: 'blob' }),
+  exportarCargaPdf: (id) =>
+    api.get(`/consumo-fabric/cargas/${id}/exportar-pdf`, { responseType: 'blob' }),
   eliminarCarga: (id) => api.delete(`/consumo-fabric/cargas/${id}`)
 };
 

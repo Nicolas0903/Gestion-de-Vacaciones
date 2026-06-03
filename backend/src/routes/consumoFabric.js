@@ -55,6 +55,7 @@ router.get('/cargas', ctrl.listarCargas);
 router.post('/cargas', uploadDisk.single('archivo'), ctrl.subirPayg);
 router.get('/cargas/:id', ctrl.obtenerCarga);
 router.get('/cargas/:id/exportar', ctrl.exportarCarga);
+router.get('/cargas/:id/exportar-pdf', ctrl.exportarCargaPdf);
 router.delete('/cargas/:id', ctrl.eliminarCarga);
 
 module.exports = router;

@@ -12,6 +12,19 @@ const {
   construirReporte,
   exportarReporteExcel
 } = require('../services/consumoFabricReporteService');
+const { generarReportePdf } = require('../services/consumoFabricPdfService');
+
+async function armarReporteCompleto(meta, filas, mes, anio) {
+  const montoMensual = await ConsumoFabricMonto.buscarPorClientePeriodo(meta.customerName, mes, anio);
+  const historicoMontos = await ConsumoFabricMonto.historicoPorCliente(meta.customerName);
+  const historicoCu = await ConsumoFabricCarga.historicoCuPorCliente(meta.customerName);
+  return construirReporte(
+    { ...meta, month: mes, year: anio },
+    filas,
+    montoMensual,
+    { historicoMontos, historicoCu }
+  );
+}
 
 const uploadsDir = path.join(__dirname, '../../uploads/consumo-fabric');
 if (!fs.existsSync(uploadsDir)) {
@@ -122,17 +135,7 @@ exports.subirPayg = async (req, res) => {
       throw new Error('No se pudo detectar mes/año del archivo. Indíquelos al subir.');
     }
 
-    const montoMensual = await ConsumoFabricMonto.buscarPorClientePeriodo(
-      meta.customerName,
-      mes,
-      anio
-    );
-
-    const reporte = construirReporte(
-      { ...meta, month: mes, year: anio },
-      filas,
-      montoMensual
-    );
+    const reporte = await armarReporteCompleto(meta, filas, mes, anio);
 
     const storedName = `payg-${Date.now()}-${req.file.filename}`;
     const storedPath = path.join(uploadsDir, storedName);
@@ -188,6 +191,22 @@ exports.exportarCarga = async (req, res) => {
   } catch (err) {
     console.error('consumoFabric.exportar:', err);
     res.status(500).json({ success: false, mensaje: 'Error al exportar' });
+  }
+};
+
+exports.exportarCargaPdf = async (req, res) => {
+  try {
+    const row = await ConsumoFabricCarga.buscarPorId(req.params.id);
+    if (!row) return res.status(404).json({ success: false, mensaje: 'No encontrado' });
+    const buffer = await generarReportePdf(row.reporte_json);
+    const safeName = String(row.customer_name).replace(/[^\w.-]+/g, '_').slice(0, 40);
+    const filename = `consumo-fabric-${safeName}-${row.anio}-${row.mes}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error('consumoFabric.exportarPdf:', err);
+    res.status(500).json({ success: false, mensaje: 'Error al exportar PDF' });
   }
 };
 

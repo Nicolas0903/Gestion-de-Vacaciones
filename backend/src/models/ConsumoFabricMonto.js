@@ -1,16 +1,5 @@
 const { pool } = require('../config/database');
-const { normCliente } = require('../services/consumoFabricPaygParser');
-
-function claveCliente(name) {
-  return String(name || '')
-    .toUpperCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\./g, '')
-    .replace(/\s+(SAC|SA)\s*$/i, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+const { normCliente, claveCliente } = require('../services/consumoFabricPaygParser');
 
 class ConsumoFabricMonto {
   static async listar({ anio, mes, customer } = {}) {
@@ -88,6 +77,16 @@ class ConsumoFabricMonto {
   static async eliminar(id) {
     const [r] = await pool.query(`DELETE FROM fabric_consumo_montos WHERE id = ?`, [id]);
     return r.affectedRows > 0;
+  }
+
+  /** Historial de montos del mismo cliente (todas las cargas en BD). */
+  static async historicoPorCliente(customerName) {
+    const clave = claveCliente(normCliente(customerName));
+    const [rows] = await pool.query(
+      `SELECT customer_name, mes, anio, monto, moneda
+       FROM fabric_consumo_montos ORDER BY anio ASC, mes ASC`
+    );
+    return rows.filter((r) => claveCliente(r.customer_name) === clave);
   }
 }
 
