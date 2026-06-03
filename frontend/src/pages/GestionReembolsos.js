@@ -480,7 +480,7 @@ const GestionReembolsos = () => {
                     <td className="px-4 py-3 max-w-xs truncate" title={r.concepto}>
                       {r.concepto}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap tabular-nums text-slate-800">
+                    <td className="px-4 py-3 whitespace-nowrap tabular-nums font-semibold text-slate-900">
                       {formatoMonto(r.monto)}
                     </td>
                     <td className="px-4 py-3">{metodoLabel(r.metodo_reembolso)}</td>
@@ -617,12 +617,15 @@ const GestionReembolsos = () => {
                 <p className="text-sm text-slate-500 mt-0.5">
                   {fichaModal.empleado_nombres} {fichaModal.empleado_apellidos}
                 </p>
-                <p className="text-xs text-slate-500 mt-2">
-                  <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium text-slate-700 bg-slate-100 border border-slate-200">
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200">
                     {estadoLabel(fichaModal.estado)}
-                  </span>{' '}
-                  · Monto {formatoMonto(fichaModal.monto)}
-                </p>
+                  </span>
+                  <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-semibold tabular-nums text-emerald-900 bg-emerald-50 border border-emerald-200/80">
+                    <span className="text-emerald-700/90 font-medium text-xs mr-1.5">Monto</span>
+                    {formatoMonto(fichaModal.monto)}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
