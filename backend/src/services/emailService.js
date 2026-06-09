@@ -5,6 +5,7 @@ const os = require('os');
 const PDFService = require('./pdfService');
 const TokenAprobacion = require('../models/TokenAprobacion');
 const { calcularFechaEfectivaRegreso } = require('../utils/calcularDiasVacaciones');
+const { plantillaEmail, remitente } = require('./emailPlantillas');
 
 // URL base para los enlaces de aprobación
 const API_URL = process.env.API_URL || 'http://96.126.124.60:3002/api';
@@ -38,109 +39,6 @@ const verificarConexion = async () => {
     console.warn('⚠️ Email no configurado:', error.message);
     return false;
   }
-};
-
-// Plantilla base HTML para emails
-// tituloMarca: texto grande del encabezado (ej. vacaciones vs reintegro)
-// textoPie: línea del pie (por módulo)
-const plantillaBase = (contenido, titulo, tituloMarca, textoPie) => {
-  const marca =
-    tituloMarca != null && tituloMarca !== ''
-      ? tituloMarca
-      : '🏖️ Gestión de Vacaciones';
-  const pie =
-    textoPie != null && textoPie !== ''
-      ? textoPie
-      : 'Este es un mensaje automático del Sistema de Gestión de Vacaciones - Prayaga';
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    .header {
-      background: linear-gradient(135deg, #1e40af, #3b82f6);
-      color: white;
-      padding: 20px;
-      text-align: center;
-      border-radius: 8px 8px 0 0;
-    }
-    .header h1 {
-      margin: 0;
-      font-size: 24px;
-    }
-    .content {
-      background: #f8fafc;
-      padding: 25px;
-      border: 1px solid #e2e8f0;
-      border-top: none;
-    }
-    .info-box {
-      background: white;
-      border-left: 4px solid #3b82f6;
-      padding: 15px;
-      margin: 15px 0;
-      border-radius: 0 8px 8px 0;
-    }
-    .info-row {
-      display: flex;
-      margin: 8px 0;
-    }
-    .info-label {
-      font-weight: 600;
-      color: #64748b;
-      width: 150px;
-    }
-    .info-value {
-      color: #1e293b;
-    }
-    .button {
-      display: inline-block;
-      background: #3b82f6;
-      color: white !important;
-      padding: 12px 24px;
-      text-decoration: none;
-      border-radius: 6px;
-      margin: 20px 0;
-    }
-    .footer {
-      text-align: center;
-      padding: 20px;
-      color: #64748b;
-      font-size: 12px;
-      border: 1px solid #e2e8f0;
-      border-top: none;
-      border-radius: 0 0 8px 8px;
-      background: #f1f5f9;
-    }
-    .status-pendiente { color: #f59e0b; font-weight: bold; }
-    .status-aprobada { color: #10b981; font-weight: bold; }
-    .status-rechazada { color: #ef4444; font-weight: bold; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>${marca}</h1>
-    <p style="margin: 5px 0 0 0; opacity: 0.9;">${titulo}</p>
-  </div>
-  <div class="content">
-    ${contenido}
-  </div>
-  <div class="footer">
-    <p>${pie}</p>
-    <p>Por favor no responda a este correo.</p>
-  </div>
-</body>
-</html>
-`;
 };
 
 const fechaSalidaCorreo = (solicitud) =>
@@ -258,10 +156,10 @@ const notificarNuevaSolicitud = async (solicitud, empleado, aprobador) => {
 
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('vacaciones'),
       to: aprobador.email,
-      subject: `📋 Nueva Solicitud de Vacaciones - ${empleadoNombre} ${empleadoApellido}`,
-      html: plantillaBase(contenido, 'Nueva Solicitud de Vacaciones')
+      subject: `Nueva solicitud de vacaciones — ${empleadoNombre} ${empleadoApellido}`,
+      html: plantillaEmail(contenido, 'Nueva solicitud de vacaciones', 'vacaciones')
     });
     console.log(`📧 Email enviado a ${aprobador.email} - Nueva solicitud de ${empleadoNombre}`);
     return true;
@@ -408,16 +306,16 @@ const notificarAprobacionJefe = async (solicitud, empleado, jefe, contadora) => 
     // Enviar ambos correos
     await Promise.all([
       transporter.sendMail({
-        from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+        from: remitente('vacaciones'),
         to: empleado.email,
-        subject: `✅ Tu solicitud fue aprobada por tu jefe - Pendiente aprobación final`,
-        html: plantillaBase(contenidoEmpleado, 'Solicitud Aprobada por Jefe')
+        subject: 'Vacaciones aprobadas por tu jefe — pendiente aprobación final',
+        html: plantillaEmail(contenidoEmpleado, 'Aprobada por jefe directo', 'vacaciones')
       }),
       transporter.sendMail({
-        from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+        from: remitente('vacaciones'),
         to: contadora.email,
-        subject: `📋 Solicitud Pendiente de Aprobación Final - ${empleadoNombre} ${empleadoApellido}`,
-        html: plantillaBase(contenidoContadora, 'Solicitud Pendiente de Aprobación')
+        subject: `Vacaciones pendientes de aprobación final — ${empleadoNombre} ${empleadoApellido}`,
+        html: plantillaEmail(contenidoContadora, 'Pendiente de aprobación final', 'vacaciones')
       })
     ]);
     console.log(`📧 Emails enviados - Aprobación jefe de ${empleadoNombre}`);
@@ -512,10 +410,10 @@ const notificarAprobacionJefeConBotones = async (solicitud, empleado, jefe, cont
 
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('vacaciones'),
       to: contadora.email,
-      subject: `📋 Solicitud Pendiente de Aprobación Final - ${empleado.nombres || empleado.nombre} ${empleado.apellidos || empleado.apellido}`,
-      html: plantillaBase(contenido, 'Solicitud Pendiente de Aprobación')
+      subject: `Vacaciones pendientes de aprobación final — ${empleado.nombres || empleado.nombre} ${empleado.apellidos || empleado.apellido}`,
+      html: plantillaEmail(contenido, 'Pendiente de aprobación final', 'vacaciones')
     });
     console.log(`📧 Email enviado a ${contadora.email} - Pendiente aprobación final`);
     return true;
@@ -590,10 +488,10 @@ const notificarAprobacionFinal = async (solicitud, empleado, aprobador) => {
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('vacaciones'),
       to: empleado.email,
-      subject: `🎉 ¡Vacaciones Aprobadas! - ${solicitud.dias_solicitados} días del ${formatearFecha(solicitud.fecha_inicio_vacaciones).split(',')[1]?.trim() || ''}`,
-      html: plantillaBase(contenido, '¡Vacaciones Aprobadas!')
+      subject: `Vacaciones aprobadas — ${solicitud.dias_solicitados} días`,
+      html: plantillaEmail(contenido, 'Vacaciones aprobadas', 'vacaciones')
     });
     console.log(`📧 Email enviado a ${empleado.email} - Vacaciones aprobadas`);
     return true;
@@ -663,10 +561,10 @@ const notificarRechazo = async (solicitud, empleado, rechazadoPor, motivo) => {
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('vacaciones'),
       to: empleado.email,
-      subject: `❌ Solicitud de Vacaciones Rechazada`,
-      html: plantillaBase(contenido, 'Solicitud Rechazada')
+      subject: 'Solicitud de vacaciones rechazada',
+      html: plantillaEmail(contenido, 'Solicitud rechazada', 'vacaciones')
     });
     console.log(`📧 Email enviado a ${empleado.email} - Solicitud rechazada`);
     return true;
@@ -690,7 +588,7 @@ const enviarRecuperacionPassword = async (empleado, token) => {
   const contenido = `
     <p>Hola <strong>${empleado.nombres} ${empleado.apellidos}</strong>,</p>
     
-    <p>Recibimos una solicitud para restablecer tu contraseña en el Sistema de Gestión de Vacaciones.</p>
+    <p>Recibimos una solicitud para restablecer tu contraseña en el <strong>Portal Prayaga Interno</strong>.</p>
     
     <div class="info-box">
       <div class="info-row">
@@ -722,10 +620,10 @@ const enviarRecuperacionPassword = async (empleado, token) => {
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('cuenta'),
       to: empleado.email,
-      subject: '🔐 Restablecer tu contraseña - Gestión de Vacaciones',
-      html: plantillaBase(contenido, 'Recuperar Contraseña')
+      subject: 'Restablecer tu contraseña — Portal Prayaga Interno',
+      html: plantillaEmail(contenido, 'Recuperar contraseña', 'cuenta')
     });
     console.log(`📧 Email de recuperación enviado a ${empleado.email}`);
     return true;
@@ -790,10 +688,10 @@ const notificarNuevaSolicitudRegistro = async (solicitud, contadora) => {
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('registro'),
       to: contadora.email,
-      subject: `📝 Nueva Solicitud de Registro - ${solicitud.nombres} ${solicitud.apellidos}`,
-      html: plantillaBase(contenido, 'Nueva Solicitud de Registro')
+      subject: `Nueva solicitud de registro — ${solicitud.nombres} ${solicitud.apellidos}`,
+      html: plantillaEmail(contenido, 'Nueva solicitud de registro', 'registro')
     });
     console.log(`📧 Notificación de registro enviada a ${contadora.email}`);
     return true;
@@ -817,7 +715,7 @@ const notificarRegistroAprobado = async (solicitud, passwordTemporal) => {
     
     <p>¡Buenas noticias! Tu solicitud de registro ha sido <span class="status-aprobada">APROBADA</span>.</p>
     
-    <p>Ya puedes acceder al Sistema de Gestión de Vacaciones con las siguientes credenciales:</p>
+    <p>Ya puedes acceder al <strong>Portal Prayaga Interno</strong> con las siguientes credenciales:</p>
     
     <div class="info-box">
       <div class="info-row">
@@ -844,10 +742,10 @@ const notificarRegistroAprobado = async (solicitud, passwordTemporal) => {
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('registro'),
       to: solicitud.email,
-      subject: '✅ ¡Tu cuenta ha sido creada! - Gestión de Vacaciones',
-      html: plantillaBase(contenido, 'Registro Aprobado')
+      subject: 'Tu cuenta ha sido creada — Portal Prayaga Interno',
+      html: plantillaEmail(contenido, 'Registro aprobado', 'registro')
     });
     console.log(`📧 Notificación de registro aprobado enviada a ${solicitud.email}`);
     return true;
@@ -882,10 +780,10 @@ const notificarRegistroRechazado = async (solicitud, motivo) => {
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('registro'),
       to: solicitud.email,
-      subject: '❌ Solicitud de Registro Rechazada - Gestión de Vacaciones',
-      html: plantillaBase(contenido, 'Registro Rechazado')
+      subject: 'Solicitud de registro rechazada — Portal Prayaga Interno',
+      html: plantillaEmail(contenido, 'Registro rechazado', 'registro')
     });
     console.log(`📧 Notificación de registro rechazado enviada a ${solicitud.email}`);
     return true;
@@ -953,10 +851,10 @@ const notificarPermisoPendienteContadora = async (permiso, empleado, contadora) 
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('permisos'),
       to: contadora.email,
-      subject: `Nueva solicitud: ${tipoLabel} - ${empNombre} ${empApellido}`,
-      html: plantillaBase(contenido, 'Permiso o descanso pendiente')
+      subject: `${tipoLabel} — ${empNombre} ${empApellido}`,
+      html: plantillaEmail(contenido, 'Permiso o descanso pendiente', 'permisos')
     });
     console.log(`Email enviado a ${contadora.email} - Permiso pendiente (${tipoLabel})`);
     return true;
@@ -1042,15 +940,10 @@ const notificarActividadBolsaHorasEncargado = async ({
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Bolsa de Horas · Prayaga" <${process.env.SMTP_USER}>`,
+      from: remitente('bolsaHoras'),
       to,
       subject: `${verboTitulo} · ${proyectoNombre ? String(proyectoNombre).slice(0, 60) : 'Proyecto'}`,
-      html: plantillaBase(
-        contenido,
-        verboTitulo,
-        'Bolsa de horas · Control de proyectos',
-        'Este mensaje es automático ante cambios en actividades/registro de horas del proyecto.'
-      )
+      html: plantillaEmail(contenido, verboTitulo, 'bolsaHoras')
     });
     console.log(`Email bolsa horas encargado → ${to} (actividad ${actividadId})`);
     return true;
@@ -1109,15 +1002,6 @@ const htmlVistaReciboReembolso = (r, codigoTicket) => {
     </p>
   </div>`;
 };
-
-/** Encabezado y pie distintos al de vacaciones en plantillaBase */
-const MARCA_ENCABEZADO_EMAIL_REINTEGRO = '💳 Solicitud de reintegro';
-const PIE_EMAIL_REINTEGRO =
-  'Este es un mensaje automático del Portal Prayaga Interno - Prayaga (solicitudes de reintegro).';
-
-const MARCA_ENCABEZADO_CAJA_CHICA = '💰 Caja chica';
-const PIE_EMAIL_CAJA_CHICA =
-  'Este es un mensaje automático del Portal Prayaga Interno - Prayaga (módulo Caja chica).';
 
 const emailDestinoCajaChicaRocio = () =>
   (process.env.CAJA_CHICA_EMAIL_ROCIO || 'rocio.picon@prayaga.biz').trim();
@@ -1270,11 +1154,11 @@ const enviarCajaChicaResumenRocio = async ({
     fs.writeFileSync(tmpPdf, bufAdjunto);
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal Prayaga Interno - Caja chica" <${process.env.SMTP_USER}>`,
+      from: remitente('cajaChica'),
       to: toField,
       subject: `Caja chica · ${periodoEtiqueta} (${estadoPeriodo})`,
       text: `Resumen de caja chica (${periodoEtiqueta}). PDF: resumen formal y fusión de comprobantes (facturas primero por fecha, luego recibos Prayaga por fecha).`,
-      html: plantillaBase(contenido, 'Resumen enviado desde el portal', MARCA_ENCABEZADO_CAJA_CHICA, PIE_EMAIL_CAJA_CHICA),
+      html: plantillaEmail(contenido, 'Resumen enviado desde el portal', 'cajaChica'),
       attachments: [
         {
           filename: `Caja-chica-${safeFile}-completo.pdf`,
@@ -1374,15 +1258,10 @@ const notificarNuevaSolicitudReembolsoAprobador = async ({
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal Prayaga Interno - Reembolsos" <${process.env.SMTP_USER}>`,
+      from: remitente('reintegro'),
       to: aprobador.email,
-      subject: `Solicitud de reembolso ${codigo} - ${empNombre}`,
-      html: plantillaBase(
-        contenido,
-        'Nueva solicitud de reintegro',
-        MARCA_ENCABEZADO_EMAIL_REINTEGRO,
-        PIE_EMAIL_REINTEGRO
-      ),
+      subject: `Solicitud de reintegro ${codigo} — ${empNombre}`,
+      html: plantillaEmail(contenido, 'Nueva solicitud de reintegro', 'reintegro'),
       attachments
     });
     console.log(`📧 Reembolso: correo enviado a aprobador ${aprobador.email}`);
@@ -1449,15 +1328,10 @@ const notificarReembolsoResueltoEmpleado = async (reembolso, empleado, resultado
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal Prayaga Interno - Reintegros" <${process.env.SMTP_USER}>`,
+      from: remitente('reintegro'),
       to: empleado.email,
       subject,
-      html: plantillaBase(
-        contenido,
-        tituloPlantilla,
-        MARCA_ENCABEZADO_EMAIL_REINTEGRO,
-        PIE_EMAIL_REINTEGRO
-      )
+      html: plantillaEmail(contenido, tituloPlantilla, 'reintegro')
     });
     return true;
   } catch (error) {
@@ -1469,10 +1343,6 @@ const notificarReembolsoResueltoEmpleado = async (reembolso, empleado, resultado
 /* =========================================================================
  * Rendición de Presupuesto (módulo paralelo a reembolsos, aprobado por admin).
  * ========================================================================= */
-
-const MARCA_ENCABEZADO_EMAIL_RENDICION = '🧾 Rendición de presupuesto';
-const PIE_EMAIL_RENDICION =
-  'Este es un mensaje automático del Portal Prayaga Interno - Prayaga (rendiciones de presupuesto).';
 
 const codigoTicketRendicion = (row) => {
   const y = row.created_at ? new Date(row.created_at).getFullYear() : new Date().getFullYear();
@@ -1534,15 +1404,10 @@ const notificarNuevaRendicionAdmin = async ({
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal Prayaga Interno - Rendiciones" <${process.env.SMTP_USER}>`,
+      from: remitente('rendicion'),
       to: aprobador.email,
-      subject: `Rendición ${codigo} - ${empNombre}`,
-      html: plantillaBase(
-        contenido,
-        'Nueva rendición de presupuesto',
-        MARCA_ENCABEZADO_EMAIL_RENDICION,
-        PIE_EMAIL_RENDICION
-      ),
+      subject: `Rendición ${codigo} — ${empNombre}`,
+      html: plantillaEmail(contenido, 'Nueva rendición de presupuesto', 'rendicion'),
       attachments
     });
     console.log(`📧 Rendición: correo enviado a admin ${aprobador.email}`);
@@ -1609,15 +1474,10 @@ const notificarRendicionResueltaEmpleado = async (rendicion, empleado, resultado
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal Prayaga Interno - Rendiciones" <${process.env.SMTP_USER}>`,
+      from: remitente('rendicion'),
       to: empleado.email,
       subject,
-      html: plantillaBase(
-        contenido,
-        tituloPlantilla,
-        MARCA_ENCABEZADO_EMAIL_RENDICION,
-        PIE_EMAIL_RENDICION
-      )
+      html: plantillaEmail(contenido, tituloPlantilla, 'rendicion')
     });
     return true;
   } catch (error) {
@@ -1632,7 +1492,7 @@ const enviarEmailPrueba = async (destinatario) => {
   }
 
   const contenido = `
-    <p>Este es un correo de prueba del Sistema de Gestión de Vacaciones.</p>
+    <p>Este es un correo de prueba del <strong>Portal Prayaga Interno</strong>.</p>
     <p>Si recibiste este correo, la configuración de email está funcionando correctamente.</p>
     <div class="info-box">
       <div class="info-row">
@@ -1648,10 +1508,10 @@ const enviarEmailPrueba = async (destinatario) => {
 
   const transporter = createTransporter();
   await transporter.sendMail({
-    from: `"Gestión de Vacaciones - Prayaga" <${process.env.SMTP_USER}>`,
+    from: remitente('portal'),
     to: destinatario,
-    subject: '🧪 Prueba de Configuración de Email - Gestión de Vacaciones',
-    html: plantillaBase(contenido, 'Email de Prueba')
+    subject: 'Prueba de configuración de email — Portal Prayaga Interno',
+    html: plantillaEmail(contenido, 'Email de prueba', 'portal')
   });
 
   return true;
@@ -1723,10 +1583,10 @@ const enviarRespaldoArchivo = async ({
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Portal Prayaga — Archivo" <${process.env.SMTP_USER}>`,
+      from: remitente('archivo'),
       to: toList.join(', '),
       subject: `[Respaldo Prayaga] ${fechaLabel} (${turno === 'manana' ? 'mañana' : 'tarde'})`,
-      html: plantillaBase(contenido, 'Respaldo automático de datos'),
+      html: plantillaEmail(contenido, 'Respaldo automático de datos', 'archivo'),
       attachments
     });
     console.log(`📧 Respaldo enviado a: ${toList.join(', ')}`);
