@@ -111,9 +111,9 @@ function generarReportePdf(reporte) {
           'Monto mensual',
           reporte.montoMensual
             ? fmtMonto(reporte.montoMensual.monto, reporte.montoMensual.moneda)
-            : 'No registrado'
+            : '—'
         ],
-        ['Registros PAYG', String(m.totalFilas || '—')]
+        ['Registros de consumo', String(m.totalFilas || '—')]
       ];
       kpis.forEach(([label, val], i) => {
         const bx = 40 + i * (boxW + 12);
@@ -123,18 +123,6 @@ function generarReportePdf(reporte) {
       });
       doc.font('Helvetica');
       doc.y = kpiY + 62;
-
-      if (reporte.vinculacion) {
-        doc
-          .fontSize(8)
-          .fillColor(COLORS.muted)
-          .text(
-            `Vinculación datos: cliente «${reporte.vinculacion.customerName}» + mes ${reporte.vinculacion.mes} + año ${reporte.vinculacion.anio}.`,
-            40,
-            doc.y
-          );
-        doc.moveDown(0.4);
-      }
 
       let cy = doc.y + 8;
       cy = dibujarHistorico(doc, reporte.historicoCombinado, 40, cy, 515);
@@ -167,16 +155,6 @@ function generarReportePdf(reporte) {
           .text(`${row.key}: ${fmtNum(row.quantity)} ${row.unit}`, 45, cy);
         cy += 12;
       });
-
-      doc
-        .fontSize(7)
-        .fillColor('#94a3b8')
-        .text(
-          'Reporte de uso técnico (sin precios PAYG). Monto mensual ingresado manualmente en el portal.',
-          40,
-          780,
-          { align: 'center', width: 515 }
-        );
 
       doc.end();
     } catch (e) {

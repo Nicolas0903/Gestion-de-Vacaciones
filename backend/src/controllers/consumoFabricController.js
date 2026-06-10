@@ -10,7 +10,8 @@ const {
 } = require('../services/consumoFabricPaygParser');
 const {
   construirReporte,
-  exportarReporteExcel
+  exportarReporteExcel,
+  refrescarInsightsForDisplay
 } = require('../services/consumoFabricReporteService');
 const { generarReportePdf } = require('../services/consumoFabricPdfService');
 
@@ -113,6 +114,9 @@ exports.obtenerCarga = async (req, res) => {
   try {
     const row = await ConsumoFabricCarga.buscarPorId(req.params.id);
     if (!row) return res.status(404).json({ success: false, mensaje: 'No encontrado' });
+    if (row.reporte_json) {
+      row.reporte_json = refrescarInsightsForDisplay(row.reporte_json);
+    }
     res.json({ success: true, data: row });
   } catch (err) {
     res.status(500).json({ success: false, mensaje: 'Error al obtener reporte' });
@@ -179,7 +183,7 @@ exports.exportarCarga = async (req, res) => {
   try {
     const row = await ConsumoFabricCarga.buscarPorId(req.params.id);
     if (!row) return res.status(404).json({ success: false, mensaje: 'No encontrado' });
-    const buffer = await exportarReporteExcel(row.reporte_json);
+    const buffer = await exportarReporteExcel(refrescarInsightsForDisplay(row.reporte_json));
     const safeName = String(row.customer_name).replace(/[^\w.-]+/g, '_').slice(0, 40);
     const filename = `consumo-fabric-${safeName}-${row.anio}-${row.mes}.xlsx`;
     res.setHeader(
@@ -198,7 +202,7 @@ exports.exportarCargaPdf = async (req, res) => {
   try {
     const row = await ConsumoFabricCarga.buscarPorId(req.params.id);
     if (!row) return res.status(404).json({ success: false, mensaje: 'No encontrado' });
-    const buffer = await generarReportePdf(row.reporte_json);
+    const buffer = await generarReportePdf(refrescarInsightsForDisplay(row.reporte_json));
     const safeName = String(row.customer_name).replace(/[^\w.-]+/g, '_').slice(0, 40);
     const filename = `consumo-fabric-${safeName}-${row.anio}-${row.mes}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');

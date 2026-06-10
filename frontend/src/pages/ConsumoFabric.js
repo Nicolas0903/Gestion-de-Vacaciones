@@ -219,7 +219,7 @@ const ConsumoFabric = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Consumo Fabric</h1>
           <p className="text-sm text-slate-500">
-            Reporte de uso Microsoft Fabric (PAYG) con monto mensual de referencia por cliente
+            Reporte de uso y facturación Microsoft Fabric por cliente
           </p>
         </div>
       </div>

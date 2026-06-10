@@ -88,14 +88,6 @@ const ConsumoFabricReporteVisual = ({ reporte, onExportarExcel, onExportarPdf, e
               {m.customerDomain && <span>{m.customerDomain} · </span>}
               {m.mesLabel} {m.anio} · {m.periodoInicio} — {m.periodoFin}
             </p>
-            {reporte.vinculacion && (
-              <p className="text-[11px] text-slate-400 mt-2 max-w-xl">
-                Datos vinculados por <strong>cliente + mes ({reporte.vinculacion.mes}) + año ({reporte.vinculacion.anio})</strong>
-                {reporte.vinculacion.montoEncontrado
-                  ? ' · Monto mensual encontrado'
-                  : ' · Sin monto mensual para este periodo'}
-              </p>
-            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -132,7 +124,7 @@ const ConsumoFabricReporteVisual = ({ reporte, onExportarExcel, onExportarPdf, e
                 ? `${reporte.montoMensual.moneda} ${fmtQty(reporte.montoMensual.monto)}`
                 : '—'}
             </p>
-            <p className="text-xs text-slate-500">Referencia manual</p>
+            <p className="text-xs text-slate-500">Importe del periodo</p>
           </div>
           <div className="rounded-xl bg-white border border-slate-100 p-4 shadow-sm">
             <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Componentes</p>
@@ -144,7 +136,7 @@ const ConsumoFabricReporteVisual = ({ reporte, onExportarExcel, onExportarPdf, e
           <div className="rounded-xl bg-white border border-slate-100 p-4 shadow-sm">
             <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Registros</p>
             <p className="text-2xl font-bold text-slate-800 mt-1">{m.totalFilas}</p>
-            <p className="text-xs text-slate-500">Filas PAYG</p>
+            <p className="text-xs text-slate-500">Registros de consumo</p>
           </div>
         </div>
       </div>
@@ -311,9 +303,6 @@ const ConsumoFabricReporteVisual = ({ reporte, onExportarExcel, onExportarPdf, e
             </tbody>
           </table>
         </div>
-        <p className="px-5 py-3 text-xs text-slate-400 border-t border-slate-50">
-          Uso técnico sin precios del PAYG. El monto mensual es dato administrativo ingresado en el portal.
-        </p>
       </div>
     </div>
   );

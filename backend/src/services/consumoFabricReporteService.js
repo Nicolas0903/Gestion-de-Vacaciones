@@ -52,14 +52,24 @@ function generarInsights(meta, porComponente, porDia, montoMensual) {
   }
   if (montoMensual) {
     tips.push(
-      `Monto de referencia del periodo (${MESES_NOMBRE[montoMensual.mes]} ${montoMensual.anio}): ${fmtMonto(montoMensual.monto, montoMensual.moneda)}. El detalle de esta página describe solo consumo técnico (CU, GB, etc.).`
-    );
-  } else {
-    tips.push(
-      'No hay monto mensual registrado para este cliente y periodo. Puede cargarlo en Montos mensuales para incluirlo en el reporte.'
+      `Importe del periodo (${MESES_NOMBRE[montoMensual.mes]} ${montoMensual.anio}): ${fmtMonto(montoMensual.monto, montoMensual.moneda)}.`
     );
   }
   return tips;
+}
+
+/** Actualiza hallazgos al mostrar/exportar reportes guardados (texto orientado al cliente). */
+function refrescarInsightsForDisplay(reporte) {
+  if (!reporte) return reporte;
+  return {
+    ...reporte,
+    insights: generarInsights(
+      reporte.meta || {},
+      reporte.porComponente || [],
+      reporte.porDia || [],
+      reporte.montoMensual || null
+    )
+  };
 }
 
 function combinarHistorico(historicoMontos = [], historicoCu = []) {
@@ -196,12 +206,12 @@ async function exportarReporteExcel(reporte) {
     ['Periodo', `${m.periodoInicio || '—'} a ${m.periodoFin || '—'}`],
     ['Mes consumo', m.mesLabel || '—'],
     ['Año', m.anio || '—'],
-    ['Filas PAYG analizadas', m.totalFilas],
+    ['Registros de consumo', m.totalFilas],
     ['Total CU (horas aprox.)', reporte.resumen.totalCuHoras]
   ];
   if (reporte.montoMensual) {
     rows.push([
-      'Monto mensual (referencia)',
+      'Monto mensual',
       fmtMonto(reporte.montoMensual.monto, reporte.montoMensual.moneda)
     ]);
   }
@@ -244,6 +254,7 @@ async function exportarReporteExcel(reporte) {
 module.exports = {
   construirReporte,
   combinarHistorico,
+  refrescarInsightsForDisplay,
   exportarReporteExcel,
   fmtNum,
   fmtMonto
