@@ -30,7 +30,9 @@ async function armarReporteCompleto(meta, filas, mes, anio) {
 
 async function refrescarReporteDesdeBd(reporte, cargaRow) {
   if (!reporte || !cargaRow) return reporte;
-  const { customer_name, mes, anio } = cargaRow;
+  const customer_name = cargaRow.customer_name;
+  const mes = Number(cargaRow.mes);
+  const anio = Number(cargaRow.anio);
   const montoRow = await ConsumoFabricMonto.buscarPorClientePeriodo(customer_name, mes, anio);
   const historicoMontos = await ConsumoFabricMonto.historicoPorCliente(customer_name);
   const historicoCu = await ConsumoFabricCarga.historicoCuPorCliente(customer_name);
@@ -74,15 +76,15 @@ exports.listarPeriodosMontos = async (req, res) => {
     const data = periodos.map((p) => {
       const monto = montos.find(
         (m) =>
-          m.mes === p.mes &&
-          m.anio === p.anio &&
+          Number(m.mes) === Number(p.mes) &&
+          Number(m.anio) === Number(p.anio) &&
           claveCliente(m.customer_name) === claveCliente(p.customer_name)
       );
       return {
         carga_id: p.carga_id,
         customer_name: p.customer_name,
-        mes: p.mes,
-        anio: p.anio,
+        mes: Number(p.mes),
+        anio: Number(p.anio),
         total_filas: p.total_filas,
         created_at: p.created_at,
         monto_id: monto?.id ?? null,

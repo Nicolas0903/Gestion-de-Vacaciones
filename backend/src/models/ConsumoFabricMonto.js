@@ -27,17 +27,19 @@ class ConsumoFabricMonto {
 
   static async buscarPorClientePeriodo(customerName, mes, anio) {
     const nombre = normCliente(customerName);
+    const mesN = parseInt(mes, 10);
+    const anioN = parseInt(anio, 10);
     const [rows] = await pool.query(
       `SELECT * FROM fabric_consumo_montos
        WHERE customer_name = ? AND mes = ? AND anio = ?`,
-      [nombre, mes, anio]
+      [nombre, mesN, anioN]
     );
     if (rows[0]) return rows[0];
 
     const clave = claveCliente(nombre);
     const [todos] = await pool.query(
       `SELECT * FROM fabric_consumo_montos WHERE mes = ? AND anio = ?`,
-      [mes, anio]
+      [mesN, anioN]
     );
     return todos.find((r) => claveCliente(r.customer_name) === clave) || null;
   }

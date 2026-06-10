@@ -60,12 +60,14 @@ function generarInsights(meta, porComponente, porDia, montoMensual) {
 
 function montoMensualDesdeFila(row) {
   if (!row) return null;
+  const mes = Number(row.mes);
+  const anio = Number(row.anio);
   return {
     monto: Number(row.monto),
     moneda: row.moneda || 'US$',
-    mes: row.mes,
-    anio: row.anio,
-    mesLabel: MESES_NOMBRE[row.mes]
+    mes,
+    anio,
+    mesLabel: MESES_NOMBRE[mes]
   };
 }
 
@@ -99,22 +101,26 @@ function aplicarMontosAlReporte(reporte, montoRow, historicoMontos = [], histori
 function combinarHistorico(historicoMontos = [], historicoCu = []) {
   const map = new Map();
   for (const m of historicoMontos) {
-    const k = `${m.anio}-${m.mes}`;
+    const mes = Number(m.mes);
+    const anio = Number(m.anio);
+    const k = `${anio}-${mes}`;
     map.set(k, {
-      mes: m.mes,
-      anio: m.anio,
-      mesLabel: MESES_NOMBRE[m.mes],
+      mes,
+      anio,
+      mesLabel: MESES_NOMBRE[mes],
       monto: Number(m.monto),
       moneda: m.moneda || 'US$',
       cuHoras: 0
     });
   }
   for (const c of historicoCu) {
-    const k = `${c.anio}-${c.mes}`;
+    const mes = Number(c.mes);
+    const anio = Number(c.anio);
+    const k = `${anio}-${mes}`;
     const prev = map.get(k) || {
-      mes: c.mes,
-      anio: c.anio,
-      mesLabel: MESES_NOMBRE[c.mes],
+      mes,
+      anio,
+      mesLabel: MESES_NOMBRE[mes],
       monto: null,
       moneda: 'US$',
       cuHoras: 0
