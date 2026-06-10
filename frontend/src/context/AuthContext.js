@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authService } from '../services/api';
-import { evaluarAccesoModuloPortal, parseModulosPortal, EMAILS_MODULO_CAJA_CHICA } from '../utils/accesoPortal';
+import {
+  evaluarAccesoModuloPortal,
+  parseModulosPortal,
+  EMAILS_MODULO_CAJA_CHICA,
+  EMAILS_MODULO_CONSUMO_FABRIC
+} from '../utils/accesoPortal';
 
 const AuthContext = createContext(null);
 
@@ -172,7 +177,8 @@ export const AuthProvider = ({ children }) => {
       esAdmin,
       esContadora,
       puedeVerReporteAsistencia,
-      emailsCajaChica: EMAILS_MODULO_CAJA_CHICA
+      emailsCajaChica: EMAILS_MODULO_CAJA_CHICA,
+      emailsConsumoFabric: EMAILS_MODULO_CONSUMO_FABRIC
     }),
     [usuario]
   );

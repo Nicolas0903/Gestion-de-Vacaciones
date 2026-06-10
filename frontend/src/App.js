@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { evaluarAccesoModuloPortal, EMAILS_MODULO_CAJA_CHICA } from './utils/accesoPortal';
+import {
+  evaluarAccesoModuloPortal,
+  EMAILS_MODULO_CAJA_CHICA,
+  EMAILS_MODULO_CONSUMO_FABRIC
+} from './utils/accesoPortal';
 
 // Pages
 import Login from './pages/Login';
@@ -87,7 +91,8 @@ function ModuloPortalRoute({ moduloId, children }) {
       esAdmin,
       esContadora,
       puedeVerReporteAsistencia,
-      emailsCajaChica: EMAILS_MODULO_CAJA_CHICA
+      emailsCajaChica: EMAILS_MODULO_CAJA_CHICA,
+      emailsConsumoFabric: EMAILS_MODULO_CONSUMO_FABRIC
     };
 
     const evaluar = (u) => evaluarAccesoModuloPortal(u, moduloId, opts);

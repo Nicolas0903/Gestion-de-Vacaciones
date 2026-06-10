@@ -15,6 +15,7 @@ const {
 } = require('../services/consumoFabricReporteService');
 const { claveCliente } = require('../services/consumoFabricPaygParser');
 const { generarReportePdf } = require('../services/consumoFabricPdfService');
+const { EMAILS_MODULO_CONSUMO_FABRIC } = require('../utils/portalAcceso');
 
 async function armarReporteCompleto(meta, filas, mes, anio) {
   const montoMensual = await ConsumoFabricMonto.buscarPorClientePeriodo(meta.customerName, mes, anio);
@@ -44,7 +45,11 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-const esAdmin = (req) => req.usuario?.rol_nombre === 'admin';
+const puedeGestionarConsumoFabric = (req) => {
+  if (req.usuario?.rol_nombre === 'admin') return true;
+  const em = (req.usuario?.email || '').toLowerCase().trim();
+  return EMAILS_MODULO_CONSUMO_FABRIC.includes(em);
+};
 
 const responderError = (res, err, fallback = 'Error en la operación') => {
   const msg = err?.message || fallback;
@@ -100,8 +105,8 @@ exports.listarPeriodosMontos = async (req, res) => {
 };
 
 exports.guardarMonto = async (req, res) => {
-  if (!esAdmin(req)) {
-    return res.status(403).json({ success: false, mensaje: 'Solo administradores' });
+  if (!puedeGestionarConsumoFabric(req)) {
+    return res.status(403).json({ success: false, mensaje: 'Sin permiso para gestionar montos' });
   }
   try {
     const data = await ConsumoFabricMonto.upsert(req.body, req.usuario.id);
@@ -112,8 +117,8 @@ exports.guardarMonto = async (req, res) => {
 };
 
 exports.eliminarMonto = async (req, res) => {
-  if (!esAdmin(req)) {
-    return res.status(403).json({ success: false, mensaje: 'Solo administradores' });
+  if (!puedeGestionarConsumoFabric(req)) {
+    return res.status(403).json({ success: false, mensaje: 'Sin permiso para gestionar montos' });
   }
   try {
     const ok = await ConsumoFabricMonto.eliminar(req.params.id);
@@ -125,8 +130,8 @@ exports.eliminarMonto = async (req, res) => {
 };
 
 exports.importarMontos = async (req, res) => {
-  if (!esAdmin(req)) {
-    return res.status(403).json({ success: false, mensaje: 'Solo administradores' });
+  if (!puedeGestionarConsumoFabric(req)) {
+    return res.status(403).json({ success: false, mensaje: 'Sin permiso para gestionar montos' });
   }
   if (!req.file) {
     return res.status(400).json({ success: false, mensaje: 'Suba un archivo Excel' });
@@ -167,8 +172,8 @@ exports.obtenerCarga = async (req, res) => {
 };
 
 exports.subirPayg = async (req, res) => {
-  if (!esAdmin(req)) {
-    return res.status(403).json({ success: false, mensaje: 'Solo administradores' });
+  if (!puedeGestionarConsumoFabric(req)) {
+    return res.status(403).json({ success: false, mensaje: 'Sin permiso para cargar reportes' });
   }
   if (!req.file) {
     return res.status(400).json({ success: false, mensaje: 'Suba el Excel con hoja PAYG' });
@@ -260,8 +265,8 @@ exports.exportarCargaPdf = async (req, res) => {
 };
 
 exports.eliminarCarga = async (req, res) => {
-  if (!esAdmin(req)) {
-    return res.status(403).json({ success: false, mensaje: 'Solo administradores' });
+  if (!puedeGestionarConsumoFabric(req)) {
+    return res.status(403).json({ success: false, mensaje: 'Sin permiso para eliminar cargas' });
   }
   try {
     const row = await ConsumoFabricCarga.eliminar(req.params.id);

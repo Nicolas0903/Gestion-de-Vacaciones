@@ -22,6 +22,8 @@ export const EMAILS_MODULO_CAJA_CHICA = [
   'nicolas.valdivia@prayaga.biz'
 ];
 
+export const EMAILS_MODULO_CONSUMO_FABRIC = ['veronica.gonzales@prayaga.biz'];
+
 /**
  * Misma lógica de acceso que AuthContext / backend portalAcceso.
  * @param {object|null} usuario
@@ -36,13 +38,18 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
     esAdmin,
     esContadora,
     puedeVerReporteAsistencia,
-    emailsCajaChica
+    emailsCajaChica,
+    emailsConsumoFabric = EMAILS_MODULO_CONSUMO_FABRIC
   } = opts;
 
   if (
     (moduloId === 'caja-chica' || moduloId === 'caja-rendicion') &&
     emailsCajaChica.includes(em)
   ) {
+    return true;
+  }
+
+  if (moduloId === 'consumo-fabric' && emailsConsumoFabric.includes(em)) {
     return true;
   }
 

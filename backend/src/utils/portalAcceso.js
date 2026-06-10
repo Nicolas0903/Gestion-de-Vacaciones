@@ -16,6 +16,9 @@ const EMAILS_MODULO_CAJA_CHICA = [
   'nicolas.valdivia@prayaga.biz'
 ];
 
+/** Consumo Fabric: acceso y gestión (subir PAYG, montos) sin rol admin. */
+const EMAILS_MODULO_CONSUMO_FABRIC = ['veronica.gonzales@prayaga.biz'];
+
 /**
  * Si el rol (y correo cuando aplica) permitiría ver el módulo antes de aplicar modulos_portal.
  */
@@ -41,6 +44,7 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
     return rolNombre === 'admin';
   }
   if (moduloId === 'consumo-fabric') {
+    if (EMAILS_MODULO_CONSUMO_FABRIC.includes(e)) return true;
     return rolNombre === 'admin';
   }
   // Rendición de presupuesto: acceso restringido. Solo admin tiene acceso por defecto;
@@ -66,6 +70,9 @@ function tieneAccesoEfectivoModulo(empleado, moduloId) {
     (moduloId === 'caja-chica' || moduloId === 'caja-rendicion') &&
     EMAILS_MODULO_CAJA_CHICA.includes(e)
   ) {
+    return true;
+  }
+  if (moduloId === 'consumo-fabric' && EMAILS_MODULO_CONSUMO_FABRIC.includes(e)) {
     return true;
   }
   // Admin siempre puede acceder a Rendición de Presupuesto (es quien aprueba).
@@ -114,5 +121,6 @@ module.exports = {
   accesoPortalDetalleCompleto,
   etiquetasAccesoResumen,
   EMAILS_REPORTE_ASISTENCIA,
-  EMAILS_MODULO_CAJA_CHICA
+  EMAILS_MODULO_CAJA_CHICA,
+  EMAILS_MODULO_CONSUMO_FABRIC
 };
