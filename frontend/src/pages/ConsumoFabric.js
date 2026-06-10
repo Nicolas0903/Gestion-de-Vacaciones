@@ -7,6 +7,7 @@ import {
   ChartBarSquareIcon,
   TrashIcon,
   PlusIcon,
+  PencilSquareIcon,
   DocumentChartBarIcon
 } from '@heroicons/react/24/outline';
 import { consumoFabricService } from '../services/api';
@@ -50,6 +51,7 @@ const ConsumoFabric = () => {
   const [periodoFormSel, setPeriodoFormSel] = useState('');
   const [inlineMontos, setInlineMontos] = useState({});
   const [guardandoPeriodo, setGuardandoPeriodo] = useState(null);
+  const [editandoMontoId, setEditandoMontoId] = useState(null);
   const formMontoRef = useRef(null);
 
   const [formMonto, setFormMonto] = useState({
@@ -214,6 +216,35 @@ const ConsumoFabric = () => {
     }
   };
 
+  const editarMonto = (row) => {
+    const key = periodoKey(row);
+    const matchPeriodo = periodos.find(
+      (p) =>
+        Number(p.mes) === Number(row.mes) &&
+        Number(p.anio) === Number(row.anio) &&
+        p.customer_name === row.customer_name
+    );
+    if (matchPeriodo) {
+      seleccionarPeriodo(
+        { ...matchPeriodo, monto: Number(row.monto), moneda: row.moneda },
+        { scroll: true }
+      );
+    } else {
+      setPeriodoFormSel('');
+      setFormMonto({
+        customer_name: row.customer_name,
+        mes: Number(row.mes),
+        anio: Number(row.anio),
+        monto: String(row.monto),
+        moneda: row.moneda || 'US$'
+      });
+      formMontoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    setEditandoMontoId(row.id);
+    setInlineMontos((prev) => ({ ...prev, [key]: String(row.monto) }));
+    toast.success(`Editando · ${row.customer_name} ${MESES[row.mes]} ${row.anio}`);
+  };
+
   const guardarMontoPeriodo = async (periodo) => {
     const key = periodoKey(periodo);
     const valor = inlineMontos[key];
@@ -233,6 +264,7 @@ const ConsumoFabric = () => {
         moneda: periodo.moneda || 'US$'
       });
       toast.success(`Monto guardado · ${MESES[periodo.mes]} ${periodo.anio}`);
+      setEditandoMontoId(null);
       await cargar();
       await sincronizarReporteTrasMonto(data.data);
     } catch (err) {
@@ -261,7 +293,8 @@ const ConsumoFabric = () => {
     }
     try {
       const { data } = await consumoFabricService.guardarMonto(payload);
-      toast.success('Monto guardado.');
+      toast.success(editandoMontoId ? 'Monto actualizado.' : 'Monto guardado.');
+      setEditandoMontoId(null);
       setPeriodoFormSel('');
       setFormMonto({
         customer_name: '',
@@ -294,6 +327,7 @@ const ConsumoFabric = () => {
     if (!window.confirm('¿Eliminar este monto?')) return;
     try {
       await consumoFabricService.eliminarMonto(id);
+      if (editandoMontoId === id) setEditandoMontoId(null);
       toast.success('Eliminado.');
       cargar();
     } catch (err) {
@@ -411,14 +445,38 @@ const ConsumoFabric = () => {
                             )}
                           </td>
                           <td className="px-4 py-2.5 text-right">
-                            <button
-                              type="button"
-                              onClick={() => guardarMontoPeriodo(p)}
-                              disabled={guardandoPeriodo === key}
-                              className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 disabled:opacity-50"
-                            >
-                              {guardandoPeriodo === key ? 'Guardando…' : p.monto != null ? 'Actualizar' : 'Asignar'}
-                            </button>
+                            <div className="flex justify-end gap-1.5">
+                              {p.monto != null && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const row = montos.find(
+                                      (m) =>
+                                        Number(m.mes) === Number(p.mes) &&
+                                        Number(m.anio) === Number(p.anio) &&
+                                        m.customer_name === p.customer_name
+                                    );
+                                    if (row) editarMonto(row);
+                                    else seleccionarPeriodo(p, { scroll: true });
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50"
+                                >
+                                  Editar
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => guardarMontoPeriodo(p)}
+                                disabled={guardandoPeriodo === key}
+                                className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 disabled:opacity-50"
+                              >
+                                {guardandoPeriodo === key
+                                  ? 'Guardando…'
+                                  : p.monto != null
+                                    ? 'Actualizar'
+                                    : 'Asignar'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -430,9 +488,13 @@ const ConsumoFabric = () => {
           )}
 
           <div ref={formMontoRef} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-800 mb-1">Registrar monto</h2>
+            <h2 className="text-lg font-semibold text-slate-800 mb-1">
+              {editandoMontoId ? 'Editar monto' : 'Registrar monto'}
+            </h2>
             <p className="text-xs text-slate-500 mb-4">
-              Elija un periodo con reporte de consumo o complete los campos manualmente.
+              {editandoMontoId
+                ? 'Modifique el importe y pulse Actualizar. El cambio se refleja en el reporte de consumo.'
+                : 'Elija un periodo con reporte de consumo o complete los campos manualmente.'}
             </p>
             <form onSubmit={guardarMonto} className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="sm:col-span-2 lg:col-span-5">
@@ -506,9 +568,32 @@ const ConsumoFabric = () => {
                   type="submit"
                   className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium"
                 >
-                  <PlusIcon className="w-4 h-4" />
-                  Guardar
+                  {editandoMontoId ? (
+                    <PencilSquareIcon className="w-4 h-4" />
+                  ) : (
+                    <PlusIcon className="w-4 h-4" />
+                  )}
+                  {editandoMontoId ? 'Actualizar' : 'Guardar'}
                 </button>
+                {editandoMontoId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditandoMontoId(null);
+                      setPeriodoFormSel('');
+                      setFormMonto({
+                        customer_name: '',
+                        mes: new Date().getMonth() + 1,
+                        anio: new Date().getFullYear(),
+                        monto: '',
+                        moneda: 'US$'
+                      });
+                    }}
+                    className="px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    Cancelar
+                  </button>
+                )}
               </div>
             </form>
             <div className="mt-4 flex flex-wrap gap-3">
@@ -521,6 +606,9 @@ const ConsumoFabric = () => {
           </div>
 
           <div className="rounded-2xl border border-slate-100 overflow-hidden">
+            <h3 className="px-4 py-3 font-semibold text-slate-800 border-b border-slate-100 text-sm">
+              Montos registrados
+            </h3>
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
@@ -528,7 +616,7 @@ const ConsumoFabric = () => {
                   <th className="px-4 py-3">Mes</th>
                   <th className="px-4 py-3">Año</th>
                   <th className="px-4 py-3 text-right">Monto</th>
-                  <th className="px-4 py-3 w-16" />
+                  <th className="px-4 py-3 text-right w-28">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -540,7 +628,10 @@ const ConsumoFabric = () => {
                   </tr>
                 ) : (
                   montos.map((row) => (
-                    <tr key={row.id}>
+                    <tr
+                      key={row.id}
+                      className={editandoMontoId === row.id ? 'bg-indigo-50/60' : undefined}
+                    >
                       <td className="px-4 py-3 font-medium text-slate-800">{row.customer_name}</td>
                       <td className="px-4 py-3 text-center">{MESES[row.mes]}</td>
                       <td className="px-4 py-3 text-center">{row.anio}</td>
@@ -548,14 +639,24 @@ const ConsumoFabric = () => {
                         {row.moneda} {fmtQty(row.monto)}
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => eliminarMonto(row.id)}
-                          className="text-rose-500 hover:text-rose-700"
-                          title="Eliminar"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => editarMonto(row)}
+                            className="text-indigo-600 hover:text-indigo-800"
+                            title="Editar"
+                          >
+                            <PencilSquareIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => eliminarMonto(row.id)}
+                            className="text-rose-500 hover:text-rose-700"
+                            title="Eliminar"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
