@@ -58,16 +58,40 @@ function generarInsights(meta, porComponente, porDia, montoMensual) {
   return tips;
 }
 
-/** Actualiza hallazgos al mostrar/exportar reportes guardados (texto orientado al cliente). */
-function refrescarInsightsForDisplay(reporte) {
+function montoMensualDesdeFila(row) {
+  if (!row) return null;
+  return {
+    monto: Number(row.monto),
+    moneda: row.moneda || 'US$',
+    mes: row.mes,
+    anio: row.anio,
+    mesLabel: MESES_NOMBRE[row.mes]
+  };
+}
+
+/** Reaplica montos e histórico actuales sobre un reporte guardado (sin recalcular consumo). */
+function aplicarMontosAlReporte(reporte, montoRow, historicoMontos = [], historicoCu = []) {
   if (!reporte) return reporte;
+  const montoMensual = montoMensualDesdeFila(montoRow);
+  const mes = reporte.meta?.mes ?? montoRow?.mes;
+  const anio = reporte.meta?.anio ?? montoRow?.anio;
+  const historicoCombinado = combinarHistorico(historicoMontos, historicoCu);
   return {
     ...reporte,
+    montoMensual,
+    historicoCombinado,
+    vinculacion: {
+      customerName: reporte.meta?.customerName || reporte.vinculacion?.customerName,
+      mes,
+      anio,
+      criterio: 'customer_name + mes + anio',
+      montoEncontrado: !!montoMensual
+    },
     insights: generarInsights(
       reporte.meta || {},
       reporte.porComponente || [],
       reporte.porDia || [],
-      reporte.montoMensual || null
+      montoMensual
     )
   };
 }
@@ -254,7 +278,7 @@ async function exportarReporteExcel(reporte) {
 module.exports = {
   construirReporte,
   combinarHistorico,
-  refrescarInsightsForDisplay,
+  aplicarMontosAlReporte,
   exportarReporteExcel,
   fmtNum,
   fmtMonto

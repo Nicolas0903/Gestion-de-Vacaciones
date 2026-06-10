@@ -39,6 +39,7 @@ const ConsumoFabric = () => {
   const [tab, setTab] = useState('reportes');
   const [cargas, setCargas] = useState([]);
   const [montos, setMontos] = useState([]);
+  const [periodos, setPeriodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
   const [reporteSel, setReporteSel] = useState(null);
@@ -56,12 +57,14 @@ const ConsumoFabric = () => {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [c, m] = await Promise.all([
+      const [c, m, p] = await Promise.all([
         consumoFabricService.listarCargas(),
-        consumoFabricService.listarMontos()
+        consumoFabricService.listarMontos(),
+        consumoFabricService.listarPeriodosMontos()
       ]);
       setCargas(c.data.data || []);
       setMontos(m.data.data || []);
+      setPeriodos(p.data.data || []);
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al cargar datos.');
     } finally {
@@ -72,6 +75,12 @@ const ConsumoFabric = () => {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    if (tab !== 'reportes' || !cargaId || loading) return;
+    abrirReporte(cargaId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   const abrirReporte = async (id) => {
     try {
@@ -142,13 +151,31 @@ const ConsumoFabric = () => {
     }
   };
 
+  const refrescarReporteAbierto = async (mes, anio) => {
+    if (!cargaId) return;
+    const carga = cargas.find((c) => c.id === cargaId);
+    if (!carga || carga.mes !== mes || carga.anio !== anio) return;
+    await abrirReporte(cargaId);
+  };
+
+  const seleccionarPeriodo = (periodo) => {
+    setFormMonto({
+      customer_name: periodo.customer_name,
+      mes: periodo.mes,
+      anio: periodo.anio,
+      monto: periodo.monto != null ? String(periodo.monto) : '',
+      moneda: periodo.moneda || 'US$'
+    });
+  };
+
   const guardarMonto = async (e) => {
     e.preventDefault();
+    const payload = {
+      ...formMonto,
+      monto: Number(formMonto.monto)
+    };
     try {
-      await consumoFabricService.guardarMonto({
-        ...formMonto,
-        monto: Number(formMonto.monto)
-      });
+      await consumoFabricService.guardarMonto(payload);
       toast.success('Monto guardado.');
       setFormMonto({
         customer_name: '',
@@ -157,7 +184,8 @@ const ConsumoFabric = () => {
         monto: '',
         moneda: 'US$'
       });
-      cargar();
+      await cargar();
+      await refrescarReporteAbierto(payload.mes, payload.anio);
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al guardar.');
     }
@@ -253,18 +281,73 @@ const ConsumoFabric = () => {
         <p className="text-slate-500 text-sm">Cargando…</p>
       ) : tab === 'montos' ? (
         <div className="space-y-6">
+          {periodos.length > 0 && (
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 overflow-hidden shadow-sm">
+              <h2 className="px-5 py-3 font-semibold text-slate-800 border-b border-indigo-100 text-sm">
+                Periodos con reporte de consumo
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-white/80 text-slate-600">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium">Cliente</th>
+                      <th className="px-4 py-2 font-medium">Periodo</th>
+                      <th className="px-4 py-2 text-right font-medium">Monto</th>
+                      <th className="px-4 py-2 w-28" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-indigo-100/60 bg-white/50">
+                    {periodos.map((p) => (
+                      <tr key={`${p.customer_name}-${p.mes}-${p.anio}`}>
+                        <td className="px-4 py-2.5 font-medium text-slate-800">{p.customer_name}</td>
+                        <td className="px-4 py-2.5 text-center text-slate-600">
+                          {MESES[p.mes]} {p.anio}
+                          <span className="block text-[11px] text-slate-400">{p.total_filas} registros</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">
+                          {p.monto != null ? (
+                            <span className="font-semibold text-emerald-700">
+                              {p.moneda} {fmtQty(p.monto)}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 text-xs font-medium">Pendiente</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => seleccionarPeriodo(p)}
+                            className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                          >
+                            {p.monto != null ? 'Editar' : 'Asignar'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-800 mb-4">Registrar monto manual</h2>
+            <h2 className="text-lg font-semibold text-slate-800 mb-4">Registrar monto</h2>
             <form onSubmit={guardarMonto} className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-xs text-slate-500 mb-1">Cliente (CustomerName)</label>
                 <input
+                  list="consumo-fabric-clientes"
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
                   value={formMonto.customer_name}
                   onChange={(e) => setFormMonto({ ...formMonto, customer_name: e.target.value })}
                   required
                   placeholder="METALPREN S.A."
                 />
+                <datalist id="consumo-fabric-clientes">
+                  {periodos.map((p) => (
+                    <option key={`${p.customer_name}-${p.mes}`} value={p.customer_name} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Mes</label>
@@ -372,7 +455,7 @@ const ConsumoFabric = () => {
               <div className="flex-1 min-w-[200px]">
                 <p className="font-medium text-slate-800">Subir Excel del proveedor (hoja PAYG)</p>
                 <p className="text-xs text-slate-500 mt-1">
-                  Un archivo por cliente. El monto del mes se toma de Montos mensuales si existe.
+                  Un archivo por cliente. El importe del periodo se muestra al asignarlo en Montos mensuales.
                 </p>
               </div>
               <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium cursor-pointer hover:bg-indigo-700 disabled:opacity-50">

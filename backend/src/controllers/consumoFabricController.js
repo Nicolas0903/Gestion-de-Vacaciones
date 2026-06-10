@@ -11,8 +11,9 @@ const {
 const {
   construirReporte,
   exportarReporteExcel,
-  refrescarInsightsForDisplay
+  aplicarMontosAlReporte
 } = require('../services/consumoFabricReporteService');
+const { claveCliente } = require('../services/consumoFabricPaygParser');
 const { generarReportePdf } = require('../services/consumoFabricPdfService');
 
 async function armarReporteCompleto(meta, filas, mes, anio) {
@@ -25,6 +26,15 @@ async function armarReporteCompleto(meta, filas, mes, anio) {
     montoMensual,
     { historicoMontos, historicoCu }
   );
+}
+
+async function refrescarReporteDesdeBd(reporte, cargaRow) {
+  if (!reporte || !cargaRow) return reporte;
+  const { customer_name, mes, anio } = cargaRow;
+  const montoRow = await ConsumoFabricMonto.buscarPorClientePeriodo(customer_name, mes, anio);
+  const historicoMontos = await ConsumoFabricMonto.historicoPorCliente(customer_name);
+  const historicoCu = await ConsumoFabricCarga.historicoCuPorCliente(customer_name);
+  return aplicarMontosAlReporte(reporte, montoRow, historicoMontos, historicoCu);
 }
 
 const uploadsDir = path.join(__dirname, '../../uploads/consumo-fabric');
@@ -53,6 +63,37 @@ exports.listarMontos = async (req, res) => {
   } catch (err) {
     console.error('consumoFabric.listarMontos:', err);
     res.status(500).json({ success: false, mensaje: 'Error al listar montos' });
+  }
+};
+
+/** Periodos detectados en reportes de consumo, con monto asignado si existe. */
+exports.listarPeriodosMontos = async (req, res) => {
+  try {
+    const periodos = await ConsumoFabricCarga.listarPeriodosParaMontos();
+    const montos = await ConsumoFabricMonto.listar({});
+    const data = periodos.map((p) => {
+      const monto = montos.find(
+        (m) =>
+          m.mes === p.mes &&
+          m.anio === p.anio &&
+          claveCliente(m.customer_name) === claveCliente(p.customer_name)
+      );
+      return {
+        carga_id: p.carga_id,
+        customer_name: p.customer_name,
+        mes: p.mes,
+        anio: p.anio,
+        total_filas: p.total_filas,
+        created_at: p.created_at,
+        monto_id: monto?.id ?? null,
+        monto: monto ? Number(monto.monto) : null,
+        moneda: monto?.moneda ?? null
+      };
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('consumoFabric.listarPeriodosMontos:', err);
+    res.status(500).json({ success: false, mensaje: 'Error al listar periodos' });
   }
 };
 
@@ -115,7 +156,7 @@ exports.obtenerCarga = async (req, res) => {
     const row = await ConsumoFabricCarga.buscarPorId(req.params.id);
     if (!row) return res.status(404).json({ success: false, mensaje: 'No encontrado' });
     if (row.reporte_json) {
-      row.reporte_json = refrescarInsightsForDisplay(row.reporte_json);
+      row.reporte_json = await refrescarReporteDesdeBd(row.reporte_json, row);
     }
     res.json({ success: true, data: row });
   } catch (err) {
@@ -183,7 +224,8 @@ exports.exportarCarga = async (req, res) => {
   try {
     const row = await ConsumoFabricCarga.buscarPorId(req.params.id);
     if (!row) return res.status(404).json({ success: false, mensaje: 'No encontrado' });
-    const buffer = await exportarReporteExcel(refrescarInsightsForDisplay(row.reporte_json));
+    const reporte = await refrescarReporteDesdeBd(row.reporte_json, row);
+    const buffer = await exportarReporteExcel(reporte);
     const safeName = String(row.customer_name).replace(/[^\w.-]+/g, '_').slice(0, 40);
     const filename = `consumo-fabric-${safeName}-${row.anio}-${row.mes}.xlsx`;
     res.setHeader(
@@ -202,7 +244,8 @@ exports.exportarCargaPdf = async (req, res) => {
   try {
     const row = await ConsumoFabricCarga.buscarPorId(req.params.id);
     if (!row) return res.status(404).json({ success: false, mensaje: 'No encontrado' });
-    const buffer = await generarReportePdf(refrescarInsightsForDisplay(row.reporte_json));
+    const reporte = await refrescarReporteDesdeBd(row.reporte_json, row);
+    const buffer = await generarReportePdf(reporte);
     const safeName = String(row.customer_name).replace(/[^\w.-]+/g, '_').slice(0, 40);
     const filename = `consumo-fabric-${safeName}-${row.anio}-${row.mes}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');

@@ -35,9 +35,10 @@ function claveCliente(name) {
     .toUpperCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\./g, '')
-    .replace(/\s+(SAC|SA)\s*$/i, '')
+    .replace(/\./g, ' ')
     .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\s+(S\s*A\s*C|S\s*A|SAC)\s*$/i, '')
     .trim();
 }
 

@@ -46,6 +46,7 @@ const uploadMemory = multer({
 router.use(autenticar, verificarAccesoModuloPortal('consumo-fabric'));
 
 router.get('/montos', ctrl.listarMontos);
+router.get('/montos/periodos', ctrl.listarPeriodosMontos);
 router.get('/montos/clientes', ctrl.clientesMontos);
 router.post('/montos', ctrl.guardarMonto);
 router.post('/montos/importar', uploadMemory.single('archivo'), ctrl.importarMontos);

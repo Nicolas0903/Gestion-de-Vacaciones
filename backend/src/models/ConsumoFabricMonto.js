@@ -42,10 +42,21 @@ class ConsumoFabricMonto {
     return todos.find((r) => claveCliente(r.customer_name) === clave) || null;
   }
 
+  /** Usa el nombre exacto del reporte PAYG cuando existe carga del mismo periodo. */
+  static async resolverNombreCliente(customerName, mes, anio) {
+    const clave = claveCliente(normCliente(customerName));
+    const [cargas] = await pool.query(
+      `SELECT customer_name FROM fabric_consumo_cargas WHERE mes = ? AND anio = ?`,
+      [mes, anio]
+    );
+    const match = cargas.find((c) => claveCliente(c.customer_name) === clave);
+    return normCliente(match?.customer_name || customerName);
+  }
+
   static async upsert(data, creadoPorId) {
-    const customer_name = normCliente(data.customer_name);
     const mes = parseInt(data.mes, 10);
     const anio = parseInt(data.anio, 10);
+    const customer_name = await this.resolverNombreCliente(data.customer_name, mes, anio);
     const monto = Number(data.monto);
     const moneda = String(data.moneda || 'US$').trim() || 'US$';
     if (!customer_name) throw new Error('Cliente obligatorio');

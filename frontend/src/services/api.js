@@ -312,6 +312,7 @@ export const backupsService = {
 
 export const consumoFabricService = {
   listarMontos: (params) => api.get('/consumo-fabric/montos', { params }),
+  listarPeriodosMontos: () => api.get('/consumo-fabric/montos/periodos'),
   guardarMonto: (body) => api.post('/consumo-fabric/montos', body),
   eliminarMonto: (id) => api.delete(`/consumo-fabric/montos/${id}`),
   importarMontos: (file) => {

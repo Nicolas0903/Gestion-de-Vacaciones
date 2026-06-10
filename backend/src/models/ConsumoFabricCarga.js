@@ -68,6 +68,24 @@ class ConsumoFabricCarga {
     return row;
   }
 
+  /** Periodos únicos con reporte de consumo (para asignar montos). */
+  static async listarPeriodosParaMontos() {
+    const [rows] = await pool.query(
+      `SELECT c.id AS carga_id, c.customer_name, c.mes, c.anio, c.total_filas, c.created_at
+       FROM fabric_consumo_cargas c
+       ORDER BY c.anio DESC, c.mes DESC, c.created_at DESC`
+    );
+    const vistos = new Set();
+    const periodos = [];
+    for (const r of rows) {
+      const key = `${claveCliente(r.customer_name)}|${r.mes}|${r.anio}`;
+      if (vistos.has(key)) continue;
+      vistos.add(key);
+      periodos.push(r);
+    }
+    return periodos;
+  }
+
   /** CU horas por mes/año de cargas PAYG del mismo cliente. */
   static async historicoCuPorCliente(customerName) {
     const clave = claveCliente(normCliente(customerName));
