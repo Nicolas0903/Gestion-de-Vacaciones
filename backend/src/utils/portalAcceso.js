@@ -61,8 +61,26 @@ function tieneMapaPortalExplicito(empleado) {
 }
 
 /**
- * Acceso al módulo: si hay mapa JSON guardado, solo entran los que están en true.
- * Si no hay mapa (null / vacío), se usa la lógica histórica por rol y correo.
+ * Lee un flag del mapa modulos_portal.
+ * @returns {true|false|null} null si la clave no existe en el mapa.
+ */
+function leerFlagModuloPortal(modulos, moduloId) {
+  if (!modulos || typeof modulos !== 'object') return null;
+  if (!Object.prototype.hasOwnProperty.call(modulos, moduloId)) return null;
+  const v = modulos[moduloId];
+  if (v === true || v === 1) return true;
+  if (v === false || v === 0) return false;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    if (s === 'true' || s === '1') return true;
+    if (s === 'false' || s === '0') return false;
+  }
+  return v ? true : false;
+}
+
+/**
+ * Acceso al módulo: el mapa JSON puede conceder o denegar de forma explícita.
+ * Si una clave no está en el mapa, se usa la lógica histórica por rol y correo.
  */
 function tieneAccesoEfectivoModulo(empleado, moduloId) {
   const e = (empleado.email || '').toLowerCase().trim();
@@ -90,7 +108,9 @@ function tieneAccesoEfectivoModulo(empleado, moduloId) {
     return true;
   }
   if (tieneMapaPortalExplicito(empleado)) {
-    return empleado.modulos_portal[moduloId] === true;
+    const flag = leerFlagModuloPortal(empleado.modulos_portal, moduloId);
+    if (flag === true) return true;
+    if (flag === false) return false;
   }
   if (!rolPuedeModuloBase(empleado.rol_nombre, moduloId, empleado.email)) return false;
   return true;
@@ -117,6 +137,7 @@ function etiquetasAccesoResumen(empleado) {
 module.exports = {
   rolPuedeModuloBase,
   tieneMapaPortalExplicito,
+  leerFlagModuloPortal,
   tieneAccesoEfectivoModulo,
   accesoPortalDetalleCompleto,
   etiquetasAccesoResumen,

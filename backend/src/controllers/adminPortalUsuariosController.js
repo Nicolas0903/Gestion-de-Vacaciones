@@ -6,7 +6,8 @@ const { AREAS_EMPLEADO_VALIDAS } = require('../constants/areasEmpleado');
 const {
   tieneAccesoEfectivoModulo,
   accesoPortalDetalleCompleto,
-  tieneMapaPortalExplicito
+  tieneMapaPortalExplicito,
+  leerFlagModuloPortal
 } = require('../utils/portalAcceso');
 
 /** Normaliza el valor `area` recibido del body. Acepta '' / null como "sin área". */
@@ -37,7 +38,8 @@ function construirModulosPortalDesdeBody(empleado, incoming) {
     'solicitudes-registro',
     'asistencia',
     'caja-chica',
-    'caja-rendicion'
+    'caja-rendicion',
+    'consumo-fabric'
   ]);
   const out = {};
   for (const mod of MODULOS_PORTAL) {
@@ -53,7 +55,9 @@ function construirModulosPortalDesdeBody(empleado, incoming) {
 /** Valor del checkbox en admin: lo guardado en BD si hay mapa; si no, acceso efectivo legacy. */
 function valorModuloParaEditor(empleado, modId) {
   if (tieneMapaPortalExplicito(empleado)) {
-    return empleado.modulos_portal[modId] === true;
+    const flag = leerFlagModuloPortal(empleado.modulos_portal, modId);
+    if (flag === true) return true;
+    if (flag === false) return false;
   }
   return tieneAccesoEfectivoModulo(empleado, modId);
 }

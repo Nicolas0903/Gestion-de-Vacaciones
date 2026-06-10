@@ -24,6 +24,21 @@ export const EMAILS_MODULO_CAJA_CHICA = [
 
 export const EMAILS_MODULO_CONSUMO_FABRIC = ['veronica.gonzales@prayaga.biz'];
 
+/** @returns {true|false|null} null si la clave no está en el mapa. */
+export function leerFlagModuloPortal(modulos, moduloId) {
+  if (!modulos || typeof modulos !== 'object') return null;
+  if (!Object.prototype.hasOwnProperty.call(modulos, moduloId)) return null;
+  const v = modulos[moduloId];
+  if (v === true || v === 1) return true;
+  if (v === false || v === 0) return false;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    if (s === 'true' || s === '1') return true;
+    if (s === 'false' || s === '0') return false;
+  }
+  return v ? true : false;
+}
+
 /**
  * Misma lógica de acceso que AuthContext / backend portalAcceso.
  * @param {object|null} usuario
@@ -61,7 +76,9 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
   const m = parseModulosPortal(usuario.modulos_portal);
   const tieneMapa = m && Object.keys(m).length > 0;
   if (tieneMapa) {
-    return m[moduloId] === true;
+    const flag = leerFlagModuloPortal(m, moduloId);
+    if (flag === true) return true;
+    if (flag === false) return false;
   }
 
   const baseColaborador = ['vacaciones', 'boletas', 'permisos', 'reembolsos', 'control-proyectos'];

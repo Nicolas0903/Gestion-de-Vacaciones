@@ -19,6 +19,7 @@ import { adminPortalUsuariosService, solicitudService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { parseFechaSegura, formatoFechaDMY } from '../utils/dateUtils';
 import { generarPasswordSegura } from '../utils/generarPasswordSegura';
+import { leerFlagModuloPortal, parseModulosPortal } from '../utils/accesoPortal';
 
 const DETALLE_TABS = [
   { id: 'cuenta', label: 'Cuenta' },
@@ -65,10 +66,20 @@ function etiquetaVacacionEstado(estado) {
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 
-function mapaModulosDesdeAccesoDetalle(detalle) {
+/** Mapa para guardar: prioriza lo almacenado en BD; si falta clave, usa acceso efectivo. */
+function mapaModulosParaToggle(row) {
+  const stored = parseModulosPortal(row.modulos_portal);
+  const tieneMapa = stored && Object.keys(stored).length > 0;
   const m = {};
-  (detalle || []).forEach((x) => {
-    m[x.id] = !!x.activo;
+  (row.acceso_portal_detalle || []).forEach((x) => {
+    if (tieneMapa) {
+      const flag = leerFlagModuloPortal(stored, x.id);
+      if (flag === true) m[x.id] = true;
+      else if (flag === false) m[x.id] = false;
+      else m[x.id] = !!x.activo;
+    } else {
+      m[x.id] = !!x.activo;
+    }
   });
   return m;
 }
@@ -628,7 +639,7 @@ export default function AdministracionUsuarios() {
     const busyKey = `${row.id}-${moduloId}`;
     setModuloTagBusy(busyKey);
     try {
-      const map = { ...mapaModulosDesdeAccesoDetalle(row.acceso_portal_detalle) };
+      const map = { ...mapaModulosParaToggle(row) };
       map[moduloId] = !map[moduloId];
       await adminPortalUsuariosService.actualizarModulos(row.id, map);
       toast.success('Acceso actualizado');

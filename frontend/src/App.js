@@ -99,10 +99,7 @@ function ModuloPortalRoute({ moduloId, children }) {
 
     (async () => {
       setVerificando(true);
-      let u = usuario;
-      if (!evaluar(u)) {
-        u = await refrescarUsuario();
-      }
+      const u = (await refrescarUsuario()) || usuario;
       if (cancelado) return;
       const ok = evaluar(u);
       setPermitido(ok);
