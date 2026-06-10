@@ -24,6 +24,26 @@ export const EMAILS_MODULO_CAJA_CHICA = [
 
 export const EMAILS_MODULO_CONSUMO_FABRIC = ['veronica.gonzales@prayaga.biz'];
 
+const EMAILS_REPORTE_ASISTENCIA = [
+  'rocio.picon@prayaga.biz',
+  'enrique.prayaga@prayaga.biz',
+  'nicolas.valdivia@prayaga.biz'
+];
+
+/** Opciones de acceso derivadas del usuario (evita deps inestables en efectos). */
+export function buildAccesoPortalOpts(usuario) {
+  const rol = usuario?.rol_nombre;
+  const em = (usuario?.email || '').toLowerCase().trim();
+  return {
+    esAdmin: () => rol === 'admin',
+    esContadora: () => rol === 'contadora' || rol === 'admin',
+    puedeVerReporteAsistencia: () =>
+      rol === 'admin' || EMAILS_REPORTE_ASISTENCIA.includes(em),
+    emailsCajaChica: EMAILS_MODULO_CAJA_CHICA,
+    emailsConsumoFabric: EMAILS_MODULO_CONSUMO_FABRIC
+  };
+}
+
 /** @returns {true|false|null} null si la clave no está en el mapa. */
 export function leerFlagModuloPortal(modulos, moduloId) {
   if (!modulos || typeof modulos !== 'object') return null;

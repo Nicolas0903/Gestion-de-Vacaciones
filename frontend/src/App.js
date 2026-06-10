@@ -4,8 +4,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import {
   evaluarAccesoModuloPortal,
-  EMAILS_MODULO_CAJA_CHICA,
-  EMAILS_MODULO_CONSUMO_FABRIC
+  buildAccesoPortalOpts
 } from './utils/accesoPortal';
 
 // Pages
@@ -72,14 +71,7 @@ const ProtectedRoute = ({ children, roles = [] }) => {
 };
 
 function ModuloPortalRoute({ moduloId, children }) {
-  const {
-    loading,
-    usuario,
-    refrescarUsuario,
-    esAdmin,
-    esContadora,
-    puedeVerReporteAsistencia
-  } = useAuth();
+  const { loading, usuario, refrescarUsuario } = useAuth();
   const [verificando, setVerificando] = useState(true);
   const [permitido, setPermitido] = useState(false);
 
@@ -87,19 +79,15 @@ function ModuloPortalRoute({ moduloId, children }) {
     if (loading) return undefined;
 
     let cancelado = false;
-    const opts = {
-      esAdmin,
-      esContadora,
-      puedeVerReporteAsistencia,
-      emailsCajaChica: EMAILS_MODULO_CAJA_CHICA,
-      emailsConsumoFabric: EMAILS_MODULO_CONSUMO_FABRIC
-    };
-
-    const evaluar = (u) => evaluarAccesoModuloPortal(u, moduloId, opts);
+    const evaluar = (u) =>
+      evaluarAccesoModuloPortal(u, moduloId, buildAccesoPortalOpts(u));
 
     (async () => {
       setVerificando(true);
-      const u = (await refrescarUsuario()) || usuario;
+      let u = usuario;
+      if (!evaluar(u)) {
+        u = (await refrescarUsuario()) || usuario;
+      }
       if (cancelado) return;
       const ok = evaluar(u);
       setPermitido(ok);
@@ -114,7 +102,7 @@ function ModuloPortalRoute({ moduloId, children }) {
     return () => {
       cancelado = true;
     };
-  }, [loading, moduloId, usuario?.id, refrescarUsuario, esAdmin, esContadora, puedeVerReporteAsistencia]);
+  }, [loading, moduloId, usuario?.id, refrescarUsuario]);
 
   if (loading || verificando) {
     return <LoadingSpinner />;
