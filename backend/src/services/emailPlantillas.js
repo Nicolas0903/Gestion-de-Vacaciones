@@ -75,6 +75,14 @@ const MODULOS_EMAIL = {
     accent: '#6d28d9',
     etiqueta: 'Control de proyectos'
   },
+  boletas: {
+    from: 'Portal Prayaga — Boletas de pago',
+    marca: 'Boletas de pago',
+    pie: 'Mensaje automático del módulo Boletas de pago — Portal Prayaga Interno',
+    gradient: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
+    accent: '#7c3aed',
+    etiqueta: 'Boletas de pago'
+  },
   archivo: {
     from: 'Portal Prayaga — Archivo y respaldos',
     marca: 'Archivo / Respaldos',

@@ -1,7 +1,14 @@
 const BoletaPago = require('../models/BoletaPago');
 const Empleado = require('../models/Empleado');
+const emailService = require('../services/emailService');
 const path = require('path');
 const fs = require('fs').promises;
+
+function notificarBoletaSubida(empleado, mes, anio) {
+  emailService
+    .notificarNuevaBoletaEmpleado({ empleado, mes, anio })
+    .catch((e) => console.error('Email boleta:', e.message));
+}
 
 // Obtener mis boletas (empleado)
 const misBoletas = async (req, res) => {
@@ -199,6 +206,8 @@ const subirBoleta = async (req, res) => {
       observaciones
     });
 
+    notificarBoletaSubida(empleado, parseInt(mes), parseInt(anio));
+
     res.json({
       success: true,
       mensaje: 'Boleta subida correctamente',
@@ -329,6 +338,8 @@ const subirBoletasMasivo = async (req, res) => {
           subido_por: req.usuario.id,
           observaciones: `Subida masiva - ${empleado.nombres} ${empleado.apellidos}`
         });
+
+        notificarBoletaSubida(empleado, mesArchivo, anioArchivo);
 
         resultados.push({
           archivo: file.originalname,

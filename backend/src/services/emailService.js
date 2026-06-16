@@ -1527,6 +1527,58 @@ const formatearTamanoArchivo = (bytes) => {
 /**
  * Envía por correo el respaldo diario (Excel legible; SQL si cabe en el límite).
  */
+const notificarNuevaBoletaEmpleado = async ({ empleado, mes, anio }) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Notificación de boleta omitida');
+    return false;
+  }
+  if (!empleado?.email) {
+    console.warn('📧 Boleta: empleado sin email, notificación omitida');
+    return false;
+  }
+
+  const nombre = `${empleado.nombres || ''} ${empleado.apellidos || ''}`.trim();
+  const periodo = `${String(mes).padStart(2, '0')}/${anio}`;
+  const urlBoletas = `${FRONTEND_URL}/boletas`;
+
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(nombre)}</strong>,</p>
+    <p>Tu boleta de pago del período <strong>${escapeHtml(periodo)}</strong> ya está disponible en el portal.</p>
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">Período</span>
+        <span class="info-value">${escapeHtml(periodo)}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Estado</span>
+        <span class="info-value">Pendiente de firma electrónica</span>
+      </div>
+    </div>
+    <p>Ingresa al sistema, revisa tu boleta y confirma la recepción firmándola electrónicamente.</p>
+    <center>
+      <a href="${urlBoletas}" class="button">Ver mis boletas y firmar</a>
+    </center>
+    <p style="margin-top: 16px; font-size: 13px; color: #64748b;">
+      Si no puedes abrir el botón, copia este enlace en tu navegador: <a href="${urlBoletas}">${escapeHtml(urlBoletas)}</a>
+    </p>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('boletas'),
+      to: empleado.email,
+      subject: `Boleta de pago ${periodo} — firma pendiente`,
+      html: plantillaEmail(contenido, 'Nueva boleta de pago', 'boletas')
+    });
+    console.log(`📧 Email enviado a ${empleado.email} - Boleta ${periodo}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email boleta a empleado:', error.message);
+    return false;
+  }
+};
+
 const enviarRespaldoArchivo = async ({
   destinatarios,
   turno,
@@ -1615,6 +1667,7 @@ module.exports = {
   notificarReembolsoResueltoEmpleado,
   notificarNuevaRendicionAdmin,
   notificarRendicionResueltaEmpleado,
+  notificarNuevaBoletaEmpleado,
   enviarCajaChicaResumenRocio,
   enviarRespaldoArchivo
 };
