@@ -62,6 +62,12 @@ router.put(
   upload.single('comprobante'),
   reembolsoController.actualizarAdmin
 );
+router.put(
+  '/:id/admin/convertir-recibo-interno',
+  autenticar,
+  verificarRol('admin'),
+  reembolsoController.convertirAReciboInterno
+);
 
 router.get('/:id/recibo', autenticar, reembolsoController.descargarReciboPdf);
 router.get('/:id/comprobante', autenticar, reembolsoController.descargarComprobante);

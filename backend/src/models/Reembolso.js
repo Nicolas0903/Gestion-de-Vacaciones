@@ -146,6 +146,25 @@ class Reembolso {
     return r.affectedRows > 0;
   }
 
+  static async convertirAReciboInterno(id, datos) {
+    const { fecha_solicitud_usuario, concepto, monto, archivo_recibo_generado_path } = datos;
+    const [r] = await pool.execute(
+      `UPDATE solicitudes_reembolso SET
+        tiene_comprobante = FALSE,
+        ruc_proveedor = NULL,
+        numero_documento = NULL,
+        archivo_comprobante_nombre = NULL,
+        archivo_comprobante_path = NULL,
+        fecha_solicitud_usuario = ?,
+        concepto = ?,
+        monto = ?,
+        archivo_recibo_generado_path = ?
+       WHERE id = ? AND tiene_comprobante = TRUE`,
+      [fecha_solicitud_usuario, concepto, monto, archivo_recibo_generado_path, id]
+    );
+    return r.affectedRows > 0;
+  }
+
   static async actualizarPorAdmin(id, datos) {
     const {
       fecha_solicitud_usuario,

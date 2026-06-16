@@ -399,6 +399,75 @@ const eliminar = async (req, res) => {
   }
 };
 
+const convertirAReciboInterno = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const r = await Reembolso.buscarPorId(id);
+    if (!r) {
+      return res.status(404).json({ success: false, mensaje: 'No encontrado.' });
+    }
+    if (!r.tiene_comprobante) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Esta solicitud ya es un recibo interno (sin factura adjunta).'
+      });
+    }
+
+    const fecha =
+      String(req.body.fecha_solicitud_usuario || r.fecha_solicitud_usuario || '').trim() ||
+      r.fecha_solicitud_usuario;
+    const concepto = String(req.body.concepto || r.concepto || '').trim();
+    if (!fecha || !concepto) {
+      return res.status(400).json({ success: false, mensaje: 'Fecha y concepto son obligatorios.' });
+    }
+
+    const montoRaw = req.body.monto !== undefined && req.body.monto !== '' ? req.body.monto : r.monto;
+    const montoNum = parseFloat(montoRaw, 10);
+    if (Number.isNaN(montoNum) || montoNum < 0) {
+      return res.status(400).json({ success: false, mensaje: 'Monto no válido.' });
+    }
+
+    unlinkSeguro(r.archivo_comprobante_path);
+
+    const datosPdf = {
+      ...r,
+      fecha_solicitud_usuario: fecha,
+      concepto,
+      monto: montoNum,
+      codigo_ticket: Reembolso.codigoTicket(r)
+    };
+    const pdfReciboBuffer = await PDFService.generarReciboReembolso(datosPdf);
+    const reciboDir = path.join(__dirname, '../../uploads/reembolsos/recibos');
+    if (!fs.existsSync(reciboDir)) {
+      fs.mkdirSync(reciboDir, { recursive: true });
+    }
+    const codigo = Reembolso.codigoTicket(r);
+    const reciboPath = path.join(reciboDir, `${codigo}.pdf`);
+    fs.writeFileSync(reciboPath, pdfReciboBuffer);
+
+    const ok = await Reembolso.convertirAReciboInterno(id, {
+      fecha_solicitud_usuario: fecha,
+      concepto,
+      monto: montoNum,
+      archivo_recibo_generado_path: reciboPath
+    });
+    if (!ok) {
+      unlinkSeguro(reciboPath);
+      return res.status(400).json({ success: false, mensaje: 'No se pudo convertir la solicitud.' });
+    }
+
+    const actualizado = await Reembolso.buscarPorId(id);
+    res.json({
+      success: true,
+      mensaje: 'Convertido a recibo interno. Se generó el PDF de Prayaga.',
+      data: enriquecer(actualizado)
+    });
+  } catch (error) {
+    console.error('convertirAReciboInterno:', error);
+    res.status(500).json({ success: false, mensaje: 'Error al convertir a recibo interno.' });
+  }
+};
+
 const actualizarAdmin = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -512,5 +581,6 @@ module.exports = {
   rechazar,
   observar,
   eliminar,
-  actualizarAdmin
+  actualizarAdmin,
+  convertirAReciboInterno
 };

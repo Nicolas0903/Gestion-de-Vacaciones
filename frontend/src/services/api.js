@@ -184,6 +184,8 @@ export const reembolsoService = {
     api.put(`/reembolsos/${id}/admin`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
+  convertirAReciboInterno: (id, datos) =>
+    api.put(`/reembolsos/${id}/admin/convertir-recibo-interno`, datos),
 };
 
 // Rendición de Presupuesto (módulo paralelo a reembolsos con campo "área")
