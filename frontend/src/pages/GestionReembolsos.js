@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   ArrowLeftIcon,
@@ -61,6 +61,7 @@ function yyyymmFechaGasto(row) {
 
 const GestionReembolsos = () => {
   const { esAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState('pendientes');
   const [pendientes, setPendientes] = useState([]);
   const [todos, setTodos] = useState([]);
@@ -98,6 +99,19 @@ const GestionReembolsos = () => {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    const editId = searchParams.get('editar');
+    if (!editId || loading) return;
+    const row =
+      pendientes.find((r) => String(r.id) === editId) ||
+      todos.find((r) => String(r.id) === editId);
+    if (row) {
+      setTab('todos');
+      setEditar(row);
+      setSearchParams({}, { replace: true });
+    }
+  }, [loading, pendientes, todos, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!editar) {

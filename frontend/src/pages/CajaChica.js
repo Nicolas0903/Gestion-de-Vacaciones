@@ -11,7 +11,10 @@ import {
   LockOpenIcon,
   EnvelopeIcon,
   PaperClipIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  EyeIcon,
+  XMarkIcon,
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 import { cajaChicaService, reembolsoService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
@@ -64,6 +67,8 @@ const CajaChica = () => {
   const [enviandoCorreo, setEnviandoCorreo] = useState(false);
   const [descargandoPdf, setDescargandoPdf] = useState(false);
   const [adjuntoSubiendoIdx, setAdjuntoSubiendoIdx] = useState(null);
+  const [vistaPrevia, setVistaPrevia] = useState(null);
+  const [guardandoModal, setGuardandoModal] = useState(false);
 
   const [nuevoAnio, setNuevoAnio] = useState(new Date().getFullYear());
   const [nuevoMes, setNuevoMes] = useState(new Date().getMonth() + 1);
@@ -131,13 +136,12 @@ const CajaChica = () => {
     }
   };
 
-  const guardarIngresos = async () => {
-    if (!selId || detalle?.periodo?.estado !== 'borrador') return;
-    const lineasConMeta = ingresosEdit.map((r, origIdx) => {
+  const persistirIngresos = async (filas = ingresosEdit) => {
+    if (!selId || detalle?.periodo?.estado !== 'borrador') return false;
+    const lineasConMeta = filas.map((r, origIdx) => {
       const rawMonto = String(r.monto ?? '').replace(',', '.').trim();
       let montoVal;
       if (rawMonto === '') {
-        /* Fila ya guardada: mandar 0 en vez de omitirla (evita DELETE involuntario). */
         montoVal = r.id != null && r.id !== '' ? 0 : NaN;
       } else {
         montoVal = parseFloat(rawMonto, 10);
@@ -153,30 +157,85 @@ const CajaChica = () => {
     const lineas = lineasConMeta.filter((x) => x.keep).map((x) => x.linea);
     const origenPorPosicion = lineasConMeta.filter((x) => x.keep).map((x) => x.origIdx);
 
-    setGuardando(true);
-    try {
-      const resp = await cajaChicaService.guardarIngresos(selId, lineas);
-      const guardados = resp.data?.data || [];
-      for (let k = 0; k < guardados.length; k++) {
-        const origIdx = origenPorPosicion[k];
-        const pend = origIdx != null ? ingresosEdit[origIdx]?.archivoPendiente : null;
-        if (pend && guardados[k]?.id) {
-          try {
-            setAdjuntoSubiendoIdx(origIdx);
-            await cajaChicaService.subirAdjuntoIngreso(selId, guardados[k].id, pend);
-          } catch (uploadErr) {
-            toast.error(uploadErr.response?.data?.mensaje || 'No se pudo subir un comprobante.');
-          }
+    const resp = await cajaChicaService.guardarIngresos(selId, lineas);
+    const guardados = resp.data?.data || [];
+    for (let k = 0; k < guardados.length; k++) {
+      const origIdx = origenPorPosicion[k];
+      const pend = origIdx != null ? filas[origIdx]?.archivoPendiente : null;
+      if (pend && guardados[k]?.id) {
+        try {
+          setAdjuntoSubiendoIdx(origIdx);
+          await cajaChicaService.subirAdjuntoIngreso(selId, guardados[k].id, pend);
+        } catch (uploadErr) {
+          toast.error(uploadErr.response?.data?.mensaje || 'No se pudo subir un comprobante.');
         }
       }
+    }
+    await cargarDetalle(selId);
+    return true;
+  };
+
+  const guardarIngresos = async () => {
+    if (!selId || detalle?.periodo?.estado !== 'borrador') return;
+    setGuardando(true);
+    try {
+      await persistirIngresos(ingresosEdit);
       toast.success('Ingresos guardados.');
-      await cargarDetalle(selId);
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al guardar.');
     } finally {
       setAdjuntoSubiendoIdx(null);
       setGuardando(false);
     }
+  };
+
+  const abrirVistaPreviaIngreso = (idx) => {
+    const row = ingresosEdit[idx];
+    if (!row) return;
+    setVistaPrevia({
+      tipo: 'ingreso',
+      idx,
+      draft: {
+        tipo_motivo: row.tipo_motivo,
+        monto: row.monto,
+        fecha_deposito: row.fecha_deposito || ''
+      }
+    });
+  };
+
+  const abrirVistaPreviaEgreso = (egreso) => {
+    setVistaPrevia({ tipo: 'egreso', egreso });
+  };
+
+  const guardarIngresoDesdeModal = async () => {
+    if (!vistaPrevia || vistaPrevia.tipo !== 'ingreso') return;
+    const { idx, draft } = vistaPrevia;
+    const nuevasFilas = ingresosEdit.map((r, i) =>
+      i === idx
+        ? {
+            ...r,
+            tipo_motivo: draft.tipo_motivo,
+            monto: draft.monto,
+            fecha_deposito: draft.fecha_deposito
+          }
+        : r
+    );
+    setIngresosEdit(nuevasFilas);
+    setGuardandoModal(true);
+    try {
+      await persistirIngresos(nuevasFilas);
+      toast.success('Ingreso actualizado.');
+      setVistaPrevia(null);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al guardar.');
+    } finally {
+      setGuardandoModal(false);
+      setAdjuntoSubiendoIdx(null);
+    }
+  };
+
+  const abrirGestionReintegro = (reembolsoId) => {
+    window.open(`/reembolsos/gestion?editar=${reembolsoId}`, '_blank', 'noopener,noreferrer');
   };
 
   const descargarAdjuntoIngreso = async (ingresoId) => {
@@ -516,6 +575,7 @@ const CajaChica = () => {
                       <col style={{ width: '28%' }} />
                       <col style={{ width: '11rem' }} />
                       <col style={{ width: '7.5rem' }} />
+                      <col style={{ width: '3rem' }} />
                       <col />
                       {esBorrador ? <col style={{ width: '3rem' }} /> : null}
                     </colgroup>
@@ -529,6 +589,9 @@ const CajaChica = () => {
                         </th>
                         <th scope="col" className="pb-3 pr-2 pt-1 font-medium text-right align-bottom whitespace-nowrap">
                           Monto
+                        </th>
+                        <th scope="col" className="pb-3 pr-2 pt-1 font-medium text-center align-bottom w-12">
+                          <span className="sr-only">Vista previa</span>
                         </th>
                         <th scope="col" className="pb-3 pr-2 pt-1 font-medium align-bottom">
                           Comprobante
@@ -610,6 +673,16 @@ const CajaChica = () => {
                             ) : (
                               <span className="block text-right tabular-nums">{fmt(row.monto)}</span>
                             )}
+                          </td>
+                          <td className="py-2 pr-2 align-middle text-center">
+                            <button
+                              type="button"
+                              onClick={() => abrirVistaPreviaIngreso(idx)}
+                              className="inline-flex items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+                              title="Vista previa del ingreso"
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                            </button>
                           </td>
                           <td className="py-2 pr-2 align-middle min-w-0">
                             <div className="flex flex-col gap-1.5 pl-1">
@@ -710,6 +783,7 @@ const CajaChica = () => {
                           {fmt(totalesVista?.total_ingreso)}
                         </td>
                         <td className="py-3" aria-hidden />
+                        <td className="py-3" aria-hidden />
                         {esBorrador ? <td className="py-3" aria-hidden /> : null}
                       </tr>
                     </tfoot>
@@ -739,6 +813,9 @@ const CajaChica = () => {
                           <th className="pb-2 pr-3 font-medium w-[11rem]">Nº documento</th>
                           <th className="pb-2 pr-3 font-medium">Descripción</th>
                           <th className="pb-2 pr-3 font-medium text-right w-[8.5rem] whitespace-nowrap">Monto</th>
+                          <th className="pb-2 pl-2 pr-2 font-medium text-center whitespace-nowrap w-12">
+                            <span className="sr-only">Vista previa</span>
+                          </th>
                           <th className="pb-2 pl-2 font-medium text-center whitespace-nowrap w-[10.5rem]">
                             Comprobante / recibo
                           </th>
@@ -754,6 +831,16 @@ const CajaChica = () => {
                               {e.descripcion}
                             </td>
                             <td className="py-2 pr-3 text-right tabular-nums whitespace-nowrap">{fmt(e.monto)}</td>
+                            <td className="py-2 pr-2 text-center align-middle">
+                              <button
+                                type="button"
+                                onClick={() => abrirVistaPreviaEgreso(e)}
+                                className="inline-flex items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+                                title="Vista previa del egreso"
+                              >
+                                <EyeIcon className="w-4 h-4" />
+                              </button>
+                            </td>
                             <td className="py-2 pl-2 text-center align-middle whitespace-nowrap">
                               <button
                                 type="button"
@@ -780,6 +867,7 @@ const CajaChica = () => {
                           <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap">
                             {fmt(totalesVista?.total_egreso)}
                           </td>
+                          <td className="py-2 px-3" />
                           <td className="py-2 px-3 rounded-r-lg" />
                         </tr>
                         <tr className="font-bold text-emerald-900 bg-emerald-50">
@@ -789,6 +877,7 @@ const CajaChica = () => {
                           <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap">
                             {fmt(totalesVista?.saldo)}
                           </td>
+                          <td className="py-2 px-3" />
                           <td className="py-2 px-3" />
                         </tr>
                       </tfoot>
@@ -848,6 +937,179 @@ const CajaChica = () => {
           )}
         </div>
       </div>
+
+      {vistaPrevia && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setVistaPrevia(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 p-5 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">
+                  {vistaPrevia.tipo === 'ingreso' ? 'Vista previa — Ingreso' : 'Vista previa — Egreso'}
+                </h3>
+                {vistaPrevia.tipo === 'egreso' && (
+                  <p className="text-xs font-mono text-slate-500 mt-0.5">{vistaPrevia.egreso.codigo_ticket}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setVistaPrevia(null)}
+                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 shrink-0"
+                aria-label="Cerrar"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-sm">
+              {vistaPrevia.tipo === 'ingreso' ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Concepto / motivo</label>
+                    {esBorrador ? (
+                      <select
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                        value={vistaPrevia.draft.tipo_motivo}
+                        onChange={(e) =>
+                          setVistaPrevia((v) => ({
+                            ...v,
+                            draft: { ...v.draft, tipo_motivo: e.target.value }
+                          }))
+                        }
+                      >
+                        {TIPOS.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-slate-800 font-medium">
+                        {TIPOS.find((t) => t.value === vistaPrevia.draft.tipo_motivo)?.label}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Fecha depósito</label>
+                    {esBorrador ? (
+                      <input
+                        type="date"
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                        value={vistaPrevia.draft.fecha_deposito || ''}
+                        onChange={(e) =>
+                          setVistaPrevia((v) => ({
+                            ...v,
+                            draft: { ...v.draft, fecha_deposito: e.target.value }
+                          }))
+                        }
+                      />
+                    ) : (
+                      <p className="text-slate-800">
+                        {vistaPrevia.draft.fecha_deposito
+                          ? formatoFechaDMY(vistaPrevia.draft.fecha_deposito)
+                          : '—'}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Importe (S/)</label>
+                    {esBorrador ? (
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm tabular-nums"
+                        value={vistaPrevia.draft.monto}
+                        onChange={(e) =>
+                          setVistaPrevia((v) => ({
+                            ...v,
+                            draft: { ...v.draft, monto: e.target.value }
+                          }))
+                        }
+                      />
+                    ) : (
+                      <p className="text-slate-800 font-semibold tabular-nums">{fmt(vistaPrevia.draft.monto)}</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <span className="text-xs font-medium text-slate-500">Fecha documento</span>
+                    <p className="text-slate-800 font-medium">
+                      {formatoFechaDMY(vistaPrevia.egreso.fecha_documento)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-slate-500">Concepto</span>
+                    <p className="text-slate-800 whitespace-pre-wrap">{vistaPrevia.egreso.descripcion}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-slate-500">Importe</span>
+                    <p className="text-slate-800 font-semibold tabular-nums text-lg">{fmt(vistaPrevia.egreso.monto)}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 space-y-1 text-xs text-slate-600">
+                    <p>
+                      <span className="text-slate-500">RUC / tipo:</span> {vistaPrevia.egreso.ruc_proveedor}
+                    </p>
+                    <p>
+                      <span className="text-slate-500">N° documento:</span>{' '}
+                      <span className="font-mono">{vistaPrevia.egreso.numero_documento}</span>
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2 p-5 pt-0 border-t border-slate-100 mt-2">
+              {vistaPrevia.tipo === 'ingreso' && esBorrador && (
+                <button
+                  type="button"
+                  disabled={guardandoModal}
+                  onClick={guardarIngresoDesdeModal}
+                  className="rounded-xl bg-emerald-600 text-white text-sm font-medium px-4 py-2 hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {guardandoModal ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+              )}
+              {vistaPrevia.tipo === 'egreso' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => abrirComprobanteEgreso(vistaPrevia.egreso)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm font-medium px-4 py-2 hover:bg-emerald-100"
+                  >
+                    <PaperClipIcon className="w-4 h-4" />
+                    {vistaPrevia.egreso.tiene_comprobante ? 'Ver factura' : 'Ver recibo'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => abrirGestionReintegro(vistaPrevia.egreso.reembolso_id)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-900"
+                  >
+                    <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                    Gestionar reintegro
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => setVistaPrevia(null)}
+                className="rounded-xl bg-slate-100 text-slate-700 text-sm font-medium px-4 py-2 hover:bg-slate-200"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
