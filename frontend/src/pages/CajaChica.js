@@ -13,11 +13,12 @@ import {
   PaperClipIcon,
   ArrowDownTrayIcon,
   EyeIcon,
-  XMarkIcon,
-  ArrowTopRightOnSquareIcon
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { cajaChicaService, reembolsoService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
+import { useAuth } from '../context/AuthContext';
+import ReembolsoAdminEditModal from '../components/ReembolsoAdminEditModal';
 
 const MESES = [
   { v: 1, l: 'Enero' },
@@ -56,6 +57,7 @@ const filaVacia = () => ({
 });
 
 const CajaChica = () => {
+  const { esAdmin } = useAuth();
   const [periodos, setPeriodos] = useState([]);
   const [cargandoLista, setCargandoLista] = useState(true);
   const [selId, setSelId] = useState(null);
@@ -69,6 +71,7 @@ const CajaChica = () => {
   const [adjuntoSubiendoIdx, setAdjuntoSubiendoIdx] = useState(null);
   const [vistaPrevia, setVistaPrevia] = useState(null);
   const [guardandoModal, setGuardandoModal] = useState(false);
+  const [editarReembolsoId, setEditarReembolsoId] = useState(null);
 
   const [nuevoAnio, setNuevoAnio] = useState(new Date().getFullYear());
   const [nuevoMes, setNuevoMes] = useState(new Date().getMonth() + 1);
@@ -235,8 +238,8 @@ const CajaChica = () => {
   };
 
   const abrirGestionReintegro = (reembolsoId) => {
-    const url = `${window.location.origin}/reembolsos/gestion?editar=${reembolsoId}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    setVistaPrevia(null);
+    setEditarReembolsoId(reembolsoId);
   };
 
   const descargarAdjuntoIngreso = async (ingresoId) => {
@@ -1090,14 +1093,15 @@ const CajaChica = () => {
                     <PaperClipIcon className="w-4 h-4" />
                     {vistaPrevia.egreso.tiene_comprobante ? 'Ver factura' : 'Ver recibo'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => abrirGestionReintegro(vistaPrevia.egreso.reembolso_id)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-900"
-                  >
-                    <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-                    Gestionar reintegro
-                  </button>
+                  {esAdmin() && (
+                    <button
+                      type="button"
+                      onClick={() => abrirGestionReintegro(vistaPrevia.egreso.reembolso_id)}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800 text-white text-sm font-medium px-4 py-2 hover:bg-slate-900"
+                    >
+                      Gestionar reintegro
+                    </button>
+                  )}
                 </>
               )}
               <button
@@ -1111,6 +1115,14 @@ const CajaChica = () => {
           </div>
         </div>
       )}
+
+      <ReembolsoAdminEditModal
+        reembolsoId={editarReembolsoId}
+        onClose={() => setEditarReembolsoId(null)}
+        onSaved={() => {
+          if (selId) cargarDetalle(selId);
+        }}
+      />
     </div>
   );
 };
