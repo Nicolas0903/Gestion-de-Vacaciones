@@ -235,7 +235,8 @@ const CajaChica = () => {
   };
 
   const abrirGestionReintegro = (reembolsoId) => {
-    window.open(`/reembolsos/gestion?editar=${reembolsoId}`, '_blank', 'noopener,noreferrer');
+    const url = `${window.location.origin}/reembolsos/gestion?editar=${reembolsoId}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const descargarAdjuntoIngreso = async (ingresoId) => {

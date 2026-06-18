@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -79,6 +79,7 @@ const GestionReembolsos = () => {
   const [mesFiltro, setMesFiltro] = useState('');
   const [solicitanteFiltro, setSolicitanteFiltro] = useState('');
   const [fichaModal, setFichaModal] = useState(null);
+  const editParamProcesado = useRef(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -103,14 +104,36 @@ const GestionReembolsos = () => {
   useEffect(() => {
     const editId = searchParams.get('editar');
     if (!editId || loading) return;
+    if (editParamProcesado.current === editId) return;
+
     const row =
       pendientes.find((r) => String(r.id) === editId) ||
       todos.find((r) => String(r.id) === editId);
+
     if (row) {
+      editParamProcesado.current = editId;
       setTab('todos');
       setEditar(row);
       setSearchParams({}, { replace: true });
+      return;
     }
+
+    editParamProcesado.current = editId;
+    (async () => {
+      try {
+        const { data } = await reembolsoService.obtener(editId);
+        if (data?.data) {
+          setTab('todos');
+          setEditar(data.data);
+        } else {
+          toast.error('Solicitud no encontrada.');
+        }
+      } catch {
+        toast.error('No se pudo abrir la solicitud para editar.');
+      } finally {
+        setSearchParams({}, { replace: true });
+      }
+    })();
   }, [loading, pendientes, todos, searchParams, setSearchParams]);
 
   useEffect(() => {

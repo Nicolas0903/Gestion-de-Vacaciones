@@ -126,11 +126,11 @@ function AdminPortalUsuariosRoute({ children }) {
 
 function ReembolsosGestionGate() {
   const { esAdmin, esAprobadorReembolsos, puedeAccederModuloPortal } = useAuth();
-  if (!puedeAccederModuloPortal('reembolsos')) {
+  if (!esAdmin() && !esAprobadorReembolsos()) {
     return <Navigate to="/portal" replace />;
   }
-  // Admin puede entrar aunque no sea el aprobador designado (p. ej. para eliminar registros).
-  if (!esAdmin() && !esAprobadorReembolsos()) {
+  // Admin puede gestionar aunque tenga reembolsos desactivado en modulos_portal (p. ej. solo caja chica).
+  if (!esAdmin() && !puedeAccederModuloPortal('reembolsos')) {
     return <Navigate to="/portal" replace />;
   }
   return (
