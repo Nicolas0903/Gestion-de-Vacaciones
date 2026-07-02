@@ -21,6 +21,19 @@ class Proveedor {
     return null;
   }
 
+  static validarRazonSocialYRuc(razonSocial, ruc) {
+    const nombre = String(razonSocial || '').trim();
+    if (!nombre) return 'Razón social requerida';
+    if (/^\d{11}$/.test(nombre.replace(/\s/g, ''))) {
+      return 'La razón social no puede ser solo un RUC. Use el campo RUC para el número e indique el nombre del proveedor.';
+    }
+    const rucNorm = String(ruc || '').replace(/\D/g, '');
+    if (rucNorm && rucNorm.length !== 11) {
+      return 'El RUC debe tener 11 dígitos.';
+    }
+    return null;
+  }
+
   static async listar(filtros = {}) {
     let q = `SELECT p.* FROM proveedores p WHERE p.activo = 1`;
     const params = [];
@@ -54,6 +67,8 @@ class Proveedor {
   }
 
   static async crear(datos) {
+    const errNombre = this.validarRazonSocialYRuc(datos.razon_social, datos.ruc);
+    if (errNombre) throw new Error(errNombre);
     const errTipo = this.validarTipo(datos.tipo_proveedor, datos.tipo_proveedor_otro);
     if (errTipo) throw new Error(errTipo);
     const errArea = this.validarArea(datos.area_solicitante, datos.area_otro);
@@ -86,6 +101,8 @@ class Proveedor {
   }
 
   static async actualizar(id, datos) {
+    const errNombre = this.validarRazonSocialYRuc(datos.razon_social, datos.ruc);
+    if (errNombre) throw new Error(errNombre);
     const errTipo = this.validarTipo(datos.tipo_proveedor, datos.tipo_proveedor_otro);
     if (errTipo) throw new Error(errTipo);
     const errArea = this.validarArea(datos.area_solicitante, datos.area_otro);

@@ -60,6 +60,22 @@ function puntajeTotal(c) {
   );
 }
 
+/** Extrae RUC de textos como "20434327611" o "Proveedor RUC 20434327611". */
+function extraerRucDeTexto(texto) {
+  const s = String(texto || '').trim();
+  if (/^\d{11}$/.test(s)) return s;
+  const m = s.match(/(?:RUC\s*)?(\d{11})/i);
+  return m ? m[1] : '';
+}
+
+function nombreDesdeCandidato(candidato, solicitudRuc) {
+  const rs = String(candidato?.razon_social || '').trim();
+  if (!rs) return '';
+  if (/^proveedor\s+ruc\s+\d{11}$/i.test(rs)) return '';
+  if (/^\d{11}$/.test(rs)) return '';
+  return rs;
+}
+
 function GraficoResultados({ candidatos }) {
   const max = Math.max(80, ...candidatos.map((c) => c.puntaje_total || puntajeTotal(c)), 1);
   return (
@@ -271,9 +287,12 @@ const Proveedores = () => {
   };
 
   const abrirRegistrarGanador = (candidato) => {
+    const rucSolicitud = detalleEval?.solicitud_pendiente?.ruc || '';
+    const rucCandidato = extraerRucDeTexto(candidato.razon_social);
     setFormGanador({
       ...proveedorVacio(),
-      razon_social: candidato.razon_social,
+      razon_social: nombreDesdeCandidato(candidato, rucSolicitud),
+      ruc: rucSolicitud || rucCandidato,
       fecha_registro: new Date().toISOString().slice(0, 10)
     });
     setModalGanador(candidato);

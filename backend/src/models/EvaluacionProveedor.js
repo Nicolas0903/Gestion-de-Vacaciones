@@ -90,6 +90,8 @@ class EvaluacionProveedor {
       ganador = candidatos.find((c) => c.id === ev.candidato_ganador_id) || ganador;
     }
     const proveedores_registrados = await this.listarProveedoresRegistrados(id);
+    const ProveedorSolicitudPendiente = require('./ProveedorSolicitudPendiente');
+    const solicitud_pendiente = await ProveedorSolicitudPendiente.buscarPorEvaluacionId(id);
     const candidatosConEstado = candidatos.map((c) => {
       const prov = proveedores_registrados.find(
         (p) =>
@@ -108,7 +110,8 @@ class EvaluacionProveedor {
       candidatos: candidatosConEstado,
       ganador,
       proveedores_registrados,
-      proveedor_registrado: proveedores_registrados[0] || null
+      proveedor_registrado: proveedores_registrados[0] || null,
+      solicitud_pendiente: solicitud_pendiente || null
     };
   }
 
