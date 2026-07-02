@@ -25,6 +25,15 @@ const comisionesPorPagarRoutes = require('./comisionesPorPagar');
 const consumoFabricRoutes = require('./consumoFabric');
 const backupsRoutes = require('./backups');
 
+/** Ping público para verificar deploy del módulo rendición (antes de routers con auth). */
+router.get('/rendiciones-presupuesto/ping', (_req, res) => {
+  res.json({
+    success: true,
+    module: 'rendiciones-presupuesto',
+    message: 'Ruta montada en API principal'
+  });
+});
+
 router.use('/auth', authRoutes);
 router.use('/empleados', empleadosRoutes);
 router.use('/solicitudes', solicitudesRoutes);

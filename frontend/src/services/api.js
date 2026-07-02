@@ -1,15 +1,20 @@
 import axios from 'axios';
 
-/** Base del API: env > mismo origen /api > localhost dev. */
+/** Base del API: siempre termina en /api (Apache proxy en producción). */
 function resolveApiBaseUrl() {
-  const fromEnv = (process.env.REACT_APP_API_URL || '').trim().replace(/\/+$/, '');
+  let url;
+  const fromEnv = (process.env.REACT_APP_API_URL || '').trim();
   if (fromEnv && !/localhost|127\.0\.0\.1/i.test(fromEnv)) {
-    return fromEnv;
+    url = fromEnv.replace(/\/+$/, '');
+  } else if (typeof window !== 'undefined' && window.location?.origin) {
+    url = `${window.location.origin}/api`;
+  } else {
+    url = (fromEnv || 'http://localhost:3002/api').replace(/\/+$/, '');
   }
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/api`;
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
   }
-  return fromEnv || 'http://localhost:3002/api';
+  return url;
 }
 
 const API_URL = resolveApiBaseUrl();

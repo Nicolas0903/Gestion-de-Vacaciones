@@ -3,9 +3,11 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { autenticar, verificarRol } = require('../middleware/auth');
-const { verificarAccesoModuloPortal } = require('../middleware/moduloPortal');
 const rendicionPresupuestoController = require('../controllers/rendicionPresupuestoController');
-const { RENDICION_PRESUPUESTO_MAX_FILE_BYTES, RENDICION_PRESUPUESTO_MAX_UPLOAD_MB } = require('../config/rendicionPresupuestoUpload');
+const {
+  RENDICION_PRESUPUESTO_MAX_FILE_BYTES,
+  RENDICION_PRESUPUESTO_MAX_UPLOAD_MB
+} = require('../config/rendicionPresupuestoUpload');
 
 const router = express.Router();
 
@@ -66,28 +68,36 @@ function uploadComprobante(req, res, next) {
   });
 }
 
-router.use(autenticar, verificarAccesoModuloPortal('rendicion-presupuesto'));
+/** Diagnóstico de deploy (sin auth). */
+router.get('/ping', (_req, res) => {
+  res.json({
+    success: true,
+    module: 'rendiciones-presupuesto',
+    message: 'API de rendición de presupuesto activa'
+  });
+});
 
-router.get('/areas', rendicionPresupuestoController.catalogoAreas);
+router.get('/areas', autenticar, rendicionPresupuestoController.catalogoAreas);
 
-router.post('/', uploadComprobante, rendicionPresupuestoController.crear);
-router.get('/mis-solicitudes', rendicionPresupuestoController.misSolicitudes);
-router.get('/pendientes', verificarRol('admin'), rendicionPresupuestoController.listarPendientes);
-router.get('/todos', verificarRol('admin'), rendicionPresupuestoController.listarTodos);
+router.post('/', autenticar, uploadComprobante, rendicionPresupuestoController.crear);
+router.get('/mis-solicitudes', autenticar, rendicionPresupuestoController.misSolicitudes);
+router.get('/pendientes', autenticar, verificarRol('admin'), rendicionPresupuestoController.listarPendientes);
+router.get('/todos', autenticar, verificarRol('admin'), rendicionPresupuestoController.listarTodos);
 
-router.put('/:id/observar', verificarRol('admin'), rendicionPresupuestoController.observar);
-router.put('/:id/aprobar', verificarRol('admin'), rendicionPresupuestoController.aprobar);
-router.put('/:id/rechazar', verificarRol('admin'), rendicionPresupuestoController.rechazar);
-router.delete('/:id', rendicionPresupuestoController.eliminar);
+router.put('/:id/observar', autenticar, verificarRol('admin'), rendicionPresupuestoController.observar);
+router.put('/:id/aprobar', autenticar, verificarRol('admin'), rendicionPresupuestoController.aprobar);
+router.put('/:id/rechazar', autenticar, verificarRol('admin'), rendicionPresupuestoController.rechazar);
+router.delete('/:id', autenticar, rendicionPresupuestoController.eliminar);
 
 router.put(
   '/:id/admin',
+  autenticar,
   verificarRol('admin'),
   uploadComprobante,
   rendicionPresupuestoController.actualizarAdmin
 );
 
-router.get('/:id/comprobante', rendicionPresupuestoController.descargarComprobante);
-router.get('/:id', rendicionPresupuestoController.obtener);
+router.get('/:id/comprobante', autenticar, rendicionPresupuestoController.descargarComprobante);
+router.get('/:id', autenticar, rendicionPresupuestoController.obtener);
 
 module.exports = router;
