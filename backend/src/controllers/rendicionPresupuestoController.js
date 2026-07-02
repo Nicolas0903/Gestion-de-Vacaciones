@@ -88,25 +88,27 @@ const crear = async (req, res) => {
     const row = await RendicionPresupuesto.buscarPorId(id);
 
     try {
+      const emailsOficiales = Empleado.aprobadoresRendicionEmailsConfigurados();
       const aprobadores = await Empleado.obtenerAprobadoresRendicion();
-      if (aprobadores.length === 0) {
-        console.error(
-          'Rendiciones: no se encontró ningún aprobador activo (Magali, Ricardo o Verónica). No se envió correo.'
-        );
-      } else {
-        const rendicionData = {
-          ...row,
-          area_label: RendicionPresupuesto.AREAS_LABEL[row.area] || row.area
-        };
+      const rendicionData = {
+        ...row,
+        area_label: RendicionPresupuesto.AREAS_LABEL[row.area] || row.area,
+        monto_formateado: RendicionPresupuesto.formatearMonto(row.monto, row.moneda)
+      };
 
-        for (const aprobador of aprobadores) {
-          const tokenAprobar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'aprobar');
-          const tokenRechazar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'rechazar');
-          const urlAprobar = `${API_URL}/aprobacion-rendicion-email/aprobar/${tokenAprobar}`;
-          const urlRechazar = `${API_URL}/aprobacion-rendicion-email/rechazar/${tokenRechazar}`;
+      const enviados = new Set();
+      const tareas = [];
 
-          emailService
-            .notificarNuevaRendicionAdmin({
+      for (const aprobador of aprobadores) {
+        const em = (aprobador.email || '').toLowerCase().trim();
+        if (em) enviados.add(em);
+        tareas.push(
+          (async () => {
+            const tokenAprobar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'aprobar');
+            const tokenRechazar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'rechazar');
+            const urlAprobar = `${API_URL}/aprobacion-rendicion-email/aprobar/${tokenAprobar}`;
+            const urlRechazar = `${API_URL}/aprobacion-rendicion-email/rechazar/${tokenRechazar}`;
+            await emailService.notificarNuevaRendicionAdmin({
               rendicion: rendicionData,
               empleado: req.usuario,
               aprobador,
@@ -114,9 +116,30 @@ const crear = async (req, res) => {
               urlRechazar,
               comprobanteDiskPath: archivo_comprobante_path,
               comprobanteNombreOriginal: archivo_comprobante_nombre
-            })
-            .catch((e) => console.error(`Email rendición (${aprobador.email}):`, e));
-        }
+            });
+          })()
+        );
+      }
+
+      for (const email of emailsOficiales) {
+        if (enviados.has(email)) continue;
+        tareas.push(
+          emailService.notificarNuevaRendicionCopia({
+            rendicion: rendicionData,
+            empleado: req.usuario,
+            destinatarioEmail: email,
+            comprobanteDiskPath: archivo_comprobante_path,
+            comprobanteNombreOriginal: archivo_comprobante_nombre
+          })
+        );
+      }
+
+      if (tareas.length === 0) {
+        console.error(
+          'Rendiciones: no hay destinatarios de correo configurados o activos en BD. Revise RENDICION_PRESUPUESTO_APROBADORES_EMAILS.'
+        );
+      } else {
+        await Promise.allSettled(tareas);
       }
     } catch (notifErr) {
       console.error('Notificación rendición (registro guardado igual):', notifErr);

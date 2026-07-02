@@ -1418,6 +1418,64 @@ const notificarNuevaRendicionAdmin = async ({
   }
 };
 
+/** Aviso informativo (sin botones aprobar/rechazar) para correos de la lista oficial. */
+const notificarNuevaRendicionCopia = async ({
+  rendicion,
+  empleado,
+  destinatarioEmail,
+  comprobanteDiskPath,
+  comprobanteNombreOriginal
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return false;
+  if (!destinatarioEmail) return false;
+
+  const { getPortalBaseUrl } = require('../config/frontendPublic');
+  const portalGestion = `${getPortalBaseUrl()}/rendicion-presupuesto/gestion`;
+  const codigo = codigoTicketRendicion(rendicion);
+  const empNombre = `${empleado.nombres || ''} ${empleado.apellidos || ''}`.trim();
+  const areaLabel = rendicion.area_label || rendicion.area || '—';
+  const tieneArchivo = !!comprobanteDiskPath;
+
+  const contenido = `
+    <p>Nueva rendición de presupuesto registrada por <strong>${escapeHtml(empNombre)}</strong>.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Ticket</span><span class="info-value">${escapeHtml(codigo)}</span></div>
+      <div class="info-row"><span class="info-label">Área</span><span class="info-value">${escapeHtml(areaLabel)}</span></div>
+      <div class="info-row"><span class="info-label">Fecha gasto</span><span class="info-value">${escapeHtml(rendicion.fecha_solicitud_usuario)}</span></div>
+      <div class="info-row"><span class="info-label">Concepto</span><span class="info-value">${escapeHtml(rendicion.concepto)}</span></div>
+      <div class="info-row"><span class="info-label">Monto</span><span class="info-value">${escapeHtml(rendicion.monto_formateado || `S/ ${Number(rendicion.monto || 0).toFixed(2)}`)}</span></div>
+    </div>
+    ${tieneArchivo ? '<p>📎 Comprobante adjunto en este correo.</p>' : '<p>Sin comprobante adjunto.</p>'}
+    <p style="text-align:center;margin:20px 0;">
+      <a href="${portalGestion}" style="display:inline-block;background:#0ea5e9;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;">Ver en el portal</a>
+    </p>
+  `;
+
+  const attachments = [];
+  if (comprobanteDiskPath && fs.existsSync(comprobanteDiskPath)) {
+    attachments.push({
+      filename: comprobanteNombreOriginal || path.basename(comprobanteDiskPath),
+      path: comprobanteDiskPath
+    });
+  }
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('rendicion'),
+      to: destinatarioEmail,
+      subject: `[Copia] Rendición ${codigo} — ${empNombre}`,
+      html: plantillaEmail(contenido, 'Nueva rendición de presupuesto', 'rendicion'),
+      attachments
+    });
+    console.log(`📧 Rendición: copia enviada a ${destinatarioEmail}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Error email copia rendición (${destinatarioEmail}):`, error.message);
+    return false;
+  }
+};
+
 const notificarRendicionResueltaEmpleado = async (rendicion, empleado, resultado, aprobador, detalle) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     return false;
@@ -1666,6 +1724,7 @@ module.exports = {
   notificarNuevaSolicitudReembolsoAprobador,
   notificarReembolsoResueltoEmpleado,
   notificarNuevaRendicionAdmin,
+  notificarNuevaRendicionCopia,
   notificarRendicionResueltaEmpleado,
   notificarNuevaBoletaEmpleado,
   enviarCajaChicaResumenRocio,

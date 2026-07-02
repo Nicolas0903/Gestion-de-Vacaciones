@@ -148,7 +148,8 @@ class Empleado {
     return [
       'magali.sevillano@prayaga.biz',
       'ricardo.martinez@prayaga.biz',
-      'asistente@prayaga.biz'
+      'asistente@prayaga.biz',
+      'rocio.picon@prayaga.biz'
     ];
   }
 
@@ -165,8 +166,8 @@ class Empleado {
 
   /**
    * Aprobadores para Rendición de Presupuesto.
-   * Devuelve todos los empleados activos con correo en la lista oficial
-   * (Magali Sevillano, Ricardo Martínez y Verónica - asistente@prayaga.biz).
+   * Devuelve empleados activos cuyo correo está en la lista oficial
+   * (Magali, Ricardo, Verónica/asistente@prayaga.biz, Rocío Picón).
    */
   static async obtenerAprobadoresRendicion() {
     const emails = this.aprobadoresRendicionEmailsConfigurados();
