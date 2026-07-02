@@ -116,7 +116,7 @@ function generarFormularioRechazo(token, tokenData) {
 
 /**
  * Verifica que el `aprobador_id` del token siga estando habilitado como
- * aprobador de rendiciones (Magali, Ricardo, Verónica) o sea admin (fallback).
+ * aprobador de rendiciones (Verónica, Rocío) o sea admin (fallback).
  */
 async function verificarAprobadorToken(tokenData) {
   const e = await Empleado.buscarPorId(tokenData.aprobador_id);

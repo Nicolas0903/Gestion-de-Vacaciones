@@ -145,12 +145,7 @@ class Empleado {
    * `RENDICION_PRESUPUESTO_APROBADORES_EMAILS` (csv).
    */
   static get APROBADORES_RENDICION_EMAILS_DEFAULT() {
-    return [
-      'magali.sevillano@prayaga.biz',
-      'ricardo.martinez@prayaga.biz',
-      'asistente@prayaga.biz',
-      'rocio.picon@prayaga.biz'
-    ];
+    return ['asistente@prayaga.biz', 'rocio.picon@prayaga.biz'];
   }
 
   static aprobadoresRendicionEmailsConfigurados() {
@@ -167,7 +162,7 @@ class Empleado {
   /**
    * Aprobadores para Rendición de Presupuesto.
    * Devuelve empleados activos cuyo correo está en la lista oficial
-   * (Magali, Ricardo, Verónica/asistente@prayaga.biz, Rocío Picón).
+   * (Verónica/asistente@prayaga.biz y Rocío Picón).
    */
   static async obtenerAprobadoresRendicion() {
     const emails = this.aprobadoresRendicionEmailsConfigurados();
