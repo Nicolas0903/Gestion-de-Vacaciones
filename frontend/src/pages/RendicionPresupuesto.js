@@ -65,7 +65,7 @@ const RendicionPresupuesto = () => {
   const [area, setArea] = useState('');
   const [concepto, setConcepto] = useState('');
   const [archivo, setArchivo] = useState(null);
-  const [monto, setMonto] = useState('0');
+  const [monto, setMonto] = useState('');
   const [moneda, setMoneda] = useState('PEN');
   const [fileInputKey, setFileInputKey] = useState(0);
   const [eliminandoId, setEliminandoId] = useState(null);
@@ -86,7 +86,7 @@ const RendicionPresupuesto = () => {
     setArea('');
     setConcepto('');
     setArchivo(null);
-    setMonto('0');
+    setMonto('');
     setMoneda('PEN');
     setFileInputKey((k) => k + 1);
   };
@@ -151,6 +151,11 @@ const RendicionPresupuesto = () => {
       toast.error('Seleccione el área que realizó el consumo.');
       return;
     }
+    const montoNum = parseFloat(String(monto).replace(',', '.'), 10);
+    if (Number.isNaN(montoNum) || montoNum <= 0) {
+      toast.error('Indique un monto mayor a cero.');
+      return;
+    }
     if (archivo && archivo.size > RENDICION_PRESUPUESTO_MAX_FILE_BYTES) {
       toast.error(
         `El archivo supera los ${RENDICION_PRESUPUESTO_MAX_UPLOAD_MB} MB permitidos (${(archivo.size / (1024 * 1024)).toFixed(1)} MB). Comprímalo e inténtelo de nuevo.`
@@ -162,7 +167,7 @@ const RendicionPresupuesto = () => {
     fd.append('fecha_solicitud_usuario', fechaSolicitud);
     fd.append('area', area);
     fd.append('concepto', concepto.trim());
-    fd.append('monto', monto || '0');
+    fd.append('monto', String(montoNum));
     fd.append('moneda', moneda);
     if (archivo) {
       fd.append('comprobante', archivo);
@@ -306,12 +311,13 @@ const RendicionPresupuesto = () => {
               <label className="block text-sm font-medium text-slate-700 mb-1">Monto *</label>
               <input
                 type="number"
-                min="0"
+                min="0.01"
                 step="0.01"
                 required
                 className="w-full rounded-xl border border-slate-200 px-4 py-2.5"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
+                placeholder="0.00"
               />
               <p className="text-xs text-slate-500 mt-1.5">
                 Importe en {moneda === 'USD' ? 'dólares americanos' : 'soles peruanos'}.

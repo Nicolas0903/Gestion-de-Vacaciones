@@ -50,6 +50,7 @@ const uploadDeposito = multer({
 
 router.use(autenticar, verificarAccesoModuloPortal('caja-rendicion'));
 
+router.get('/periodos/sugeridos', rendicionCajaController.sugerirPeriodos);
 router.get('/periodos', rendicionCajaController.listarPeriodos);
 router.post('/periodos', rendicionCajaController.crearPeriodo);
 router.get('/periodos/:id', rendicionCajaController.detallePeriodo);

@@ -259,6 +259,7 @@ export const cajaChicaService = {
 // Rendición Presupuesto — depósitos sobre rendiciones aprobadas
 export const rendicionCajaService = {
   listarPeriodos: () => api.get('/caja-rendicion/periodos'),
+  sugerirPeriodos: () => api.get('/caja-rendicion/periodos/sugeridos'),
   crearPeriodo: (anio, mes) => api.post('/caja-rendicion/periodos', { anio, mes }),
   detalle: (id) => api.get(`/caja-rendicion/periodos/${id}`),
   guardarDepositos: (id, rendiciones) =>

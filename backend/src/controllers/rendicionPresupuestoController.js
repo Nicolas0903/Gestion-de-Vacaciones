@@ -34,21 +34,27 @@ function puedeEliminarRendicion(usuario, rendicion) {
 
 const crear = async (req, res) => {
   try {
-    const { fecha_solicitud_usuario, area, concepto, monto, moneda } = req.body;
+    const { area, concepto, monto, moneda } = req.body;
+    const fecha_solicitud_usuario = RendicionPresupuesto.normalizarFechaSolicitud(
+      req.body.fecha_solicitud_usuario
+    );
 
     const nombre_completo = `${req.usuario.nombres || ''} ${req.usuario.apellidos || ''}`.trim();
     const dni = req.usuario.dni || '';
 
     if (!fecha_solicitud_usuario || !concepto?.trim()) {
-      return res.status(400).json({ success: false, mensaje: 'Fecha y concepto son obligatorios.' });
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique una fecha de gasto válida (YYYY-MM-DD) y el concepto.'
+      });
     }
     if (!area || !RendicionPresupuesto.AREAS_VALIDAS.includes(area)) {
       return res.status(400).json({ success: false, mensaje: 'Indique un área válida.' });
     }
 
-    const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : 0;
-    if (Number.isNaN(montoNum) || montoNum < 0) {
-      return res.status(400).json({ success: false, mensaje: 'Monto no válido.' });
+    const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : NaN;
+    if (Number.isNaN(montoNum) || montoNum <= 0) {
+      return res.status(400).json({ success: false, mensaje: 'Indique un monto mayor a cero.' });
     }
 
     let archivo_comprobante_nombre = null;
@@ -77,35 +83,39 @@ const crear = async (req, res) => {
 
     const row = await RendicionPresupuesto.buscarPorId(id);
 
-    const aprobadores = await Empleado.obtenerAprobadoresRendicion();
-    if (aprobadores.length === 0) {
-      console.error(
-        'Rendiciones: no se encontró ningún aprobador activo (Magali, Ricardo o Verónica). No se envió correo.'
-      );
-    } else {
-      const rendicionData = {
-        ...row,
-        area_label: RendicionPresupuesto.AREAS_LABEL[row.area] || row.area
-      };
+    try {
+      const aprobadores = await Empleado.obtenerAprobadoresRendicion();
+      if (aprobadores.length === 0) {
+        console.error(
+          'Rendiciones: no se encontró ningún aprobador activo (Magali, Ricardo o Verónica). No se envió correo.'
+        );
+      } else {
+        const rendicionData = {
+          ...row,
+          area_label: RendicionPresupuesto.AREAS_LABEL[row.area] || row.area
+        };
 
-      for (const aprobador of aprobadores) {
-        const tokenAprobar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'aprobar');
-        const tokenRechazar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'rechazar');
-        const urlAprobar = `${API_URL}/aprobacion-rendicion-email/aprobar/${tokenAprobar}`;
-        const urlRechazar = `${API_URL}/aprobacion-rendicion-email/rechazar/${tokenRechazar}`;
+        for (const aprobador of aprobadores) {
+          const tokenAprobar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'aprobar');
+          const tokenRechazar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'rechazar');
+          const urlAprobar = `${API_URL}/aprobacion-rendicion-email/aprobar/${tokenAprobar}`;
+          const urlRechazar = `${API_URL}/aprobacion-rendicion-email/rechazar/${tokenRechazar}`;
 
-        emailService
-          .notificarNuevaRendicionAdmin({
-            rendicion: rendicionData,
-            empleado: req.usuario,
-            aprobador,
-            urlAprobar,
-            urlRechazar,
-            comprobanteDiskPath: archivo_comprobante_path,
-            comprobanteNombreOriginal: archivo_comprobante_nombre
-          })
-          .catch((e) => console.error(`Email rendición (${aprobador.email}):`, e));
+          emailService
+            .notificarNuevaRendicionAdmin({
+              rendicion: rendicionData,
+              empleado: req.usuario,
+              aprobador,
+              urlAprobar,
+              urlRechazar,
+              comprobanteDiskPath: archivo_comprobante_path,
+              comprobanteNombreOriginal: archivo_comprobante_nombre
+            })
+            .catch((e) => console.error(`Email rendición (${aprobador.email}):`, e));
+        }
       }
+    } catch (notifErr) {
+      console.error('Notificación rendición (registro guardado igual):', notifErr);
     }
 
     res.status(201).json({
@@ -115,6 +125,14 @@ const crear = async (req, res) => {
     });
   } catch (error) {
     console.error('crear rendición:', error);
+    const sqlMsg = error.sqlMessage || error.message || '';
+    if (sqlMsg.includes("doesn't exist") || error.errno === 1146) {
+      return res.status(500).json({
+        success: false,
+        mensaje:
+          'Falta la tabla rendiciones_presupuesto en la base de datos. Ejecute backend/sql/rendiciones_presupuesto.sql'
+      });
+    }
     res.status(500).json({ success: false, mensaje: 'Error al registrar la rendición.' });
   }
 };
@@ -321,17 +339,21 @@ const actualizarAdmin = async (req, res) => {
     }
 
     const { fecha_solicitud_usuario, area, concepto, monto, moneda } = req.body;
+    const fechaNorm = RendicionPresupuesto.normalizarFechaSolicitud(fecha_solicitud_usuario);
 
-    if (!fecha_solicitud_usuario || !String(concepto || '').trim()) {
-      return res.status(400).json({ success: false, mensaje: 'Fecha y concepto son obligatorios.' });
+    if (!fechaNorm || !String(concepto || '').trim()) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique una fecha de gasto válida y el concepto.'
+      });
     }
     if (!area || !RendicionPresupuesto.AREAS_VALIDAS.includes(area)) {
       return res.status(400).json({ success: false, mensaje: 'Indique un área válida.' });
     }
 
-    const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : 0;
-    if (Number.isNaN(montoNum) || montoNum < 0) {
-      return res.status(400).json({ success: false, mensaje: 'Monto no válido.' });
+    const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : NaN;
+    if (Number.isNaN(montoNum) || montoNum <= 0) {
+      return res.status(400).json({ success: false, mensaje: 'Indique un monto mayor a cero.' });
     }
 
     let archivo_comprobante_nombre = r.archivo_comprobante_nombre;
@@ -345,7 +367,7 @@ const actualizarAdmin = async (req, res) => {
     }
 
     const ok = await RendicionPresupuesto.actualizarPorAdmin(id, {
-      fecha_solicitud_usuario,
+      fecha_solicitud_usuario: fechaNorm,
       area,
       concepto: String(concepto).trim(),
       monto: montoNum,

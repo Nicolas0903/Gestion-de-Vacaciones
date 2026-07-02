@@ -93,6 +93,23 @@ const listarPeriodos = async (req, res) => {
   }
 };
 
+const sugerirPeriodos = async (req, res) => {
+  try {
+    const sugeridos = await RendicionPresupuesto.listarMesesGastoAprobadosSinPeriodo();
+    res.json({ success: true, data: sugeridos });
+  } catch (e) {
+    console.error(e);
+    const sqlMsg = e.sqlMessage || e.message || '';
+    if (sqlMsg.includes("doesn't exist") || e.errno === 1146) {
+      return res.status(500).json({
+        success: false,
+        mensaje: 'Faltan tablas de rendición. Ejecute los scripts SQL del módulo.'
+      });
+    }
+    res.status(500).json({ success: false, mensaje: 'Error al sugerir períodos.' });
+  }
+};
+
 const crearPeriodo = async (req, res) => {
   try {
     const anio = parseInt(req.body.anio, 10);
@@ -298,6 +315,7 @@ const eliminarComprobanteDeposito = async (req, res) => {
 
 module.exports = {
   listarPeriodos,
+  sugerirPeriodos,
   crearPeriodo,
   detallePeriodo,
   guardarDepositos,

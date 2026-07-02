@@ -91,8 +91,26 @@ class RendicionPresupuesto {
   }
 
   static codigoTicket(row) {
-    const y = row.created_at ? new Date(row.created_at).getFullYear() : new Date().getFullYear();
+    const raw = row.fecha_solicitud_usuario || row.created_at;
+    let y = new Date().getFullYear();
+    if (raw) {
+      const s = String(raw);
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) y = parseInt(s.slice(0, 4), 10);
+      else {
+        const d = new Date(raw);
+        if (!Number.isNaN(d.getTime())) y = d.getFullYear();
+      }
+    }
     return `RDP-${y}-${String(row.id).padStart(5, '0')}`;
+  }
+
+  static normalizarFechaSolicitud(v) {
+    if (v == null || v === '') return null;
+    const s = String(v).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (iso) return iso[1];
+    return null;
   }
 
   static async crear(datos) {
@@ -230,7 +248,6 @@ class RendicionPresupuesto {
     return normalizarFechaDeposito(v);
   }
 
-  /** Rendiciones aprobadas cuyo gasto (fecha_solicitud_usuario) cae en el rango del mes. */
   static async listarAprobadasPorRangoFechaDocumento(fechaDesde, fechaHasta) {
     const [rows] = await pool.execute(
       `SELECT rp.*, e.nombres as empleado_nombres, e.apellidos as empleado_apellidos
@@ -243,6 +260,31 @@ class RendicionPresupuesto {
       [fechaDesde, fechaHasta]
     );
     return rows;
+  }
+
+  /** Meses (año/mes del gasto) con rendiciones aprobadas sin período de caja creado. */
+  static async listarMesesGastoAprobadosSinPeriodo() {
+    const [rows] = await pool.execute(
+      `SELECT
+         YEAR(rp.fecha_solicitud_usuario) AS anio,
+         MONTH(rp.fecha_solicitud_usuario) AS mes,
+         COUNT(*) AS cantidad
+       FROM rendiciones_presupuesto rp
+       WHERE rp.estado = 'aprobado'
+         AND rp.fecha_solicitud_usuario IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM rendicion_caja_periodos p
+           WHERE p.anio = YEAR(rp.fecha_solicitud_usuario)
+             AND p.mes = MONTH(rp.fecha_solicitud_usuario)
+         )
+       GROUP BY anio, mes
+       ORDER BY anio DESC, mes DESC`
+    );
+    return rows.map((r) => ({
+      anio: Number(r.anio),
+      mes: Number(r.mes),
+      cantidad: Number(r.cantidad) || 0
+    }));
   }
 
   static async actualizarDatosDeposito(id, { fecha_deposito, monto_deposito }) {

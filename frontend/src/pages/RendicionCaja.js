@@ -45,12 +45,22 @@ const RendicionCaja = () => {
 
   const [nuevoAnio, setNuevoAnio] = useState(new Date().getFullYear());
   const [nuevoMes, setNuevoMes] = useState(new Date().getMonth() + 1);
+  const [periodosSugeridos, setPeriodosSugeridos] = useState([]);
 
   const cargarLista = useCallback(async () => {
     setCargandoLista(true);
     try {
-      const { data } = await rendicionCajaService.listarPeriodos();
-      setPeriodos(data.data || []);
+      const [listaRes, sugRes] = await Promise.all([
+        rendicionCajaService.listarPeriodos(),
+        rendicionCajaService.sugerirPeriodos().catch(() => ({ data: { data: [] } }))
+      ]);
+      setPeriodos(listaRes.data.data || []);
+      const sugeridos = sugRes.data?.data || [];
+      setPeriodosSugeridos(sugeridos);
+      if (sugeridos.length > 0) {
+        setNuevoAnio(sugeridos[0].anio);
+        setNuevoMes(sugeridos[0].mes);
+      }
     } catch {
       toast.error('No se pudieron cargar los períodos.');
     } finally {
@@ -248,8 +258,33 @@ const RendicionCaja = () => {
             <h2 className="text-sm font-semibold text-slate-800 mb-3">Nuevo período</h2>
             <form onSubmit={crearPeriodo} className="space-y-3">
               <p className="text-[11px] text-slate-500 leading-snug">
-                Agrupa las rendiciones <strong>aprobadas</strong> cuya fecha de gasto cae en el mes seleccionado.
+                Agrupa rendiciones <strong>aprobadas</strong> según la{' '}
+                <strong>fecha del gasto</strong> (no la fecha de registro). El mes sugerido es el
+                más reciente con rendiciones aprobadas sin período.
               </p>
+              {periodosSugeridos.length > 0 && (
+                <div className="rounded-lg bg-violet-50 border border-violet-100 px-3 py-2 text-[11px] text-violet-900">
+                  <p className="font-medium mb-1">Meses pendientes de abrir:</p>
+                  <ul className="space-y-0.5">
+                    {periodosSugeridos.slice(0, 4).map((s) => (
+                      <li key={`${s.anio}-${s.mes}`}>
+                        <button
+                          type="button"
+                          className="underline hover:text-violet-700"
+                          onClick={() => {
+                            setNuevoAnio(s.anio);
+                            setNuevoMes(s.mes);
+                          }}
+                        >
+                          {MESES.find((m) => m.v === s.mes)?.l || s.mes} {s.anio}
+                        </button>
+                        {' · '}
+                        {s.cantidad} rendición{s.cantidad === 1 ? '' : 'es'}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-slate-600">Año</label>
