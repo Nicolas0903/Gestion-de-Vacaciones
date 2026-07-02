@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS evaluacion_proveedor_candidatos (
 CREATE TABLE IF NOT EXISTS proveedores (
   id INT PRIMARY KEY AUTO_INCREMENT,
   razon_social VARCHAR(255) NOT NULL,
+  ruc VARCHAR(11) NULL COMMENT 'RUC peruano (11 dígitos)',
   tipo_proveedor ENUM('merchandising', 'servidor', 'dispensador_agua', 'microsoft', 'otros') NOT NULL,
   tipo_proveedor_otro VARCHAR(120) NULL,
   website VARCHAR(500) NULL,
@@ -56,6 +57,8 @@ CREATE TABLE IF NOT EXISTS proveedores (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_prov_razon (razon_social),
+  INDEX idx_prov_ruc (ruc),
+  UNIQUE KEY uk_prov_ruc (ruc),
   INDEX idx_prov_tipo (tipo_proveedor),
   INDEX idx_prov_eval_origen (evaluacion_origen_id),
   UNIQUE KEY uk_prov_candidato_origen (candidato_origen_id),

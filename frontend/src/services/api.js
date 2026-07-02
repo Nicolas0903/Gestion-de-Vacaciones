@@ -208,6 +208,7 @@ export const reembolsoService = {
 // Rendición de Presupuesto (módulo paralelo a reembolsos con campo "área")
 export const rendicionPresupuestoService = {
   areas: () => api.get('/rendiciones-presupuesto/areas'),
+  consultarRuc: (ruc) => api.get(`/rendiciones-presupuesto/consultar-ruc/${encodeURIComponent(ruc)}`),
   crear: (formData) =>
     api.post('/rendiciones-presupuesto', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -317,6 +318,11 @@ export const proveedoresService = {
   eliminarEvaluacion: (id) => api.delete(`/proveedores/evaluaciones/${id}`),
   registrarGanador: (evaluacionId, body) =>
     api.post(`/proveedores/evaluaciones/${evaluacionId}/registrar-ganador`, body),
+  listarSolicitudesPendientes: (params = {}) =>
+    api.get('/proveedores/solicitudes-pendientes', { params }),
+  iniciarEvaluacionDesdeSolicitud: (id) =>
+    api.post(`/proveedores/solicitudes-pendientes/${id}/iniciar-evaluacion`),
+  buscarPorRuc: (ruc) => api.get(`/proveedores/por-ruc/${encodeURIComponent(ruc)}`),
   listarReevaluaciones: (params = {}) => api.get('/proveedores/reevaluaciones', { params }),
   obtenerReevaluacion: (id) => api.get(`/proveedores/reevaluaciones/${id}`),
   crearReevaluacion: (body) => api.post('/proveedores/reevaluaciones', body),

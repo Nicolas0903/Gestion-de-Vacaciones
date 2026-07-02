@@ -25,9 +25,9 @@ class Proveedor {
     let q = `SELECT p.* FROM proveedores p WHERE p.activo = 1`;
     const params = [];
     if (filtros.q) {
-      q += ` AND (p.razon_social LIKE ? OR p.producto_servicio LIKE ? OR p.contacto_prayaga LIKE ?)`;
+      q += ` AND (p.razon_social LIKE ? OR p.producto_servicio LIKE ? OR p.contacto_prayaga LIKE ? OR p.ruc LIKE ?)`;
       const t = `%${filtros.q}%`;
-      params.push(t, t, t);
+      params.push(t, t, t, t);
     }
     if (filtros.tipo_proveedor) {
       q += ` AND p.tipo_proveedor = ?`;
@@ -43,6 +43,16 @@ class Proveedor {
     return rows[0];
   }
 
+  static async buscarPorRuc(ruc) {
+    const norm = String(ruc || '').replace(/\D/g, '');
+    if (!norm) return null;
+    const [rows] = await pool.execute(
+      `SELECT * FROM proveedores WHERE activo = 1 AND ruc = ? LIMIT 1`,
+      [norm]
+    );
+    return rows[0] || null;
+  }
+
   static async crear(datos) {
     const errTipo = this.validarTipo(datos.tipo_proveedor, datos.tipo_proveedor_otro);
     if (errTipo) throw new Error(errTipo);
@@ -51,12 +61,13 @@ class Proveedor {
 
     const [r] = await pool.execute(
       `INSERT INTO proveedores
-       (razon_social, tipo_proveedor, tipo_proveedor_otro, website, fecha_registro,
+       (razon_social, ruc, tipo_proveedor, tipo_proveedor_otro, website, fecha_registro,
         area_solicitante, area_otro, producto_servicio, contacto_prayaga,
         nombre_contacto_proveedor, datos_proveedor, evaluacion_origen_id, candidato_origen_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         datos.razon_social.trim(),
+        datos.ruc ? String(datos.ruc).replace(/\D/g, '') || null : null,
         datos.tipo_proveedor,
         datos.tipo_proveedor === 'otros' ? datos.tipo_proveedor_otro?.trim() || null : null,
         datos.website?.trim() || null,
@@ -82,12 +93,13 @@ class Proveedor {
 
     const [r] = await pool.execute(
       `UPDATE proveedores SET
-         razon_social = ?, tipo_proveedor = ?, tipo_proveedor_otro = ?, website = ?,
+         razon_social = ?, ruc = ?, tipo_proveedor = ?, tipo_proveedor_otro = ?, website = ?,
          fecha_registro = ?, area_solicitante = ?, area_otro = ?, producto_servicio = ?,
          contacto_prayaga = ?, nombre_contacto_proveedor = ?, datos_proveedor = ?
        WHERE id = ? AND activo = 1`,
       [
         datos.razon_social.trim(),
+        datos.ruc ? String(datos.ruc).replace(/\D/g, '') || null : null,
         datos.tipo_proveedor,
         datos.tipo_proveedor === 'otros' ? datos.tipo_proveedor_otro?.trim() || null : null,
         datos.website?.trim() || null,

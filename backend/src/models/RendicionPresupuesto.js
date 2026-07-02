@@ -128,15 +128,17 @@ class RendicionPresupuesto {
       monto,
       moneda,
       ruc_proveedor,
-      numero_documento
+      numero_documento,
+      proveedor_id,
+      proveedor_solicitud_id
     } = datos;
 
     const [result] = await pool.execute(
       `INSERT INTO rendiciones_presupuesto
        (empleado_id, fecha_solicitud_usuario, area, concepto, nombre_completo, dni, tiene_comprobante,
         archivo_comprobante_nombre, archivo_comprobante_path, archivo_recibo_generado_path,
-        monto, moneda, ruc_proveedor, numero_documento, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+        monto, moneda, ruc_proveedor, proveedor_id, proveedor_solicitud_id, numero_documento, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
       [
         empleado_id,
         fecha_solicitud_usuario,
@@ -151,10 +153,22 @@ class RendicionPresupuesto {
         monto != null ? monto : 0,
         this.normalizarMoneda(moneda),
         ruc_proveedor || null,
+        proveedor_id || null,
+        proveedor_solicitud_id || null,
         numero_documento || null
       ]
     );
     return result.insertId;
+  }
+
+  static async vincularProveedor(id, { proveedor_id, proveedor_solicitud_id }) {
+    const [r] = await pool.execute(
+      `UPDATE rendiciones_presupuesto
+       SET proveedor_id = ?, proveedor_solicitud_id = ?
+       WHERE id = ?`,
+      [proveedor_id || null, proveedor_solicitud_id || null, id]
+    );
+    return r.affectedRows > 0;
   }
 
   static async buscarPorId(id) {

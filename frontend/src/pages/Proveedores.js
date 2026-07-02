@@ -12,6 +12,7 @@ import {
 import { proveedoresService } from '../services/api';
 import { formatoFechaDMY } from '../utils/dateUtils';
 import ReevaluacionProveedoresTab from '../components/proveedores/ReevaluacionProveedoresTab';
+import SolicitudesProveedorTab from '../components/proveedores/SolicitudesProveedorTab';
 import ModalPortal from '../components/ModalPortal';
 
 const CRITERIOS = [
@@ -37,6 +38,7 @@ const candidatoVacio = () => ({
 
 const proveedorVacio = () => ({
   razon_social: '',
+  ruc: '',
   tipo_proveedor: 'otros',
   tipo_proveedor_otro: '',
   website: '',
@@ -152,6 +154,7 @@ const Proveedores = () => {
   const abrirEditarProveedor = (p) => {
     setFormProv({
       razon_social: p.razon_social || '',
+      ruc: p.ruc || '',
       tipo_proveedor: p.tipo_proveedor || 'otros',
       tipo_proveedor_otro: p.tipo_proveedor_otro || '',
       website: p.website || '',
@@ -503,6 +506,18 @@ const Proveedores = () => {
         <button
           type="button"
           onClick={() => {
+            setTab('solicitudes');
+            setVistaEval(null);
+          }}
+          className={`px-4 py-2 rounded-xl text-sm font-medium ${
+            tab === 'solicitudes' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'
+          }`}
+        >
+          Solicitudes pendientes
+        </button>
+        <button
+          type="button"
+          onClick={() => {
             setTab('evaluaciones');
             setVistaEval(null);
           }}
@@ -526,10 +541,19 @@ const Proveedores = () => {
         </button>
       </div>
 
-      {cargando && tab !== 'reevaluacion' ? (
+      {cargando && tab !== 'reevaluacion' && tab !== 'solicitudes' ? (
         <p className="text-slate-500 text-sm">Cargando…</p>
       ) : tab === 'reevaluacion' ? (
         <ReevaluacionProveedoresTab listaProveedores={lista} catalogos={catalogos} />
+      ) : tab === 'solicitudes' ? (
+        <SolicitudesProveedorTab
+          onEvaluacionIniciada={(evaluacion) => {
+            setTab('evaluaciones');
+            setDetalleEval(evaluacion);
+            setVistaEval('detalle');
+            cargarEvaluaciones();
+          }}
+        />
       ) : tab === 'lista' ? (
         <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center">
@@ -553,6 +577,7 @@ const Proveedores = () => {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 text-slate-600 text-left">
                   <tr>
+                    <th className="px-4 py-2">RUC</th>
                     <th className="px-4 py-2">Razón social</th>
                     <th className="px-4 py-2">Tipo</th>
                     <th className="px-4 py-2">Área</th>
@@ -564,6 +589,7 @@ const Proveedores = () => {
                 <tbody>
                   {lista.map((p) => (
                     <tr key={p.id} className="border-t border-slate-100">
+                      <td className="px-4 py-2 font-mono text-xs">{p.ruc || '—'}</td>
                       <td className="px-4 py-2 font-medium">{p.razon_social}</td>
                       <td className="px-4 py-2">{p.tipo_label}</td>
                       <td className="px-4 py-2">{p.area_label}</td>
@@ -900,7 +926,18 @@ function FormProveedor({ form, setForm, catalogos }) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-4 text-sm">
-      <div className="sm:col-span-2 lg:col-span-3">
+      <div>
+        <label className={labelCls}>RUC (opcional)</label>
+        <input
+          className={inputCls}
+          value={form.ruc || ''}
+          onChange={(e) => ch('ruc', e.target.value.replace(/\D/g, '').slice(0, 11))}
+          placeholder="11 dígitos"
+          maxLength={11}
+        />
+      </div>
+
+      <div className="sm:col-span-2 lg:col-span-2">
         <label className={labelCls}>Razón social *</label>
         <input
           className={inputCls}

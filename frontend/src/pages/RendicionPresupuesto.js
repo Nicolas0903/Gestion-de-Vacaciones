@@ -67,6 +67,9 @@ const RendicionPresupuesto = () => {
   const [archivo, setArchivo] = useState(null);
   const [monto, setMonto] = useState('');
   const [moneda, setMoneda] = useState('PEN');
+  const [rucProveedor, setRucProveedor] = useState('');
+  const [consultaRuc, setConsultaRuc] = useState(null);
+  const [consultandoRuc, setConsultandoRuc] = useState(false);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [eliminandoId, setEliminandoId] = useState(null);
 
@@ -88,6 +91,8 @@ const RendicionPresupuesto = () => {
     setArchivo(null);
     setMonto('');
     setMoneda('PEN');
+    setRucProveedor('');
+    setConsultaRuc(null);
     setFileInputKey((k) => k + 1);
   };
 
@@ -118,6 +123,28 @@ const RendicionPresupuesto = () => {
     cargarLista();
     cargarAreas();
   }, []);
+
+  const consultarRucProveedor = async (valor) => {
+    const digits = String(valor || '').replace(/\D/g, '');
+    if (!digits) {
+      setConsultaRuc(null);
+      return;
+    }
+    if (digits.length !== 11) {
+      setConsultaRuc({ invalido: true, mensaje: 'El RUC debe tener 11 dígitos.' });
+      return;
+    }
+    setConsultandoRuc(true);
+    try {
+      const { data } = await rendicionPresupuestoService.consultarRuc(digits);
+      setConsultaRuc(data.data);
+    } catch (err) {
+      setConsultaRuc(null);
+      toast.error(err.response?.data?.mensaje || 'No se pudo consultar el RUC.');
+    } finally {
+      setConsultandoRuc(false);
+    }
+  };
 
   const eliminarRegistro = async (r) => {
     if (!puedeEliminar(r)) return;
@@ -162,6 +189,11 @@ const RendicionPresupuesto = () => {
       );
       return;
     }
+    const rucDigits = String(rucProveedor || '').replace(/\D/g, '');
+    if (rucDigits && rucDigits.length !== 11) {
+      toast.error('Si indica RUC, debe tener 11 dígitos.');
+      return;
+    }
 
     const fd = new FormData();
     fd.append('fecha_solicitud_usuario', fechaSolicitud);
@@ -172,11 +204,14 @@ const RendicionPresupuesto = () => {
     if (archivo) {
       fd.append('comprobante', archivo);
     }
+    if (rucDigits) {
+      fd.append('ruc_proveedor', rucDigits);
+    }
 
     setEnviando(true);
     try {
-      await rendicionPresupuestoService.crear(fd);
-      toast.success('Rendición registrada. Se notificó a los responsables.');
+      const { data } = await rendicionPresupuestoService.crear(fd);
+      toast.success(data.mensaje || 'Rendición registrada. Se notificó a los responsables.');
       resetFormulario();
       cargarLista();
     } catch (err) {
@@ -299,6 +334,41 @@ const RendicionPresupuesto = () => {
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4 max-w-xl">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                RUC del comprobante (opcional)
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-mono"
+                value={rucProveedor}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setRucProveedor(v);
+                  if (!v) setConsultaRuc(null);
+                }}
+                onBlur={() => consultarRucProveedor(rucProveedor)}
+                placeholder="11 dígitos"
+                maxLength={11}
+              />
+              {consultandoRuc && (
+                <p className="text-xs text-slate-500 mt-1.5">Consultando proveedor…</p>
+              )}
+              {!consultandoRuc && consultaRuc?.registrado && consultaRuc.proveedor && (
+                <p className="text-xs text-emerald-700 mt-1.5 rounded-lg bg-emerald-50 px-2 py-1.5">
+                  ✓ Proveedor registrado: <strong>{consultaRuc.proveedor.razon_social}</strong>
+                </p>
+              )}
+              {!consultandoRuc && consultaRuc?.registrado === false && consultaRuc.ruc && (
+                <p className="text-xs text-amber-800 mt-1.5 rounded-lg bg-amber-50 px-2 py-1.5">
+                  RUC no está en la base. Al enviar se creará una solicitud pendiente en Proveedores.
+                </p>
+              )}
+              {!consultandoRuc && consultaRuc?.invalido && (
+                <p className="text-xs text-rose-600 mt-1.5">{consultaRuc.mensaje}</p>
+              )}
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Moneda *</label>
               <select

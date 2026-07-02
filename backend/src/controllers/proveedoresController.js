@@ -1,6 +1,7 @@
 const Proveedor = require('../models/Proveedor');
 const EvaluacionProveedor = require('../models/EvaluacionProveedor');
 const ReevaluacionProveedor = require('../models/ReevaluacionProveedor');
+const ProveedorSolicitudPendiente = require('../models/ProveedorSolicitudPendiente');
 const {
   TIPOS_PROVEEDOR,
   AREAS_SOLICITANTE,
@@ -166,11 +167,22 @@ const registrarGanador = async (req, res) => {
     if (!candidatoId) {
       return res.status(400).json({ success: false, mensaje: 'candidato_id requerido.' });
     }
+    const solicitud = await ProveedorSolicitudPendiente.buscarPorEvaluacionId(evaluacionId);
+    const body = { ...req.body };
+    if (solicitud?.ruc && !body.ruc) {
+      body.ruc = solicitud.ruc;
+    }
     const result = await EvaluacionProveedor.registrarGanadorEnLista(
       evaluacionId,
       candidatoId,
-      req.body
+      body
     );
+    if (solicitud) {
+      await ProveedorSolicitudPendiente.marcarCompletadaPorEvaluacion(
+        evaluacionId,
+        result.proveedorId
+      );
+    }
     const p = await Proveedor.buscarPorId(result.proveedorId);
     res.status(201).json({
       success: true,
@@ -180,6 +192,85 @@ const registrarGanador = async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(400).json({ success: false, mensaje: e.message || 'Error al registrar ganador.' });
+  }
+};
+
+const listarSolicitudesPendientes = async (req, res) => {
+  try {
+    const estado = req.query.estado || 'pendiente';
+    const rows = await ProveedorSolicitudPendiente.listar({ estado });
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al listar solicitudes.' });
+  }
+};
+
+const iniciarEvaluacionDesdeSolicitud = async (req, res) => {
+  try {
+    const solicitudId = parseInt(req.params.id, 10);
+    const solicitud = await ProveedorSolicitudPendiente.buscarPorId(solicitudId);
+    if (!solicitud) {
+      return res.status(404).json({ success: false, mensaje: 'Solicitud no encontrada.' });
+    }
+    if (solicitud.estado !== 'pendiente') {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Esta solicitud ya fue procesada o está en evaluación.'
+      });
+    }
+
+    const evaluacionId = await EvaluacionProveedor.crear(
+      {
+        fecha: new Date().toISOString().slice(0, 10),
+        oc_asociada: 'no',
+        detalle: solicitud.detalle,
+        candidatos: [
+          {
+            razon_social: `Proveedor RUC ${solicitud.ruc}`,
+            direccion: '',
+            cumplimiento_legal: 'na',
+            puntaje_experiencia: 20,
+            puntaje_precio: 20,
+            puntaje_iso: 10,
+            puntaje_valor_agregado: 5,
+            obs_experiencia: 'Completar tras identificar al proveedor.',
+            obs_precio: '',
+            obs_iso: '',
+            obs_valor_agregado: ''
+          }
+        ]
+      },
+      req.usuario?.id
+    );
+
+    await ProveedorSolicitudPendiente.marcarEnEvaluacion(solicitudId, evaluacionId);
+    const det = await EvaluacionProveedor.obtenerDetalle(evaluacionId);
+    res.status(201).json({
+      success: true,
+      mensaje: 'Evaluación iniciada desde solicitud pendiente.',
+      data: { evaluacion: det, solicitud_id: solicitudId }
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al iniciar evaluación.' });
+  }
+};
+
+const buscarProveedorPorRuc = async (req, res) => {
+  try {
+    const ruc = String(req.params.ruc || '').replace(/\D/g, '');
+    if (!ruc) {
+      return res.status(400).json({ success: false, mensaje: 'Indique un RUC.' });
+    }
+    const p = await Proveedor.buscarPorRuc(ruc);
+    if (!p) {
+      return res.status(404).json({ success: false, mensaje: 'Proveedor no encontrado.' });
+    }
+    res.json({ success: true, data: enriquecerProveedor(p) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al buscar proveedor.' });
   }
 };
 
@@ -261,6 +352,9 @@ module.exports = {
   actualizarEvaluacion,
   eliminarEvaluacion,
   registrarGanador,
+  listarSolicitudesPendientes,
+  iniciarEvaluacionDesdeSolicitud,
+  buscarProveedorPorRuc,
   listarReevaluaciones,
   obtenerReevaluacion,
   crearReevaluacion,

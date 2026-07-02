@@ -9,6 +9,10 @@ router.use(autenticar, verificarAccesoModuloPortal('proveedores'));
 
 router.get('/catalogos', ctrl.catalogos);
 
+router.get('/solicitudes-pendientes', ctrl.listarSolicitudesPendientes);
+router.post('/solicitudes-pendientes/:id/iniciar-evaluacion', ctrl.iniciarEvaluacionDesdeSolicitud);
+router.get('/por-ruc/:ruc', ctrl.buscarProveedorPorRuc);
+
 router.get('/', ctrl.listarProveedores);
 router.post('/', ctrl.crearProveedor);
 router.get('/evaluaciones', ctrl.listarEvaluaciones);

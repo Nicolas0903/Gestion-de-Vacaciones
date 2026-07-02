@@ -1,5 +1,6 @@
 const fs = require('fs');
-const { RendicionPresupuesto, Empleado } = require('../models');
+const { RendicionPresupuesto, Empleado, Proveedor } = require('../models');
+const ProveedorSolicitudPendiente = require('../models/ProveedorSolicitudPendiente');
 const TokenRendicionPresupuesto = require('../models/TokenRendicionPresupuesto');
 const emailService = require('../services/emailService');
 const {
@@ -7,6 +8,9 @@ const {
   diagnosticoBdRendicion
 } = require('../utils/rendicionPresupuestoDb');
 const { notificacionRegistroEmailsConfigurados } = require('../constants/rendicionPresupuestoNotificaciones');
+const { validarRuc } = require('../utils/rucPeru');
+const { mapearAreaRendicionAProveedor } = require('../utils/mapearAreaRendicionProveedor');
+const { TIPOS_PROVEEDOR, AREAS_SOLICITANTE } = require('../constants/proveedoresCatalogos');
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api';
 
@@ -36,6 +40,55 @@ function puedeEliminarRendicion(usuario, rendicion) {
   if (rendicion.empleado_id !== usuario.id) return false;
   return rendicion.estado !== 'aprobado';
 }
+
+function enriquecerProveedorBasico(p) {
+  if (!p) return null;
+  const tipo = TIPOS_PROVEEDOR.find((t) => t.value === p.tipo_proveedor);
+  const area = AREAS_SOLICITANTE.find((a) => a.value === p.area_solicitante);
+  return {
+    id: p.id,
+    ruc: p.ruc,
+    razon_social: p.razon_social,
+    tipo_proveedor: p.tipo_proveedor,
+    tipo_label:
+      p.tipo_proveedor === 'otros' && p.tipo_proveedor_otro
+        ? p.tipo_proveedor_otro
+        : tipo?.label || p.tipo_proveedor,
+    producto_servicio: p.producto_servicio,
+    area_label:
+      p.area_solicitante === 'otros' && p.area_otro ? p.area_otro : area?.label || p.area_solicitante
+  };
+}
+
+const consultarProveedorPorRuc = async (req, res) => {
+  try {
+    const { ok, ruc, mensaje } = validarRuc(req.params.ruc);
+    if (!ruc) {
+      return res.json({ success: true, data: { registrado: false, ruc: null } });
+    }
+    if (!ok) {
+      return res.status(400).json({ success: false, mensaje });
+    }
+    const proveedor = await Proveedor.buscarPorRuc(ruc);
+    if (proveedor) {
+      return res.json({
+        success: true,
+        data: { registrado: true, ruc, proveedor: enriquecerProveedorBasico(proveedor) }
+      });
+    }
+    return res.json({
+      success: true,
+      data: {
+        registrado: false,
+        ruc,
+        mensaje: 'RUC no registrado. Al enviar la rendición se creará una solicitud pendiente en Proveedores.'
+      }
+    });
+  } catch (error) {
+    console.error('consultarProveedorPorRuc:', error);
+    res.status(500).json({ success: false, mensaje: 'Error al consultar RUC.' });
+  }
+};
 
 const crear = async (req, res) => {
   try {
@@ -69,6 +122,19 @@ const crear = async (req, res) => {
       archivo_comprobante_path = req.file.path;
     }
 
+    let rucProveedor = null;
+    let proveedorId = null;
+    const rucRaw = String(req.body.ruc_proveedor || '').trim();
+    if (rucRaw) {
+      const val = validarRuc(rucRaw);
+      if (!val.ok) {
+        return res.status(400).json({ success: false, mensaje: val.mensaje });
+      }
+      rucProveedor = val.ruc;
+      const prov = await Proveedor.buscarPorRuc(rucProveedor);
+      if (prov) proveedorId = prov.id;
+    }
+
     const id = await RendicionPresupuesto.crear({
       empleado_id: req.usuario.id,
       fecha_solicitud_usuario,
@@ -82,9 +148,36 @@ const crear = async (req, res) => {
       archivo_recibo_generado_path: null,
       monto: montoNum,
       moneda: RendicionPresupuesto.normalizarMoneda(moneda),
-      ruc_proveedor: null,
+      ruc_proveedor: rucProveedor,
+      proveedor_id: proveedorId,
+      proveedor_solicitud_id: null,
       numero_documento: null
     });
+
+    let proveedorSolicitudId = null;
+    if (rucProveedor && !proveedorId) {
+      const areaProv = mapearAreaRendicionAProveedor(area);
+      const monedaLabel = RendicionPresupuesto.MONEDA_LABEL[RendicionPresupuesto.normalizarMoneda(moneda)];
+      const detalle =
+        `Solicitud generada desde Rendición de Presupuesto RDP-${new Date(fecha_solicitud_usuario).getFullYear()}-${String(id).padStart(5, '0')}.\n` +
+        `RUC comprobante: ${rucProveedor}\n` +
+        `Concepto: ${concepto.trim()}\n` +
+        `Monto: ${RendicionPresupuesto.formatearMonto(montoNum, moneda)} (${monedaLabel})\n` +
+        `Área consumo: ${RendicionPresupuesto.AREAS_LABEL[area] || area}\n` +
+        `Solicitante: ${nombre_completo}`;
+      proveedorSolicitudId = await ProveedorSolicitudPendiente.crear({
+        ruc: rucProveedor,
+        detalle,
+        area_solicitante: areaProv,
+        area_otro: areaProv === 'otros' ? RendicionPresupuesto.AREAS_LABEL[area] || area : null,
+        rendicion_presupuesto_id: id,
+        solicitante_id: req.usuario.id
+      });
+      await RendicionPresupuesto.vincularProveedor(id, {
+        proveedor_id: null,
+        proveedor_solicitud_id: proveedorSolicitudId
+      });
+    }
 
     const row = await RendicionPresupuesto.buscarPorId(id);
 
@@ -146,10 +239,19 @@ const crear = async (req, res) => {
       console.error('Notificación rendición (registro guardado igual):', notifErr);
     }
 
+    let mensajeExito = 'Rendición registrada. Se notificó a los responsables.';
+    if (proveedorSolicitudId) {
+      mensajeExito +=
+        ' El RUC no está en la base de proveedores: se creó una solicitud pendiente para evaluación.';
+    } else if (rucProveedor && proveedorId) {
+      mensajeExito += ' RUC validado con proveedor registrado.';
+    }
+
     res.status(201).json({
       success: true,
-      mensaje: 'Rendición registrada. Se notificó a los responsables.',
-      data: enriquecer(row)
+      mensaje: mensajeExito,
+      data: enriquecer(row),
+      proveedor_solicitud_creada: !!proveedorSolicitudId
     });
   } catch (error) {
     console.error('crear rendición:', error);
@@ -441,6 +543,7 @@ const diagnostico = async (_req, res) => {
 
 module.exports = {
   crear,
+  consultarProveedorPorRuc,
   misSolicitudes,
   listarPendientes,
   listarTodos,

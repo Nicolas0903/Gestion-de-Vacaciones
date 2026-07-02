@@ -92,6 +92,7 @@ router.get('/ping', async (_req, res) => {
 });
 
 router.get('/areas', autenticar, rendicionPresupuestoController.catalogoAreas);
+router.get('/consultar-ruc/:ruc', autenticar, rendicionPresupuestoController.consultarProveedorPorRuc);
 
 router.post('/', autenticar, uploadComprobante, rendicionPresupuestoController.crear);
 router.get('/mis-solicitudes', autenticar, rendicionPresupuestoController.misSolicitudes);
