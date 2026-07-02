@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
-import { proveedoresService } from '../services/api';
-import { formatoFechaDMY } from '../utils/dateUtils';
+import { proveedoresService } from '../../services/api';
+import { formatoFechaDMY } from '../../utils/dateUtils';
 
 const estadoLabel = {
   pendiente: 'Pendiente',
