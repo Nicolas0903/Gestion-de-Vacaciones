@@ -1,5 +1,9 @@
 const { pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
+const {
+  APROBACION_EMAILS_DEFAULT,
+  aprobacionEmailsConfigurados
+} = require('../constants/rendicionPresupuestoNotificaciones');
 
 class Empleado {
   static normalizarModulosPortal(empleado) {
@@ -139,33 +143,19 @@ class Empleado {
     return rows[0] || null;
   }
 
-  /**
-   * Lista de correos oficiales que reciben las notificaciones de rendición
-   * de presupuesto. Se puede sobreescribir vía env
-   * `RENDICION_PRESUPUESTO_APROBADORES_EMAILS` (csv).
-   */
+  /** @deprecated Usar constants/rendicionPresupuestoNotificaciones — solo módulo Rendición de Presupuesto */
   static get APROBADORES_RENDICION_EMAILS_DEFAULT() {
-    return ['asistente@prayaga.biz', 'rocio.picon@prayaga.biz'];
+    return APROBACION_EMAILS_DEFAULT;
   }
 
+  /** Correos que pueden aprobar/rechazar rendiciones (Magali o Verónica). Solo este módulo. */
   static aprobadoresRendicionEmailsConfigurados() {
-    const raw = process.env.RENDICION_PRESUPUESTO_APROBADORES_EMAILS;
-    if (raw && String(raw).trim()) {
-      return String(raw)
-        .split(',')
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean);
-    }
-    return this.APROBADORES_RENDICION_EMAILS_DEFAULT.map((e) => e.toLowerCase());
+    return aprobacionEmailsConfigurados();
   }
 
-  /**
-   * Aprobadores para Rendición de Presupuesto.
-   * Devuelve empleados activos cuyo correo está en la lista oficial
-   * (Verónica/asistente@prayaga.biz y Rocío Picón).
-   */
+  /** Empleados activos habilitados para aprobar rendiciones de presupuesto (solo ese módulo) */
   static async obtenerAprobadoresRendicion() {
-    const emails = this.aprobadoresRendicionEmailsConfigurados();
+    const emails = aprobacionEmailsConfigurados();
     if (!emails.length) return [];
     const placeholders = emails.map(() => '?').join(',');
     const [rows] = await pool.execute(

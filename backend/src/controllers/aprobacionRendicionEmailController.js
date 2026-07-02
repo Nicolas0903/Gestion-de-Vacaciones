@@ -2,6 +2,7 @@ const TokenRendicionPresupuesto = require('../models/TokenRendicionPresupuesto')
 const { Empleado, RendicionPresupuesto } = require('../models');
 const emailService = require('../services/emailService');
 const { getPortalBaseUrl } = require('../config/frontendPublic');
+const { aprobacionEmailsConfigurados } = require('../constants/rendicionPresupuestoNotificaciones');
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api';
 
@@ -115,14 +116,14 @@ function generarFormularioRechazo(token, tokenData) {
 }
 
 /**
- * Verifica que el `aprobador_id` del token siga estando habilitado como
- * aprobador de rendiciones (Verónica, Rocío) o sea admin (fallback).
+ * Verifica que el `aprobador_id` del token siga habilitado (Magali o Verónica)
+ * o sea admin (fallback).
  */
 async function verificarAprobadorToken(tokenData) {
   const e = await Empleado.buscarPorId(tokenData.aprobador_id);
   if (!e || !e.activo) return null;
   const emailNorm = (e.email || '').toLowerCase().trim();
-  const oficiales = Empleado.aprobadoresRendicionEmailsConfigurados();
+  const oficiales = aprobacionEmailsConfigurados();
   if (oficiales.includes(emailNorm)) return e;
   if (e.rol_nombre === 'admin') return e;
   return null;

@@ -6,6 +6,7 @@ const {
   mensajeErrorSqlRendicion,
   diagnosticoBdRendicion
 } = require('../utils/rendicionPresupuestoDb');
+const { notificacionRegistroEmailsConfigurados } = require('../constants/rendicionPresupuestoNotificaciones');
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api';
 
@@ -88,7 +89,7 @@ const crear = async (req, res) => {
     const row = await RendicionPresupuesto.buscarPorId(id);
 
     try {
-      const emailsOficiales = Empleado.aprobadoresRendicionEmailsConfigurados();
+      const emailsOficiales = notificacionRegistroEmailsConfigurados();
       const aprobadores = await Empleado.obtenerAprobadoresRendicion();
       const rendicionData = {
         ...row,
