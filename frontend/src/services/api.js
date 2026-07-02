@@ -1,6 +1,18 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
+/** Base del API: env > mismo origen /api > localhost dev. */
+function resolveApiBaseUrl() {
+  const fromEnv = (process.env.REACT_APP_API_URL || '').trim().replace(/\/+$/, '');
+  if (fromEnv && !/localhost|127\.0\.0\.1/i.test(fromEnv)) {
+    return fromEnv;
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/api`;
+  }
+  return fromEnv || 'http://localhost:3002/api';
+}
+
+const API_URL = resolveApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_URL,

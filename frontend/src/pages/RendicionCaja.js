@@ -50,12 +50,9 @@ const RendicionCaja = () => {
   const cargarLista = useCallback(async () => {
     setCargandoLista(true);
     try {
-      const [listaRes, sugRes] = await Promise.all([
-        rendicionCajaService.listarPeriodos(),
-        rendicionCajaService.sugerirPeriodos().catch(() => ({ data: { data: [] } }))
-      ]);
-      setPeriodos(listaRes.data.data || []);
-      const sugeridos = sugRes.data?.data || [];
+      const { data } = await rendicionCajaService.listarPeriodos();
+      setPeriodos(data.data || []);
+      const sugeridos = data.sugeridos || [];
       setPeriodosSugeridos(sugeridos);
       if (sugeridos.length > 0) {
         setNuevoAnio(sugeridos[0].anio);

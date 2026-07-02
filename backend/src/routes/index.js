@@ -39,6 +39,8 @@ router.use('/aprobacion-reembolso-email', aprobacionReembolsoEmailRoutes);
 router.use('/aprobacion-rendicion-email', aprobacionRendicionEmailRoutes);
 router.use('/reembolsos', reembolsosRoutes);
 router.use('/rendiciones-presupuesto', rendicionesPresupuestoRoutes);
+/** Alias retrocompat por si algún cliente apunta al id singular del módulo. */
+router.use('/rendicion-presupuesto', rendicionesPresupuestoRoutes);
 router.use('/caja-chica', cajaChicaRoutes);
 router.use('/caja-rendicion', rendicionCajaRoutes);
 router.use('/admin-portal-usuarios', adminPortalUsuariosRoutes);
@@ -51,10 +53,14 @@ router.use('/backups', backupsRoutes);
 
 // Ruta de health check
 router.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'Gestor de Vacaciones API'
+    service: 'Gestor de Vacaciones API',
+    modules: {
+      rendiciones_presupuesto: true,
+      caja_rendicion: true
+    }
   });
 });
 

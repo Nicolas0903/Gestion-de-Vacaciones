@@ -86,7 +86,13 @@ async function construirDetallePeriodo(periodo) {
 const listarPeriodos = async (req, res) => {
   try {
     const rows = await RendicionCajaPeriodo.listarPeriodos();
-    res.json({ success: true, data: rows });
+    let sugeridos = [];
+    try {
+      sugeridos = await RendicionPresupuesto.listarMesesGastoAprobadosSinPeriodo();
+    } catch (e) {
+      console.warn('sugeridos periodo caja-rendicion:', e.message || e);
+    }
+    res.json({ success: true, data: rows, sugeridos });
   } catch (e) {
     console.error(e);
     res.status(500).json({ success: false, mensaje: 'Error al listar períodos.' });

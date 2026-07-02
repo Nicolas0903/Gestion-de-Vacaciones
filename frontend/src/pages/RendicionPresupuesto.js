@@ -180,7 +180,11 @@ const RendicionPresupuesto = () => {
       resetFormulario();
       cargarLista();
     } catch (err) {
-      const msg = err.response?.data?.mensaje || 'No se pudo enviar la rendición.';
+      const msg =
+        err.response?.data?.mensaje ||
+        (err.response?.status === 404
+          ? 'El servidor no tiene activa la API de rendiciones. Avise a TI para hacer git pull y reiniciar el backend (pm2).'
+          : 'No se pudo enviar la rendición.');
       toast.error(msg);
     } finally {
       setEnviando(false);

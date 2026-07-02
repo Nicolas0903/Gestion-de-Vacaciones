@@ -117,6 +117,9 @@ const startServer = async () => {
     console.log(
       `Reintegros: comprobante hasta ${REEMBOLSOS_MAX_UPLOAD_MB} MB (${REEMBOLSOS_MAX_FILE_BYTES} bytes).`
     );
+    console.log(
+      'API módulos: /api/rendiciones-presupuesto, /api/caja-rendicion (verifique /api/health)'
+    );
   });
 };
 
