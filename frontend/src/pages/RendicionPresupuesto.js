@@ -184,7 +184,10 @@ const RendicionPresupuesto = () => {
         err.response?.data?.mensaje ||
         (err.response?.status === 404
           ? 'El servidor no tiene activa la API de rendiciones. Avise a TI para hacer git pull y reiniciar el backend (pm2).'
-          : 'No se pudo enviar la rendición.');
+          : err.response?.status === 500
+            ? err.response?.data?.mensaje ||
+              'Error del servidor al guardar. Probablemente faltan tablas en MySQL (ver /api/rendiciones-presupuesto/ping).'
+            : 'No se pudo enviar la rendición.');
       toast.error(msg);
     } finally {
       setEnviando(false);

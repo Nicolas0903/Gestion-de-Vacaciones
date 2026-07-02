@@ -2,6 +2,10 @@ const fs = require('fs');
 const { RendicionPresupuesto, Empleado } = require('../models');
 const TokenRendicionPresupuesto = require('../models/TokenRendicionPresupuesto');
 const emailService = require('../services/emailService');
+const {
+  mensajeErrorSqlRendicion,
+  diagnosticoBdRendicion
+} = require('../utils/rendicionPresupuestoDb');
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api';
 
@@ -125,15 +129,11 @@ const crear = async (req, res) => {
     });
   } catch (error) {
     console.error('crear rendición:', error);
-    const sqlMsg = error.sqlMessage || error.message || '';
-    if (sqlMsg.includes("doesn't exist") || error.errno === 1146) {
-      return res.status(500).json({
-        success: false,
-        mensaje:
-          'Falta la tabla rendiciones_presupuesto en la base de datos. Ejecute backend/sql/rendiciones_presupuesto.sql'
-      });
-    }
-    res.status(500).json({ success: false, mensaje: 'Error al registrar la rendición.' });
+    const detalle = mensajeErrorSqlRendicion(error);
+    res.status(500).json({
+      success: false,
+      mensaje: detalle || 'Error al registrar la rendición. Revise logs del servidor (pm2 logs).'
+    });
   }
 };
 
@@ -399,6 +399,22 @@ const catalogoAreas = (_req, res) => {
   });
 };
 
+const diagnostico = async (_req, res) => {
+  try {
+    const db = await diagnosticoBdRendicion();
+    res.json({
+      success: true,
+      module: 'rendiciones-presupuesto',
+      db
+    });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      mensaje: e.message || 'Error al diagnosticar BD'
+    });
+  }
+};
+
 module.exports = {
   crear,
   misSolicitudes,
@@ -411,5 +427,6 @@ module.exports = {
   observar,
   eliminar,
   actualizarAdmin,
-  catalogoAreas
+  catalogoAreas,
+  diagnostico
 };

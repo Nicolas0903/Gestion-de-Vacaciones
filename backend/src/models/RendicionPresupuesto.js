@@ -144,7 +144,7 @@ class RendicionPresupuesto {
         concepto,
         nombre_completo,
         dni,
-        tiene_comprobante,
+        tiene_comprobante ? 1 : 0,
         archivo_comprobante_nombre || null,
         archivo_comprobante_path || null,
         archivo_recibo_generado_path || null,

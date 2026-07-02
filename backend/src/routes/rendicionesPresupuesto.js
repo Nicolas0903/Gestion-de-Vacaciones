@@ -69,12 +69,26 @@ function uploadComprobante(req, res, next) {
 }
 
 /** Diagnóstico de deploy (sin auth). */
-router.get('/ping', (_req, res) => {
-  res.json({
-    success: true,
-    module: 'rendiciones-presupuesto',
-    message: 'API de rendición de presupuesto activa'
-  });
+router.get('/ping', async (_req, res) => {
+  try {
+    const { diagnosticoBdRendicion } = require('../utils/rendicionPresupuestoDb');
+    const db = await diagnosticoBdRendicion();
+    res.json({
+      success: true,
+      module: 'rendiciones-presupuesto',
+      message: db.listo
+        ? 'API y base de datos listas'
+        : 'API activa pero falta crear/actualizar tablas en MySQL',
+      db
+    });
+  } catch (e) {
+    res.status(503).json({
+      success: false,
+      module: 'rendiciones-presupuesto',
+      message: 'API activa; error al conectar con MySQL',
+      error: e.message
+    });
+  }
 });
 
 router.get('/areas', autenticar, rendicionPresupuestoController.catalogoAreas);
