@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LogoTransparente from '../components/LogoTransparente';
+import NotificacionesDropdown from '../components/NotificacionesDropdown';
 import {
   CalendarDaysIcon,
   DocumentTextIcon,
@@ -364,7 +365,7 @@ const Portal = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+            <div className="flex flex-col items-end gap-2 ml-auto">
               <div className="relative" ref={menuUsuarioRef}>
                 <button
                   type="button"
@@ -456,6 +457,8 @@ const Portal = () => {
                   </div>
                 )}
               </div>
+
+              <NotificacionesDropdown />
             </div>
           </div>
 
