@@ -113,6 +113,11 @@ const Aprobaciones = () => {
                     <div>
                       <p className="font-semibold text-slate-800">
                         {solicitud.nombres} {solicitud.apellidos}
+                        {solicitud.apelacion_usada ? (
+                          <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                            Apelación
+                          </span>
+                        ) : null}
                       </p>
                       <p className="text-sm text-slate-500">{solicitud.cargo}</p>
                     </div>

@@ -90,6 +90,7 @@ export const solicitudService = {
   listarTodas: (filtros = {}) => api.get('/solicitudes/todas', { params: filtros }),
   obtener: (id) => api.get(`/solicitudes/${id}`),
   enviar: (id) => api.put(`/solicitudes/${id}/enviar`),
+  apelar: (id, motivo_apelacion) => api.put(`/solicitudes/${id}/apelar`, { motivo_apelacion }),
   aprobar: (id, comentarios = '') => api.put(`/solicitudes/${id}/aprobar`, { comentarios }),
   rechazar: (id, comentarios) => api.put(`/solicitudes/${id}/rechazar`, { comentarios }),
   cancelar: (id) => api.put(`/solicitudes/${id}/cancelar`),

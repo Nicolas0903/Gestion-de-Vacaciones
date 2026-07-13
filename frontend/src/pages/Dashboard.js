@@ -55,6 +55,7 @@ const Dashboard = () => {
       pendiente_contadora: 'bg-blue-100 text-blue-700',
       aprobada: 'bg-emerald-100 text-emerald-700',
       rechazada: 'bg-rose-100 text-rose-700',
+      rechazada_definitiva: 'bg-rose-200 text-rose-900',
       cancelada: 'bg-slate-100 text-slate-500'
     };
     return colores[estado] || 'bg-slate-100 text-slate-600';
@@ -67,6 +68,7 @@ const Dashboard = () => {
       pendiente_contadora: 'Pendiente de Aprobación',
       aprobada: 'Aprobada',
       rechazada: 'Rechazada',
+      rechazada_definitiva: 'Rechazada definitivamente',
       cancelada: 'Cancelada'
     };
     return textos[estado] || estado;

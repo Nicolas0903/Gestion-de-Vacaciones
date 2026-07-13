@@ -8,6 +8,10 @@ const {
 const moment = require('moment');
 const { calcularDiasVacaciones, calcularFechaEfectivaRegreso } = require('../utils/calcularDiasVacaciones');
 const emailService = require('../services/emailService');
+const TokenAprobacion = require('../models/TokenAprobacion');
+const { iniciarFlujoAprobacion } = require('../utils/solicitudFlujoAprobacion');
+
+const DIAS_LIMITE_APELACION = 10;
 
 // Crear solicitud
 const crear = async (req, res) => {
@@ -112,61 +116,13 @@ const enviar = async (req, res) => {
 
     // Determinar flujo de aprobación según si tiene jefe directo
     const empleado = await Empleado.buscarPorId(req.usuario.id);
-    
-    if (empleado.jefe_id) {
-      // Tiene jefe: aprobación en paralelo con contadora (mismo envío de correo a ambos)
-      await SolicitudVacaciones.actualizarEstado(parseInt(id), 'pendiente_jefe');
 
-      await Aprobacion.crear({
-        solicitud_id: parseInt(id),
-        aprobador_id: empleado.jefe_id,
-        tipo_aprobacion: 'jefe'
-      });
-
-      const contadoras = await Empleado.obtenerPorRol('contadora');
-      const contadora = contadoras[0];
-      if (contadora) {
-        await Aprobacion.crear({
-          solicitud_id: parseInt(id),
-          aprobador_id: contadora.id,
-          tipo_aprobacion: 'contadora'
-        });
-      }
-
-      await Notificacion.notificarSolicitudEnviada(parseInt(id), req.usuario.id, empleado.jefe_id);
-      if (contadora) {
-        await Notificacion.notificarSolicitudEnviadaContadora(parseInt(id), contadora.id);
-      }
-
-      const jefe = await Empleado.buscarPorId(empleado.jefe_id);
-      if (jefe) {
-        emailService.notificarNuevaSolicitud(solicitud, empleado, jefe)
-          .catch(err => console.error('Error enviando email:', err));
-      }
-      if (contadora) {
-        emailService.notificarNuevaSolicitud(solicitud, empleado, contadora)
-          .catch(err => console.error('Error enviando email:', err));
-      }
-    } else {
-      // NO tiene jefe directo: ir directo a contadora (Rocío)
-      await SolicitudVacaciones.actualizarEstado(parseInt(id), 'pendiente_contadora');
-      
-      const contadoras = await Empleado.obtenerPorRol('contadora');
-      if (contadoras.length > 0) {
-        await Aprobacion.crear({
-          solicitud_id: parseInt(id),
-          aprobador_id: contadoras[0].id,
-          tipo_aprobacion: 'contadora'
-        });
-
-        // Notificar a la contadora (sistema interno)
-        await Notificacion.notificarSolicitudEnviada(parseInt(id), req.usuario.id, contadoras[0].id);
-        
-        // Enviar email a la contadora
-        emailService.notificarNuevaSolicitud(solicitud, empleado, contadoras[0])
-          .catch(err => console.error('Error enviando email:', err));
-      }
-    }
+    await iniciarFlujoAprobacion({
+      solicitudId: parseInt(id),
+      solicitud,
+      empleado,
+      esApelacion: false
+    });
 
     res.json({
       success: true,
@@ -178,6 +134,110 @@ const enviar = async (req, res) => {
       success: false,
       mensaje: 'Error interno del servidor'
     });
+  }
+};
+
+// Apelar solicitud rechazada (una sola vez, dentro del plazo)
+const apelar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const motivo_apelacion = String(req.body.motivo_apelacion || '').trim();
+    const solicitudId = parseInt(id, 10);
+    const solicitud = await SolicitudVacaciones.buscarPorId(solicitudId);
+
+    if (!solicitud) {
+      return res.status(404).json({ success: false, mensaje: 'Solicitud no encontrada' });
+    }
+
+    if (solicitud.empleado_id !== req.usuario.id) {
+      return res.status(403).json({ success: false, mensaje: 'No puedes apelar esta solicitud' });
+    }
+
+    if (solicitud.estado !== 'rechazada') {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Solo puede apelar solicitudes en estado rechazada.'
+      });
+    }
+
+    if (solicitud.apelacion_usada) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Ya utilizaste la apelación para esta solicitud.'
+      });
+    }
+
+    if (!motivo_apelacion || motivo_apelacion.length < 10) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique el motivo de la apelación (mínimo 10 caracteres).'
+      });
+    }
+
+    const fechaRechazo =
+      (await Aprobacion.obtenerFechaUltimoRechazo(solicitudId)) || solicitud.updated_at;
+    if (fechaRechazo) {
+      const diasDesde = moment().diff(moment(fechaRechazo), 'days');
+      if (diasDesde > DIAS_LIMITE_APELACION) {
+        return res.status(400).json({
+          success: false,
+          mensaje: `El plazo para apelar es de ${DIAS_LIMITE_APELACION} días desde el rechazo.`
+        });
+      }
+    }
+
+    const periodo = await PeriodoVacaciones.buscarPorId(solicitud.periodo_id);
+    if (!periodo || periodo.empleado_id !== solicitud.empleado_id) {
+      return res.status(400).json({ success: false, mensaje: 'Período de vacaciones inválido.' });
+    }
+
+    if (solicitud.dias_solicitados > periodo.dias_pendientes) {
+      return res.status(400).json({
+        success: false,
+        mensaje: `Ya no hay saldo suficiente en el período (${periodo.dias_pendientes} días disponibles).`
+      });
+    }
+
+    const conflictos = await SolicitudVacaciones.verificarConflictos(
+      solicitud.empleado_id,
+      solicitud.fecha_inicio_vacaciones,
+      solicitud.fecha_fin_vacaciones,
+      solicitudId
+    );
+    if (conflictos.length > 0) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Tienes otra solicitud activa en las mismas fechas. Cancela o ajusta antes de apelar.'
+      });
+    }
+
+    await SolicitudVacaciones.actualizar(solicitudId, {
+      motivo_apelacion,
+      fecha_apelacion: new Date(),
+      apelacion_usada: 1
+    });
+
+    const empleado = await Empleado.buscarPorId(solicitud.empleado_id);
+    const solicitudActualizada = await SolicitudVacaciones.buscarPorId(solicitudId);
+
+    await iniciarFlujoAprobacion({
+      solicitudId,
+      solicitud: solicitudActualizada,
+      empleado,
+      esApelacion: true,
+      motivoApelacion: motivo_apelacion
+    });
+
+    await Notificacion.notificarApelacionEnviada(solicitudId, solicitud.empleado_id);
+
+    res.json({
+      success: true,
+      mensaje:
+        'Apelación registrada. La solicitud volvió a revisión de jefe y contadora.'
+    });
+  } catch (error) {
+    console.error('Error al apelar solicitud:', error);
+    res.status(500).json({ success: false, mensaje: 'Error interno del servidor' });
   }
 };
 
@@ -419,10 +479,18 @@ const rechazar = async (req, res) => {
       }
     }
 
-    await SolicitudVacaciones.actualizarEstado(parseInt(id), 'rechazada');
+    const esRechazoDefinitivo = !!solicitud.apelacion_usada;
+    const nuevoEstado = esRechazoDefinitivo ? 'rechazada_definitiva' : 'rechazada';
 
-    // Notificar al empleado (sistema interno)
-    await Notificacion.notificarRechazo(parseInt(id), solicitud.empleado_id, comentarios);
+    await SolicitudVacaciones.actualizarEstado(parseInt(id), nuevoEstado);
+    await TokenAprobacion.invalidarPorSolicitud(parseInt(id));
+
+    await Notificacion.notificarRechazo(
+      parseInt(id),
+      solicitud.empleado_id,
+      comentarios,
+      esRechazoDefinitivo
+    );
 
     // Enviar email de rechazo al empleado
     const empleadoSolicitud = await Empleado.buscarPorId(solicitud.empleado_id);
@@ -432,7 +500,9 @@ const rechazar = async (req, res) => {
 
     res.json({
       success: true,
-      mensaje: 'Solicitud rechazada'
+      mensaje: esRechazoDefinitivo
+        ? 'Solicitud rechazada definitivamente (apelación agotada)'
+        : 'Solicitud rechazada'
     });
   } catch (error) {
     console.error('Error al rechazar solicitud:', error);
@@ -700,6 +770,7 @@ const obtenerSalidasPorPeriodo = async (req, res) => {
 module.exports = {
   crear,
   enviar,
+  apelar,
   aprobar,
   rechazar,
   listarMias,

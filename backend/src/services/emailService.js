@@ -68,7 +68,8 @@ const formatearFecha = (fecha) => {
  * @param {Object} empleado - Datos del empleado que solicita
  * @param {Object} aprobador - Datos del aprobador (jefe o contadora)
  */
-const notificarNuevaSolicitud = async (solicitud, empleado, aprobador) => {
+const notificarNuevaSolicitud = async (solicitud, empleado, aprobador, opciones = {}) => {
+  const { esApelacion = false, motivoApelacion = '' } = opciones;
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.log('📧 Email no configurado - Notificación de nueva solicitud omitida');
     return false;
@@ -91,7 +92,11 @@ const notificarNuevaSolicitud = async (solicitud, empleado, aprobador) => {
     const contenido = `
       <p>Hola <strong>${aprobadorNombre} ${aprobadorApellido}</strong>,</p>
       
-      <p>Se ha recibido una nueva solicitud de vacaciones que requiere tu aprobación:</p>
+      <p>${
+        esApelacion
+          ? 'Se ha recibido una <strong>apelación</strong> de una solicitud de vacaciones que había sido rechazada:'
+          : 'Se ha recibido una nueva solicitud de vacaciones que requiere tu aprobación:'
+      }</p>
       
       <div class="info-box">
         <div class="info-row">
@@ -128,6 +133,12 @@ const notificarNuevaSolicitud = async (solicitud, empleado, aprobador) => {
           <span class="info-value">${solicitud.observaciones}</span>
         </div>
         ` : ''}
+        ${esApelacion && motivoApelacion ? `
+        <div class="info-row">
+          <span class="info-label">Motivo de apelación:</span>
+          <span class="info-value">${motivoApelacion}</span>
+        </div>
+        ` : ''}
       </div>
       
       <p style="text-align: center; margin: 25px 0 10px 0;"><strong>¿Qué deseas hacer con esta solicitud?</strong></p>
@@ -158,8 +169,14 @@ const notificarNuevaSolicitud = async (solicitud, empleado, aprobador) => {
     await transporter.sendMail({
       from: remitente('vacaciones'),
       to: aprobador.email,
-      subject: `Nueva solicitud de vacaciones — ${empleadoNombre} ${empleadoApellido}`,
-      html: plantillaEmail(contenido, 'Nueva solicitud de vacaciones', 'vacaciones')
+      subject: esApelacion
+        ? `Apelación de vacaciones — ${empleadoNombre} ${empleadoApellido}`
+        : `Nueva solicitud de vacaciones — ${empleadoNombre} ${empleadoApellido}`,
+      html: plantillaEmail(
+        contenido,
+        esApelacion ? 'Apelación de vacaciones' : 'Nueva solicitud de vacaciones',
+        'vacaciones'
+      )
     });
     console.log(`📧 Email enviado a ${aprobador.email} - Nueva solicitud de ${empleadoNombre}`);
     return true;

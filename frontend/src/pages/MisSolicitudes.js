@@ -60,6 +60,7 @@ const MisSolicitudes = () => {
       pendiente_contadora: 'bg-blue-50 text-blue-700 border-blue-200',
       aprobada: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       rechazada: 'bg-rose-50 text-rose-700 border-rose-200',
+      rechazada_definitiva: 'bg-rose-100 text-rose-900 border-rose-300',
       cancelada: 'bg-slate-50 text-slate-500 border-slate-200'
     };
     return colores[estado] || 'bg-slate-100 text-slate-600 border-slate-200';
@@ -72,6 +73,7 @@ const MisSolicitudes = () => {
       pendiente_contadora: 'Pendiente de Aprobación',
       aprobada: 'Aprobada',
       rechazada: 'Rechazada',
+      rechazada_definitiva: 'Rechazada definitivamente',
       cancelada: 'Cancelada'
     };
     return textos[estado] || estado;
@@ -105,6 +107,7 @@ const MisSolicitudes = () => {
           <option value="pendiente_jefe">Pendiente de Aprobación</option>
           <option value="aprobada">Aprobada</option>
           <option value="rechazada">Rechazada</option>
+          <option value="rechazada_definitiva">Rechazada definitivamente</option>
           <option value="cancelada">Cancelada</option>
         </select>
       </div>

@@ -106,6 +106,16 @@ class Aprobacion {
     return rows[0].total === rows[0].aprobadas && rows[0].total > 0;
   }
 
+  static async obtenerFechaUltimoRechazo(solicitudId) {
+    const [rows] = await pool.execute(
+      `SELECT MAX(fecha_accion) AS fecha
+       FROM aprobaciones
+       WHERE solicitud_id = ? AND estado = 'rechazado'`,
+      [solicitudId]
+    );
+    return rows[0]?.fecha || null;
+  }
+
   // Verificar si hay algún rechazo
   static async hayRechazo(solicitudId) {
     const [rows] = await pool.execute(

@@ -10,6 +10,7 @@ router.use(autenticar);
 router.post('/', solicitudController.crear);
 router.get('/mis-solicitudes', solicitudController.listarMias);
 router.put('/:id/enviar', solicitudController.enviar);
+router.put('/:id/apelar', solicitudController.apelar);
 router.put('/:id/cancelar', solicitudController.cancelar);
 
 // Rutas para calendario

@@ -219,14 +219,22 @@ const rechazarPorToken = async (req, res) => {
       }
     }
 
-    // Actualizar estado
-    await SolicitudVacaciones.actualizarEstado(solicitud.id, 'rechazada');
+    const esRechazoDefinitivo = !!solicitud.apelacion_usada;
+    const nuevoEstado = esRechazoDefinitivo ? 'rechazada_definitiva' : 'rechazada';
+
+    await SolicitudVacaciones.actualizarEstado(solicitud.id, nuevoEstado);
+    await TokenAprobacion.invalidarPorSolicitud(solicitud.id);
 
     // Marcar token como usado
     await TokenAprobacion.marcarUsado(token);
 
     // Notificar al empleado
-    await Notificacion.notificarRechazo(solicitud.id, solicitud.empleado_id, motivo);
+    await Notificacion.notificarRechazo(
+      solicitud.id,
+      solicitud.empleado_id,
+      motivo,
+      esRechazoDefinitivo
+    );
 
     // Enviar email de rechazo
     const empleadoSolicitud = await Empleado.buscarPorId(solicitud.empleado_id);

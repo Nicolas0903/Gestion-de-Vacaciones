@@ -127,12 +127,35 @@ class Notificacion {
     });
   }
 
-  static async notificarRechazo(solicitudId, empleadoId, motivo) {
+  static async notificarRechazo(solicitudId, empleadoId, motivo, definitivo = false) {
     await this.crear({
       empleado_id: empleadoId,
-      titulo: 'Solicitud rechazada',
-      mensaje: `Tu solicitud de vacaciones ha sido rechazada. Motivo: ${motivo}`,
+      titulo: definitivo ? 'Solicitud rechazada (definitivo)' : 'Solicitud rechazada',
+      mensaje: definitivo
+        ? `Tu apelación fue rechazada. La solicitud quedó cerrada. Motivo: ${motivo}`
+        : `Tu solicitud de vacaciones ha sido rechazada. Motivo: ${motivo}`,
       tipo: 'error',
+      enlace: `/solicitudes/${solicitudId}`
+    });
+  }
+
+  static async notificarApelacionEnviada(solicitudId, empleadoId) {
+    await this.crear({
+      empleado_id: empleadoId,
+      titulo: 'Apelación enviada',
+      mensaje:
+        'Tu apelación fue registrada. La solicitud volvió al flujo de aprobación (jefe y contadora).',
+      tipo: 'info',
+      enlace: `/solicitudes/${solicitudId}`
+    });
+  }
+
+  static async notificarApelacionARevisar(solicitudId, aprobadorId) {
+    await this.crear({
+      empleado_id: aprobadorId,
+      titulo: 'Apelación de vacaciones',
+      mensaje: 'Un colaborador apeló una solicitud rechazada. Requiere nueva revisión.',
+      tipo: 'warning',
       enlace: `/solicitudes/${solicitudId}`
     });
   }

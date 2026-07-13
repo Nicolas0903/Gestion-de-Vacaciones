@@ -25,6 +25,8 @@ const DetalleSolicitud = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [comentarioRechazo, setComentarioRechazo] = useState('');
   const [showRechazoModal, setShowRechazoModal] = useState(false);
+  const [motivoApelacion, setMotivoApelacion] = useState('');
+  const [showApelacionModal, setShowApelacionModal] = useState(false);
 
   useEffect(() => {
     cargarSolicitud();
@@ -86,6 +88,25 @@ const DetalleSolicitud = () => {
     }
   };
 
+  const handleApelar = async () => {
+    if (!motivoApelacion.trim() || motivoApelacion.trim().length < 10) {
+      toast.error('Indica el motivo de la apelación (mínimo 10 caracteres).');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const { data } = await solicitudService.apelar(id, motivoApelacion.trim());
+      toast.success(data.mensaje || 'Apelación enviada.');
+      setShowApelacionModal(false);
+      setMotivoApelacion('');
+      cargarSolicitud();
+    } catch (error) {
+      toast.error(error.response?.data?.mensaje || 'Error al apelar');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleCancelar = async () => {
     if (!window.confirm('¿Estás seguro de cancelar esta solicitud?')) return;
     try {
@@ -123,13 +144,18 @@ const DetalleSolicitud = () => {
       pendiente_contadora: { color: 'bg-amber-100 text-amber-700', texto: 'Pendiente de Aprobación' },
       aprobada: { color: 'bg-emerald-100 text-emerald-700', texto: 'Aprobada' },
       rechazada: { color: 'bg-rose-100 text-rose-700', texto: 'Rechazada' },
+      rechazada_definitiva: { color: 'bg-rose-200 text-rose-900', texto: 'Rechazada definitivamente' },
       cancelada: { color: 'bg-slate-100 text-slate-500', texto: 'Cancelada' }
     };
     return info[estado] || { color: 'bg-slate-100 text-slate-600', texto: estado };
   };
 
   const puedeModificar = solicitud?.empleado_id === usuario?.id && solicitud?.estado === 'borrador';
-  const puedeAprobarEsta = puedeAprobar() && 
+  const puedeApelar =
+    solicitud?.empleado_id === usuario?.id &&
+    solicitud?.estado === 'rechazada' &&
+    !solicitud?.apelacion_usada;
+  const puedeAprobarEsta = puedeAprobar() &&
     (solicitud?.estado === 'pendiente_jefe' || solicitud?.estado === 'pendiente_contadora');
 
   if (loading) {
@@ -168,6 +194,11 @@ const DetalleSolicitud = () => {
       {/* Estado */}
       <div className={`p-4 rounded-xl ${estadoInfo.color}`}>
         <p className="font-medium">{estadoInfo.texto}</p>
+        {solicitud.apelacion_usada && solicitud.motivo_apelacion && (
+          <p className="text-sm mt-2 opacity-90">
+            <span className="font-semibold">Apelación:</span> {solicitud.motivo_apelacion}
+          </p>
+        )}
       </div>
 
       {/* Info del empleado */}
@@ -306,6 +337,16 @@ const DetalleSolicitud = () => {
           </>
         )}
         
+        {puedeApelar && (
+          <Button
+            variant="outline"
+            onClick={() => setShowApelacionModal(true)}
+            loading={actionLoading}
+          >
+            Apelar solicitud
+          </Button>
+        )}
+
         {puedeAprobarEsta && (
           <>
             <Button
@@ -355,6 +396,37 @@ const DetalleSolicitud = () => {
                 className="flex-1"
               >
                 Rechazar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de apelación */}
+      {showApelacionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fadeIn">
+            <h3 className="text-lg font-semibold text-slate-800 mb-2">Apelar solicitud rechazada</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Tienes una apelación disponible. La solicitud volverá a jefe y contadora para nueva revisión.
+            </p>
+            <textarea
+              value={motivoApelacion}
+              onChange={(e) => setMotivoApelacion(e.target.value)}
+              placeholder="Explica por qué solicitas revisar el rechazo..."
+              rows={4}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all resize-none"
+            />
+            <div className="flex gap-3 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowApelacionModal(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleApelar} loading={actionLoading} className="flex-1">
+                Enviar apelación
               </Button>
             </div>
           </div>

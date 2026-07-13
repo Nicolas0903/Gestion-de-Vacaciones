@@ -235,7 +235,7 @@ class SolicitudVacaciones {
       SELECT id, fecha_inicio_vacaciones, fecha_fin_vacaciones
       FROM solicitudes_vacaciones
       WHERE empleado_id = ?
-        AND estado NOT IN ('rechazada', 'cancelada')
+        AND estado NOT IN ('rechazada', 'rechazada_definitiva', 'cancelada')
         AND ((fecha_inicio_vacaciones <= ? AND fecha_fin_vacaciones >= ?)
              OR (fecha_inicio_vacaciones <= ? AND fecha_fin_vacaciones >= ?)
              OR (fecha_inicio_vacaciones >= ? AND fecha_fin_vacaciones <= ?))
