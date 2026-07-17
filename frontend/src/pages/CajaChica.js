@@ -192,6 +192,38 @@ const CajaChica = () => {
     }
   };
 
+  const eliminarFilaIngreso = async (idx) => {
+    if (detalle?.periodo?.estado !== 'borrador') return;
+    if (ingresosEdit.length <= 1) {
+      toast.error('Debe quedar al menos una línea de ingreso.');
+      return;
+    }
+    const row = ingresosEdit[idx];
+    if (
+      row.id &&
+      !window.confirm('¿Eliminar esta línea de ingreso? Esta acción no se puede deshacer.')
+    ) {
+      return;
+    }
+    const nuevasFilas = ingresosEdit.filter((_, i) => i !== idx);
+    setIngresosEdit(nuevasFilas);
+    if (!row.id) {
+      toast.success('Fila quitada.');
+      return;
+    }
+    setGuardando(true);
+    try {
+      await persistirIngresos(nuevasFilas);
+      toast.success('Ingreso eliminado.');
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo eliminar.');
+      await cargarDetalle(selId);
+    } finally {
+      setAdjuntoSubiendoIdx(null);
+      setGuardando(false);
+    }
+  };
+
   const abrirVistaPreviaIngreso = (idx) => {
     const row = ingresosEdit[idx];
     if (!row) return;
@@ -579,9 +611,8 @@ const CajaChica = () => {
                       <col style={{ width: '28%' }} />
                       <col style={{ width: '11rem' }} />
                       <col style={{ width: '7.5rem' }} />
-                      <col style={{ width: '3rem' }} />
+                      <col style={{ width: esBorrador ? '5.5rem' : '3rem' }} />
                       <col />
-                      {esBorrador ? <col style={{ width: '3rem' }} /> : null}
                     </colgroup>
                     <thead>
                       <tr className="text-left text-slate-600 border-b border-slate-200">
@@ -594,17 +625,12 @@ const CajaChica = () => {
                         <th scope="col" className="pb-3 pr-2 pt-1 font-medium text-right align-bottom whitespace-nowrap">
                           Monto
                         </th>
-                        <th scope="col" className="pb-3 pr-2 pt-1 font-medium text-center align-bottom w-12">
-                          <span className="sr-only">Vista previa</span>
+                        <th scope="col" className="pb-3 pr-2 pt-1 font-medium text-center align-bottom">
+                          Acciones
                         </th>
                         <th scope="col" className="pb-3 pr-2 pt-1 font-medium align-bottom">
                           Comprobante
                         </th>
-                        {esBorrador ? (
-                          <th scope="col" className="pb-3 pt-1 w-12 font-normal text-center align-bottom" aria-label="Eliminar fila">
-                            <span className="sr-only">Eliminar</span>
-                          </th>
-                        ) : null}
                       </tr>
                     </thead>
                     <tbody>
@@ -679,14 +705,27 @@ const CajaChica = () => {
                             )}
                           </td>
                           <td className="py-2 pr-2 align-middle text-center">
-                            <button
-                              type="button"
-                              onClick={() => abrirVistaPreviaIngreso(idx)}
-                              className="inline-flex items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
-                              title="Vista previa del ingreso"
-                            >
-                              <EyeIcon className="w-4 h-4" />
-                            </button>
+                            <div className="inline-flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => abrirVistaPreviaIngreso(idx)}
+                                className="inline-flex items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+                                title="Vista previa del ingreso"
+                              >
+                                <EyeIcon className="w-4 h-4" />
+                              </button>
+                              {esBorrador && (
+                                <button
+                                  type="button"
+                                  disabled={guardando}
+                                  onClick={() => eliminarFilaIngreso(idx)}
+                                  className="inline-flex items-center justify-center rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+                                  title="Eliminar esta línea"
+                                >
+                                  <TrashIcon className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="py-2 pr-2 align-middle min-w-0">
                             <div className="flex flex-col gap-1.5 pl-1">
@@ -748,33 +787,6 @@ const CajaChica = () => {
                               )}
                             </div>
                           </td>
-                          {esBorrador && (
-                            <td className="py-2 align-middle">
-                              <button
-                                type="button"
-                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
-                                title="Quitar esta fila (guarda ingresos para aplicar en el servidor)"
-                                onClick={() => {
-                                  if (ingresosEdit.length <= 1) {
-                                    toast.error('Debe quedar al menos una línea de ingreso.');
-                                    return;
-                                  }
-                                  if (
-                                    row.id &&
-                                    !window.confirm(
-                                      '¿Eliminar esta fila? Los cambios en el servidor se aplican al pulsar «Guardar ingresos».'
-                                    )
-                                  ) {
-                                    return;
-                                  }
-                                  setIngresosEdit((rows) => rows.filter((_, i) => i !== idx));
-                                }}
-                              >
-                                <TrashIcon className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                                Eliminar
-                              </button>
-                            </td>
-                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -788,7 +800,6 @@ const CajaChica = () => {
                         </td>
                         <td className="py-3" aria-hidden />
                         <td className="py-3" aria-hidden />
-                        {esBorrador ? <td className="py-3" aria-hidden /> : null}
                       </tr>
                     </tfoot>
                   </table>
