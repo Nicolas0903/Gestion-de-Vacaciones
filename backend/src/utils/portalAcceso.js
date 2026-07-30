@@ -23,14 +23,11 @@ function normalizarRol(rol) {
   return (rol || '').toLowerCase().trim();
 }
 
-/** CRUD de proyectos en Bolsa de Horas: admin, contadora o gestión RRHH. */
+/** Solo admin o contadora: CRUD de proyectos en Bolsa de Horas. */
 function puedeGestionarBolsaHoras(empleado) {
   if (!empleado) return false;
   const rol = normalizarRol(empleado.rol_nombre);
-  if (rol === 'admin' || rol === 'contadora') return true;
-  if (Number(empleado.nivel_aprobacion) >= 2) return true;
-  const e = (empleado.email || '').toLowerCase().trim();
-  return e === 'rocio.picon@prayaga.biz' || e === 'asistente@prayaga.biz';
+  return rol === 'admin' || rol === 'contadora';
 }
 
 /**

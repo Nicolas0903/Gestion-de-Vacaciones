@@ -307,6 +307,14 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      <Route path="/control-proyectos/gestion" element={
+        <ProtectedRoute roles={['admin', 'contadora']}>
+          <ModuloPortalRoute moduloId="control-proyectos">
+            <PageWrapper><ControlProyectos modoGestion /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
       <Route path="/control-proyectos" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">

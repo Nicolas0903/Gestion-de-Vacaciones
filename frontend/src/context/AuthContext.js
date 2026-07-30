@@ -3,7 +3,6 @@ import { authService } from '../services/api';
 import {
   evaluarAccesoModuloPortal,
   parseModulosPortal,
-  puedeGestionarBolsaHoras,
   EMAILS_MODULO_CAJA_CHICA,
   EMAILS_MODULO_CONSUMO_FABRIC
 } from '../utils/accesoPortal';
@@ -151,8 +150,8 @@ export const AuthProvider = ({ children }) => {
   /**
    * Si hay mapa modulos_portal guardado, solo módulos con true. Si no, lógica histórica por rol/correo.
    */
-  /** Admin, contadora o gestión RRHH: CRUD proyectos en Bolsa de Horas. */
-  const puedeGestionarProyectosCp = () => puedeGestionarBolsaHoras(usuario);
+  /** Admin o contadora: CRUD proyectos en Bolsa de Horas. */
+  const puedeGestionarProyectosCp = () => esAdmin() || esContadora();
 
   const accesoPortalOpts = useMemo(
     () => ({

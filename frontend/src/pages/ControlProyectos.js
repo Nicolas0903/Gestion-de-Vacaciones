@@ -97,10 +97,10 @@ const actividadVacia = () => ({
   horas_trabajadas_manual: ''
 });
 
-const ControlProyectos = () => {
+const ControlProyectos = ({ modoGestion = false }) => {
   const { usuario, puedeGestionarProyectosCp, esAdmin } = useAuth();
   const [searchParams] = useSearchParams();
-  const puedeProy = puedeGestionarProyectosCp();
+  const puedeProy = modoGestion || puedeGestionarProyectosCp();
   const vistaUrl = searchParams.get('vista');
   const [tab, setTab] = useState(() => {
     if (vistaUrl === 'actividades') return 'actividades';
@@ -172,10 +172,10 @@ const ControlProyectos = () => {
       setTab((t) => (t === 'proyectos' ? 'actividades' : t));
       return;
     }
-    if (vistaUrl === 'proyectos') setTab('proyectos');
+    if (modoGestion || vistaUrl === 'proyectos') setTab('proyectos');
     else if (vistaUrl === 'actividades') setTab('actividades');
-    else setTab('proyectos');
-  }, [puedeProy, vistaUrl]);
+    else if (!modoGestion) setTab('proyectos');
+  }, [puedeProy, vistaUrl, modoGestion]);
 
   useEffect(() => {
     let cancel = false;

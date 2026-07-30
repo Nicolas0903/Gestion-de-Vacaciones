@@ -34,14 +34,11 @@ function normalizarRol(rol) {
   return (rol || '').toLowerCase().trim();
 }
 
-/** Admin, contadora (rol o nivel ≥ 2) o cuentas de gestión de bolsa en RRHH. */
+/** Solo admin o contadora pueden crear/editar proyectos (igual que boletas y permisos). */
 export function puedeGestionarBolsaHoras(usuario) {
   if (!usuario) return false;
   const rol = normalizarRol(usuario.rol_nombre);
-  if (rol === 'admin' || rol === 'contadora') return true;
-  if (Number(usuario.nivel_aprobacion) >= 2) return true;
-  const em = (usuario.email || '').toLowerCase().trim();
-  return em === 'rocio.picon@prayaga.biz' || em === 'asistente@prayaga.biz';
+  return rol === 'admin' || rol === 'contadora';
 }
 
 /** Opciones de acceso derivadas del usuario (evita deps inestables en efectos). */
