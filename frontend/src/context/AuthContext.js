@@ -149,26 +149,12 @@ export const AuthProvider = ({ children }) => {
   /**
    * Si hay mapa modulos_portal guardado, solo módulos con true. Si no, lógica histórica por rol/correo.
    */
-  /** Admin o cuentas de gestión: CRUD proyectos en Bolsa de Horas */
-  const emailsGestionBolsaHorasCp = () => {
-    const multi = process.env.REACT_APP_CONTROL_PROYECTOS_GESTORES_EMAIL;
-    if (multi && String(multi).trim()) {
-      return String(multi)
-        .split(',')
-        .map((x) => x.trim().toLowerCase())
-        .filter(Boolean);
-    }
-    const veronica = (process.env.REACT_APP_CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz')
-      .toLowerCase()
-      .trim();
-    return [...new Set([veronica, 'rocio.picon@prayaga.biz'].filter(Boolean))];
-  };
-
+  /** Admin o contadora: CRUD proyectos en Bolsa de Horas (igual que boletas/permisos). */
   const puedeGestionarProyectosCp = () => {
     if (!usuario) return false;
-    if (esAdmin()) return true;
-    const em = (usuario.email || '').toLowerCase().trim();
-    return emailsGestionBolsaHorasCp().includes(em);
+    if (usuario.puede_gestionar_proyectos_cp === true) return true;
+    if (usuario.puede_gestionar_proyectos_cp === false) return false;
+    return esAdmin() || esContadora();
   };
 
   const accesoPortalOpts = useMemo(

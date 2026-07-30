@@ -494,9 +494,9 @@ const ControlProyectos = () => {
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Bolsa de Horas</h1>
             <p className="text-sm text-slate-500 mt-1">
-              Crear proyectos y ver el listado global solo pueden el{' '}
-              <span className="font-medium text-slate-700">administrador</span> y la cuenta de gestión de bolsa (
-              habitualmente asistente@prayaga.biz). El equipo registra{' '}
+              Crear proyectos y ver el listado global pueden el{' '}
+              <span className="font-medium text-slate-700">administrador</span> y la{' '}
+              <span className="font-medium text-slate-700">contadora</span>. El equipo registra{' '}
               <span className="font-medium text-slate-700">Actividades</span>.
             </p>
           </div>

@@ -3,7 +3,7 @@ const BolsaHorasAvisoPendiente = require('../models/BolsaHorasAvisoPendiente');
 const PDFService = require('../services/pdfService');
 const emailService = require('../services/emailService');
 
-/** Emails que pueden crear/editar/eliminar proyectos además del rol admin. */
+/** Emails de referencia para notificaciones (no define permisos de gestión). */
 function emailsGestionProyectosBolsaHoras() {
   const lista = process.env.CONTROL_PROYECTOS_GESTORES_EMAIL;
   if (lista && String(lista).trim()) {
@@ -19,6 +19,12 @@ function emailsGestionProyectosBolsaHoras() {
 }
 
 const EMAIL_VERONICA_CP = emailsGestionProyectosBolsaHoras()[0] || '';
+
+function puedeGestionProyectos(u) {
+  if (!u) return false;
+  const rol = (u.rol_nombre || '').toLowerCase();
+  return rol === 'admin' || rol === 'contadora';
+}
 
 const ESTADOS_PROYECTO = new Set(['finalizado', 'en_curso', 'pendiente', 'perdido']);
 const REQUERIDO_POR = new Set([
@@ -40,13 +46,6 @@ function textoRequeridoPorOtrosValido(raw) {
 const PRIORIDADES = new Set(['baja', 'media', 'alta']);
 const ESTADOS_ACT = new Set(['no_iniciado', 'en_progreso', 'cerrado']);
 const SIT_PAGO = new Set(['pagado', 'pendiente']);
-
-function puedeGestionProyectos(u) {
-  if (!u) return false;
-  if (u.rol_nombre === 'admin') return true;
-  const e = (u.email || '').toLowerCase().trim();
-  return emailsGestionProyectosBolsaHoras().includes(e);
-}
 
 function parseNum(v, def = 0) {
   const n = parseFloat(v);
