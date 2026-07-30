@@ -35,6 +35,7 @@ import GestionRendicionPresupuesto from './pages/GestionRendicionPresupuesto';
 import CajaChica from './pages/CajaChica';
 import RendicionCaja from './pages/RendicionCaja';
 import ControlProyectos from './pages/ControlProyectos';
+import GestionControlProyectos from './pages/GestionControlProyectos';
 import ControlProyectosReporte from './pages/ControlProyectosReporte';
 import ControlProyectosReporteProyectos from './pages/ControlProyectosReporteProyectos';
 import ControlProyectosReporteActividades from './pages/ControlProyectosReporteActividades';
@@ -310,7 +311,7 @@ function AppRoutes() {
       <Route path="/control-proyectos/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
           <ModuloPortalRoute moduloId="control-proyectos">
-            <PageWrapper><ControlProyectos modoGestion /></PageWrapper>
+            <PageWrapper><GestionControlProyectos /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

@@ -297,7 +297,7 @@ const Portal = () => {
       shadowColor: 'shadow-purple-600/30',
       bgLight: 'bg-purple-50',
       textColor: 'text-purple-800',
-      link: '/control-proyectos',
+      link: '/control-proyectos?vista=actividades',
       activo: true,
       adminLink: '/control-proyectos/gestion',
       extraLinks: [{ to: '/control-proyectos/reporte', label: 'Reportes' }]

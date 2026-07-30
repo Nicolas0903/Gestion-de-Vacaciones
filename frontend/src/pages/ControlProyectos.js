@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, FolderIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { controlProyectosService, empleadoService } from '../services/api';
@@ -98,13 +98,15 @@ const actividadVacia = () => ({
 });
 
 const ControlProyectos = ({ modoGestion = false }) => {
-  const { usuario, puedeGestionarProyectosCp, esAdmin } = useAuth();
+  const { usuario, esAdmin, esContadora } = useAuth();
   const [searchParams] = useSearchParams();
-  const puedeProy = modoGestion || puedeGestionarProyectosCp();
+  const location = useLocation();
   const vistaUrl = searchParams.get('vista');
+  const esRutaGestion =
+    modoGestion || /\/control-proyectos\/gestion\/?$/.test(location.pathname);
+  const puedeProy = esRutaGestion || esAdmin() || esContadora();
   const [tab, setTab] = useState(() => {
-    if (vistaUrl === 'actividades') return 'actividades';
-    if (vistaUrl === 'proyectos') return 'proyectos';
+    if (esRutaGestion || vistaUrl === 'proyectos') return 'proyectos';
     return 'actividades';
   });
   const [cargando, setCargando] = useState(true);
@@ -172,10 +174,9 @@ const ControlProyectos = ({ modoGestion = false }) => {
       setTab((t) => (t === 'proyectos' ? 'actividades' : t));
       return;
     }
-    if (modoGestion || vistaUrl === 'proyectos') setTab('proyectos');
+    if (esRutaGestion || vistaUrl === 'proyectos') setTab('proyectos');
     else if (vistaUrl === 'actividades') setTab('actividades');
-    else if (!modoGestion) setTab('proyectos');
-  }, [puedeProy, vistaUrl, modoGestion]);
+  }, [puedeProy, vistaUrl, esRutaGestion]);
 
   useEffect(() => {
     let cancel = false;
@@ -504,12 +505,29 @@ const ControlProyectos = ({ modoGestion = false }) => {
             <FolderIcon className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Bolsa de Horas</h1>
+            <h1 className="text-2xl font-bold text-slate-800">
+              {esRutaGestion ? 'Gestión de proyectos — Bolsa de Horas' : 'Bolsa de Horas'}
+            </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Crear proyectos y ver el listado global pueden el{' '}
-              <span className="font-medium text-slate-700">administrador</span> y la{' '}
-              <span className="font-medium text-slate-700">contadora</span>. El equipo registra{' '}
-              <span className="font-medium text-slate-700">Actividades</span>.
+              {esRutaGestion ? (
+                <>
+                  Crear y editar proyectos, consultores y bolsas de horas. Para registrar horas del
+                  equipo usa{' '}
+                  <Link to="/control-proyectos?vista=actividades" className="text-indigo-600 hover:underline">
+                    Actividades
+                  </Link>
+                  .
+                </>
+              ) : (
+                <>
+                  Registro de <span className="font-medium text-slate-700">actividades</span> del
+                  equipo. Admin y contadora gestionan proyectos desde{' '}
+                  <Link to="/control-proyectos/gestion" className="text-indigo-600 hover:underline">
+                    Gestionar
+                  </Link>
+                  .
+                </>
+              )}
             </p>
           </div>
         </div>
