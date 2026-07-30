@@ -149,7 +149,7 @@ export const AuthProvider = ({ children }) => {
   /**
    * Si hay mapa modulos_portal guardado, solo módulos con true. Si no, lógica histórica por rol/correo.
    */
-  /** Admin o cuenta de gestión (por defecto asistente@prayaga.biz): CRUD proyectos en Bolsa de Horas */
+  /** Admin o cuentas de gestión: CRUD proyectos en Bolsa de Horas */
   const emailsGestionBolsaHorasCp = () => {
     const multi = process.env.REACT_APP_CONTROL_PROYECTOS_GESTORES_EMAIL;
     if (multi && String(multi).trim()) {
@@ -158,11 +158,10 @@ export const AuthProvider = ({ children }) => {
         .map((x) => x.trim().toLowerCase())
         .filter(Boolean);
     }
-    return [
-      (process.env.REACT_APP_CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz')
-        .toLowerCase()
-        .trim()
-    ];
+    const veronica = (process.env.REACT_APP_CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz')
+      .toLowerCase()
+      .trim();
+    return [...new Set([veronica, 'rocio.picon@prayaga.biz'].filter(Boolean))];
   };
 
   const puedeGestionarProyectosCp = () => {
