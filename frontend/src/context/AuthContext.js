@@ -3,6 +3,7 @@ import { authService } from '../services/api';
 import {
   evaluarAccesoModuloPortal,
   parseModulosPortal,
+  puedeGestionarBolsaHoras,
   EMAILS_MODULO_CAJA_CHICA,
   EMAILS_MODULO_CONSUMO_FABRIC
 } from '../utils/accesoPortal';
@@ -101,7 +102,8 @@ export const AuthProvider = ({ children }) => {
 
   const tieneRol = (...roles) => {
     if (!usuario) return false;
-    return roles.includes(usuario.rol_nombre);
+    const rol = (usuario.rol_nombre || '').toLowerCase().trim();
+    return roles.some((r) => r.toLowerCase().trim() === rol);
   };
 
   const puedeAprobar = () => {
@@ -149,13 +151,8 @@ export const AuthProvider = ({ children }) => {
   /**
    * Si hay mapa modulos_portal guardado, solo módulos con true. Si no, lógica histórica por rol/correo.
    */
-  /** Admin o contadora: CRUD proyectos en Bolsa de Horas (igual que boletas/permisos). */
-  const puedeGestionarProyectosCp = () => {
-    if (!usuario) return false;
-    if (usuario.puede_gestionar_proyectos_cp === true) return true;
-    if (usuario.puede_gestionar_proyectos_cp === false) return false;
-    return esAdmin() || esContadora();
-  };
+  /** Admin, contadora o gestión RRHH: CRUD proyectos en Bolsa de Horas. */
+  const puedeGestionarProyectosCp = () => puedeGestionarBolsaHoras(usuario);
 
   const accesoPortalOpts = useMemo(
     () => ({

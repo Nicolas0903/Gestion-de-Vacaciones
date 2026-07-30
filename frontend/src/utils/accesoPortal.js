@@ -30,9 +30,23 @@ const EMAILS_REPORTE_ASISTENCIA = [
   'nicolas.valdivia@prayaga.biz'
 ];
 
+function normalizarRol(rol) {
+  return (rol || '').toLowerCase().trim();
+}
+
+/** Admin, contadora (rol o nivel ≥ 2) o cuentas de gestión de bolsa en RRHH. */
+export function puedeGestionarBolsaHoras(usuario) {
+  if (!usuario) return false;
+  const rol = normalizarRol(usuario.rol_nombre);
+  if (rol === 'admin' || rol === 'contadora') return true;
+  if (Number(usuario.nivel_aprobacion) >= 2) return true;
+  const em = (usuario.email || '').toLowerCase().trim();
+  return em === 'rocio.picon@prayaga.biz' || em === 'asistente@prayaga.biz';
+}
+
 /** Opciones de acceso derivadas del usuario (evita deps inestables en efectos). */
 export function buildAccesoPortalOpts(usuario) {
-  const rol = usuario?.rol_nombre;
+  const rol = normalizarRol(usuario?.rol_nombre);
   const em = (usuario?.email || '').toLowerCase().trim();
   return {
     esAdmin: () => rol === 'admin',

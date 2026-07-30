@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, FolderIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { controlProyectosService, empleadoService } from '../services/api';
@@ -99,8 +99,14 @@ const actividadVacia = () => ({
 
 const ControlProyectos = () => {
   const { usuario, puedeGestionarProyectosCp, esAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
   const puedeProy = puedeGestionarProyectosCp();
-  const [tab, setTab] = useState(puedeProy ? 'proyectos' : 'actividades');
+  const vistaUrl = searchParams.get('vista');
+  const [tab, setTab] = useState(() => {
+    if (vistaUrl === 'actividades') return 'actividades';
+    if (vistaUrl === 'proyectos') return 'proyectos';
+    return 'actividades';
+  });
   const [cargando, setCargando] = useState(true);
   const [proyectos, setProyectos] = useState([]);
   const [misProyectos, setMisProyectos] = useState([]);
@@ -162,8 +168,14 @@ const ControlProyectos = () => {
   }, [puedeProy, cargarMisProyectos, cargarProyectosTodos]);
 
   useEffect(() => {
-    if (!puedeProy && tab === 'proyectos') setTab('actividades');
-  }, [puedeProy, tab]);
+    if (!puedeProy) {
+      setTab((t) => (t === 'proyectos' ? 'actividades' : t));
+      return;
+    }
+    if (vistaUrl === 'proyectos') setTab('proyectos');
+    else if (vistaUrl === 'actividades') setTab('actividades');
+    else setTab('proyectos');
+  }, [puedeProy, vistaUrl]);
 
   useEffect(() => {
     let cancel = false;

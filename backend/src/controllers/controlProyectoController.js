@@ -2,6 +2,7 @@ const ControlProyecto = require('../models/ControlProyecto');
 const BolsaHorasAvisoPendiente = require('../models/BolsaHorasAvisoPendiente');
 const PDFService = require('../services/pdfService');
 const emailService = require('../services/emailService');
+const { puedeGestionarBolsaHoras } = require('../utils/portalAcceso');
 
 /** Emails de referencia para notificaciones (no define permisos de gestión). */
 function emailsGestionProyectosBolsaHoras() {
@@ -21,9 +22,7 @@ function emailsGestionProyectosBolsaHoras() {
 const EMAIL_VERONICA_CP = emailsGestionProyectosBolsaHoras()[0] || '';
 
 function puedeGestionProyectos(u) {
-  if (!u) return false;
-  const rol = (u.rol_nombre || '').toLowerCase();
-  return rol === 'admin' || rol === 'contadora';
+  return puedeGestionarBolsaHoras(u);
 }
 
 const ESTADOS_PROYECTO = new Set(['finalizado', 'en_curso', 'pendiente', 'perdido']);

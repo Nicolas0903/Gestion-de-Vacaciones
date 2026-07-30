@@ -36,7 +36,8 @@ const Portal = () => {
     esAdmin,
     esContadora,
     esAprobadorReembolsos,
-    esAdminPortalUsuarios
+    esAdminPortalUsuarios,
+    puedeGestionarProyectosCp
   } = useAuth();
 
   /* Módulo cuya card abrió el selector de sub-opciones (null = cerrado). */
@@ -299,7 +300,7 @@ const Portal = () => {
       textColor: 'text-purple-800',
       link: '/control-proyectos',
       activo: true,
-      adminLink: '/control-proyectos',
+      adminLink: '/control-proyectos?vista=proyectos',
       extraLinks: [{ to: '/control-proyectos/reporte', label: 'Reportes' }]
     });
   }
@@ -608,7 +609,7 @@ const Portal = () => {
                       : modulo.id === 'caja-chica'
                         ? puedeAccederModuloPortal('caja-chica')
                         : modulo.id === 'control-proyectos'
-                          ? esAdmin() || esContadora()
+                          ? puedeGestionarProyectosCp()
                           : modulo.id === 'rendicion-presupuesto'
                             ? esAdmin()
                             : modulo.id === 'vacaciones-permisos'
