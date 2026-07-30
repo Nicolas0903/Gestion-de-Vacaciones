@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LogoTransparente from '../components/LogoTransparente';
 import NotificacionesDropdown from '../components/NotificacionesDropdown';
+import CambiarPasswordModal from '../components/CambiarPasswordModal';
 import {
   CalendarDaysIcon,
   DocumentTextIcon,
@@ -21,7 +22,8 @@ import {
   ArchiveBoxIcon,
   ArrowRightOnRectangleIcon,
   XMarkIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
 
 const Portal = () => {
@@ -42,6 +44,7 @@ const Portal = () => {
 
   /* Menú dropdown del chip de usuario (con opciones admin) */
   const [menuUsuarioAbierto, setMenuUsuarioAbierto] = useState(false);
+  const [modalPasswordAbierto, setModalPasswordAbierto] = useState(false);
   const menuUsuarioRef = useRef(null);
 
   useEffect(() => {
@@ -445,6 +448,18 @@ const Portal = () => {
                         type="button"
                         onClick={() => {
                           setMenuUsuarioAbierto(false);
+                          setModalPasswordAbierto(true);
+                        }}
+                        role="menuitem"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <KeyIcon className="w-5 h-5 text-teal-600" />
+                        Cambiar contraseña
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuUsuarioAbierto(false);
                           handleLogout();
                         }}
                         role="menuitem"
@@ -692,6 +707,11 @@ const Portal = () => {
           </div>
         );
       })()}
+
+      <CambiarPasswordModal
+        open={modalPasswordAbierto}
+        onClose={() => setModalPasswordAbierto(false)}
+      />
     </div>
   );
 };

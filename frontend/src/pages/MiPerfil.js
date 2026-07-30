@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { periodoService, empleadoService } from '../services/api';
+import { periodoService } from '../services/api';
 import Button from '../components/Button';
+import CambiarPasswordModal from '../components/CambiarPasswordModal';
 import { StatCard } from '../components/Card';
 import toast from 'react-hot-toast';
 import {
@@ -19,12 +20,6 @@ const MiPerfil = () => {
   const [periodos, setPeriodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordData, setPasswordData] = useState({
-    passwordActual: '',
-    passwordNuevo: '',
-    confirmarPassword: ''
-  });
-  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     cargarDatos();
@@ -42,41 +37,6 @@ const MiPerfil = () => {
       toast.error('Error al cargar datos');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePasswordChange = (e) => {
-    const { name, value } = e.target;
-    setPasswordData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    
-    if (passwordData.passwordNuevo !== passwordData.confirmarPassword) {
-      toast.error('Las contraseñas no coinciden');
-      return;
-    }
-
-    if (passwordData.passwordNuevo.length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-
-    try {
-      setSavingPassword(true);
-      await empleadoService.cambiarPassword(
-        passwordData.passwordActual, 
-        passwordData.passwordNuevo, 
-        passwordData.confirmarPassword
-      );
-      toast.success('Contraseña actualizada correctamente');
-      setShowPasswordModal(false);
-      setPasswordData({ passwordActual: '', passwordNuevo: '', confirmarPassword: '' });
-    } catch (error) {
-      toast.error(error.response?.data?.mensaje || 'Error al cambiar contraseña');
-    } finally {
-      setSavingPassword(false);
     }
   };
 
@@ -233,65 +193,7 @@ const MiPerfil = () => {
         )}
       </div>
 
-      {/* Modal cambiar contraseña */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md animate-fadeIn">
-            <h3 className="text-lg font-semibold text-slate-800 mb-4">Cambiar Contraseña</h3>
-            
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña Actual</label>
-                <input
-                  type="password"
-                  name="passwordActual"
-                  value={passwordData.passwordActual}
-                  onChange={handlePasswordChange}
-                  required
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nueva Contraseña</label>
-                <input
-                  type="password"
-                  name="passwordNuevo"
-                  value={passwordData.passwordNuevo}
-                  onChange={handlePasswordChange}
-                  required
-                  minLength={6}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Confirmar Nueva Contraseña</label>
-                <input
-                  type="password"
-                  name="confirmarPassword"
-                  value={passwordData.confirmarPassword}
-                  onChange={handlePasswordChange}
-                  required
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowPasswordModal(false)}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" loading={savingPassword} className="flex-1">
-                  Cambiar Contraseña
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CambiarPasswordModal open={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
     </div>
   );
 };
