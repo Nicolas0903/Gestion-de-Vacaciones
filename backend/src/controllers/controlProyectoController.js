@@ -1,4 +1,5 @@
 const ControlProyecto = require('../models/ControlProyecto');
+const BolsaHorasAvisoPendiente = require('../models/BolsaHorasAvisoPendiente');
 const PDFService = require('../services/pdfService');
 const emailService = require('../services/emailService');
 
@@ -68,7 +69,7 @@ function nombreUsuarioPortal(u) {
   return n || u.email || '';
 }
 
-/** Notifica por correo al encargado del proyecto (si existe y no es quien ejecutó la acción). */
+/** Encola aviso al encargado (reporte semanal) o envía al instante si está habilitado. */
 async function intentarCorreoEncargadoPorActividad({ proyecto, actividad, modo, usuarioQueActua }) {
   try {
     if (!proyecto || !actividad || !usuarioQueActua?.id) return;
@@ -77,20 +78,40 @@ async function intentarCorreoEncargadoPorActividad({ proyecto, actividad, modo, 
     if (encId === usuarioQueActua.id) return;
     const mail = proyecto.encargado_email;
     if (!mail || !String(mail).trim()) return;
-    const nombreEnc = proyecto.encargado_nombre || 'Encargado';
-    await emailService.notificarActividadBolsaHorasEncargado({
-      encargadoEmail: mail,
-      encargadoNombre: nombreEnc,
-      modo,
+
+    const payload = {
+      actividad_id: actividad.id,
+      encargado_empleado_id: encId,
+      encargado_email: String(mail).trim().toLowerCase(),
+      encargado_nombre: proyecto.encargado_nombre || 'Encargado',
+      modo: modo === 'actualizada' ? 'actualizada' : 'creada',
       empresa: proyecto.empresa || '',
-      proyectoNombre: proyecto.proyecto || '',
-      actividadId: actividad.id,
-      descripcionResumen: actividad.descripcion_actividad || '',
-      horasTrabajadas: actividad.horas_trabajadas,
-      consultorNombre: actividad.consultor_nombre || '—',
-      usuarioNombre: nombreUsuarioPortal(usuarioQueActua),
-      usuarioEmail: usuarioQueActua.email || ''
-    });
+      proyecto_nombre: proyecto.proyecto || '',
+      descripcion_resumen: actividad.descripcion_actividad || '',
+      horas_trabajadas: actividad.horas_trabajadas,
+      consultor_nombre: actividad.consultor_nombre || '—',
+      usuario_nombre: nombreUsuarioPortal(usuarioQueActua),
+      usuario_email: usuarioQueActua.email || ''
+    };
+
+    if (process.env.BOLSA_HORAS_AVISO_INMEDIATO === 'true') {
+      await emailService.notificarActividadBolsaHorasEncargado({
+        encargadoEmail: payload.encargado_email,
+        encargadoNombre: payload.encargado_nombre,
+        modo: payload.modo,
+        empresa: payload.empresa,
+        proyectoNombre: payload.proyecto_nombre,
+        actividadId: payload.actividad_id,
+        descripcionResumen: payload.descripcion_resumen,
+        horasTrabajadas: payload.horas_trabajadas,
+        consultorNombre: payload.consultor_nombre,
+        usuarioNombre: payload.usuario_nombre,
+        usuarioEmail: payload.usuario_email
+      });
+      return;
+    }
+
+    await BolsaHorasAvisoPendiente.encolar(payload);
   } catch (e) {
     console.warn('intentarCorreoEncargadoPorActividad:', e.message);
   }

@@ -882,6 +882,92 @@ const notificarPermisoPendienteContadora = async (permiso, empleado, contadora) 
 };
 
 /**
+ * Bolsa de horas: reporte semanal consolidado de altas/modificaciones para el encargado.
+ */
+const enviarReporteSemanalBolsaHorasEncargado = async ({
+  encargadoEmail,
+  encargadoNombre,
+  cambios,
+  rangoDesde,
+  rangoHasta
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('Email no configurado — reporte semanal bolsa horas omitido');
+    return false;
+  }
+  const to = encargadoEmail != null ? String(encargadoEmail).trim().toLowerCase() : '';
+  if (!to || !Array.isArray(cambios) || cambios.length === 0) return false;
+
+  const filasHtml = cambios
+    .map((c) => {
+      const modoLbl = c.modo === 'creada' ? 'Nuevo registro' : 'Modificación';
+      const horasN = c.horas_trabajadas != null ? Number(c.horas_trabajadas) : null;
+      const horasLbl = Number.isFinite(horasN) ? String(Math.round(horasN * 100) / 100) : '—';
+      const descr = c.descripcion_resumen != null ? String(c.descripcion_resumen).trim().slice(0, 200) : '';
+      const fechaUlt = c.ultima_modificacion_at
+        ? new Date(c.ultima_modificacion_at).toLocaleString('es-PE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : '—';
+      return `
+        <tr>
+          <td style="padding:8px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${escapeHtml(modoLbl)}</td>
+          <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${escapeHtml(c.proyecto_nombre || '—')}</td>
+          <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;">${escapeHtml(horasLbl)}</td>
+          <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${escapeHtml(c.consultor_nombre || '—')}</td>
+          <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${escapeHtml(c.usuario_nombre || c.usuario_email || '—')}</td>
+          <td style="padding:8px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${escapeHtml(fechaUlt)}</td>
+          <td style="padding:8px;border-bottom:1px solid #e2e8f0;font-size:12px;">${escapeHtml(descr || '—')}</td>
+        </tr>`;
+    })
+    .join('');
+
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(encargadoNombre || 'encargado')}</strong>,</p>
+    <p>Resumen semanal de <strong>cambios en bolsa de horas</strong> en proyectos donde figura como encargado/a.</p>
+    <p style="color:#64748b;font-size:14px;">Período del reporte: ${escapeHtml(rangoDesde || '—')} al ${escapeHtml(rangoHasta || '—')} · ${cambios.length} registro(s)</p>
+    <div style="overflow-x:auto;margin:16px 0;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f1f5f9;text-align:left;">
+            <th style="padding:8px;">Tipo</th>
+            <th style="padding:8px;">Proyecto</th>
+            <th style="padding:8px;text-align:right;">Horas</th>
+            <th style="padding:8px;">Consultor</th>
+            <th style="padding:8px;">Registró / editó</th>
+            <th style="padding:8px;">Última acción</th>
+            <th style="padding:8px;">Descripción</th>
+          </tr>
+        </thead>
+        <tbody>${filasHtml}</tbody>
+      </table>
+    </div>
+    <center>
+      <a href="${FRONTEND_URL}/control-proyectos" class="button">Abrir bolsa de horas</a>
+    </center>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('bolsaHoras'),
+      to,
+      subject: `Reporte semanal bolsa de horas · ${cambios.length} cambio(s)`,
+      html: plantillaEmail(contenido, 'Reporte semanal bolsa de horas', 'bolsaHoras')
+    });
+    console.log(`Email reporte semanal bolsa horas → ${to} (${cambios.length} cambios)`);
+    return true;
+  } catch (error) {
+    console.error('Error al enviar reporte semanal bolsa horas:', error.message);
+    return false;
+  }
+};
+
+/**
  * Bolsa de horas: avisar al encargado del proyecto cuando se registra o modifica una actividad (horas).
  */
 const notificarActividadBolsaHorasEncargado = async ({
@@ -1738,6 +1824,7 @@ module.exports = {
   notificarRegistroRechazado,
   notificarPermisoPendienteContadora,
   notificarActividadBolsaHorasEncargado,
+  enviarReporteSemanalBolsaHorasEncargado,
   notificarNuevaSolicitudReembolsoAprobador,
   notificarReembolsoResueltoEmpleado,
   notificarNuevaRendicionAdmin,

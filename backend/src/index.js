@@ -10,6 +10,7 @@ const { testConnection } = require('./config/database');
 const routes = require('./routes');
 const emailService = require('./services/emailService');
 const { iniciarBackupScheduler } = require('./services/backupScheduler');
+const { iniciarBolsaHorasReporteScheduler } = require('./services/bolsaHorasReporteScheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -102,6 +103,7 @@ const startServer = async () => {
   await emailService.verificarConexion();
 
   iniciarBackupScheduler();
+  iniciarBolsaHorasReporteScheduler();
 
   app.listen(PORT, () => {
     console.log(`
