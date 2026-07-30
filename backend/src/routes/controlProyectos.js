@@ -26,7 +26,7 @@ router.get('/reporte/actividades/pdf', ctrl.reporteActividadesPdfCp);
 
 router.get('/reporte', ctrl.reporteDashboard);
 router.get('/reporte/proyectos-bi', ctrl.reporteProyectosVistaBi);
-router.get('/costo-hora', verificarRol('admin'), ctrl.listarCostosHora);
-router.put('/costo-hora/:empleadoId', verificarRol('admin'), ctrl.upsertCostoHora);
+router.get('/costo-hora', verificarRol('admin', 'contadora'), ctrl.listarCostosHora);
+router.put('/costo-hora/:empleadoId', verificarRol('admin', 'contadora'), ctrl.upsertCostoHora);
 
 module.exports = router;

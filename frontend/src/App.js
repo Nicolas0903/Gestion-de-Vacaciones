@@ -349,7 +349,7 @@ function AppRoutes() {
       } />
 
       <Route path="/admin/control-proyectos-costo-hora" element={
-        <ProtectedRoute roles={['admin']}>
+        <ProtectedRoute roles={['admin', 'contadora']}>
           <PageWrapper><AdminCostoHoraProyectos /></PageWrapper>
         </ProtectedRoute>
       } />

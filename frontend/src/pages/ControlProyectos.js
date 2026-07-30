@@ -521,9 +521,9 @@ const ControlProyectos = ({ modoGestion = false }) => {
               ) : (
                 <>
                   Registro de <span className="font-medium text-slate-700">actividades</span> del
-                  equipo. Admin y contadora gestionan proyectos desde{' '}
-                  <Link to="/control-proyectos/gestion" className="text-indigo-600 hover:underline">
-                    Gestionar
+                  equipo. Admin y contadora configuran costos desde{' '}
+                  <Link to="/admin/control-proyectos-costo-hora" className="text-indigo-600 hover:underline">
+                    Costo por hora
                   </Link>
                   .
                 </>
@@ -531,7 +531,7 @@ const ControlProyectos = ({ modoGestion = false }) => {
             </p>
           </div>
         </div>
-        {esAdmin() && (
+        {(esAdmin() || esContadora()) && (
           <Link
             to="/admin/control-proyectos-costo-hora"
             className="text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100"

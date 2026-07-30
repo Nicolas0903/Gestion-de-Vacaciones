@@ -87,7 +87,7 @@ const AdminCostoHoraProyectos = () => {
       <div className="rounded-3xl bg-white border border-slate-100 shadow-lg p-8 md:p-10">
         <h1 className="text-2xl font-bold text-slate-800 mb-2">Costo por hora (consultores)</h1>
         <p className="text-sm text-slate-600 mb-6">
-          Datos utilizados por control de proyectos. Solo rol administrador.
+          Datos utilizados por control de proyectos. Acceso para administrador y contadora.
         </p>
         {cargando ? (
           <p className="text-slate-500">Cargando…</p>
