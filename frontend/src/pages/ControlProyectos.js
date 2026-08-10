@@ -189,8 +189,10 @@ const ControlProyectos = ({ modoGestion = false }) => {
         const params = proyectoEditId ? { proyecto_id: proyectoEditId } : {};
         const { data } = await controlProyectosService.consultoresSelect(params);
         if (!cancel) setConsultores(data.data || []);
-      } catch {
-        if (!cancel) toast.error('Error al cargar listado de consultores.');
+      } catch (err) {
+        if (!cancel) {
+          toast.error(err.response?.data?.mensaje || 'Error al cargar listado de consultores.');
+        }
       }
     })();
     return () => {

@@ -88,33 +88,68 @@ class ControlProyecto {
       proyectoId != null && Number.isFinite(Number(proyectoId)) && Number(proyectoId) > 0
         ? Number(proyectoId)
         : null;
-    if (pid) {
-      const [rows] = await pool.execute(
-        `SELECT DISTINCT e.id,
+
+    const selectBase = `SELECT DISTINCT e.id,
           CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo,
           e.email,
           e.activo
-         FROM empleados e
+         FROM empleados e`;
+
+    const orderBy = ` ORDER BY e.apellidos, e.nombres`;
+
+    try {
+      if (pid) {
+        const [rows] = await pool.execute(
+          `${selectBase}
          WHERE e.activo = 1
            AND (
              IFNULL(e.es_consultor_cp, 0) = 1
              OR e.id IN (SELECT empleado_id FROM cp_proyecto_consultores WHERE proyecto_id = ?)
-           )
-         ORDER BY e.apellidos, e.nombres`,
-        [pid]
+           )${orderBy}`,
+          [pid]
+        );
+        return rows;
+      }
+      const [rows] = await pool.execute(
+        `${selectBase}
+       WHERE e.activo = 1 AND IFNULL(e.es_consultor_cp, 0) = 1${orderBy}`
       );
       return rows;
+    } catch (e) {
+      const msg = String(e.sqlMessage || e.message || '');
+
+      if (msg.includes('es_consultor_cp') && msg.includes('Unknown column')) {
+        if (pid) {
+          try {
+            const [rows] = await pool.execute(
+              `${selectBase}
+             WHERE e.activo = 1
+               AND e.id IN (SELECT empleado_id FROM cp_proyecto_consultores WHERE proyecto_id = ?)${orderBy}`,
+              [pid]
+            );
+            if (rows.length) return rows;
+          } catch (e2) {
+            /* tabla puente ausente: continuar al listado general */
+          }
+        }
+        const [rows] = await pool.execute(`${selectBase} WHERE e.activo = 1${orderBy}`);
+        return rows;
+      }
+
+      if (msg.includes('cp_proyecto_consultores') && msg.includes("doesn't exist")) {
+        try {
+          const [rows] = await pool.execute(
+            `${selectBase} WHERE e.activo = 1 AND IFNULL(e.es_consultor_cp, 0) = 1${orderBy}`
+          );
+          return rows;
+        } catch (e2) {
+          const [rows] = await pool.execute(`${selectBase} WHERE e.activo = 1${orderBy}`);
+          return rows;
+        }
+      }
+
+      throw e;
     }
-    const [rows] = await pool.execute(
-      `SELECT e.id,
-        CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo,
-        e.email,
-        e.activo
-       FROM empleados e
-       WHERE e.activo = 1 AND IFNULL(e.es_consultor_cp, 0) = 1
-       ORDER BY e.apellidos, e.nombres`
-    );
-    return rows;
   }
 
   /** Encargado: empleado activo con correo para notificaciones por actividades/hrs del proyecto */
