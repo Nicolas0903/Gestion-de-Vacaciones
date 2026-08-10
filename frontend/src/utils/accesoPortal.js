@@ -30,20 +30,9 @@ const EMAILS_REPORTE_ASISTENCIA = [
   'nicolas.valdivia@prayaga.biz'
 ];
 
-function normalizarRol(rol) {
-  return (rol || '').toLowerCase().trim();
-}
-
-/** Solo admin o contadora pueden crear/editar proyectos (igual que boletas y permisos). */
-export function puedeGestionarBolsaHoras(usuario) {
-  if (!usuario) return false;
-  const rol = normalizarRol(usuario.rol_nombre);
-  return rol === 'admin' || rol === 'contadora';
-}
-
 /** Opciones de acceso derivadas del usuario (evita deps inestables en efectos). */
 export function buildAccesoPortalOpts(usuario) {
-  const rol = normalizarRol(usuario?.rol_nombre);
+  const rol = usuario?.rol_nombre;
   const em = (usuario?.email || '').toLowerCase().trim();
   return {
     esAdmin: () => rol === 'admin',

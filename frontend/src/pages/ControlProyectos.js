@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, FolderIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { controlProyectosService, empleadoService } from '../services/api';
@@ -97,18 +97,10 @@ const actividadVacia = () => ({
   horas_trabajadas_manual: ''
 });
 
-const ControlProyectos = ({ modoGestion = false }) => {
-  const { usuario, esAdmin, esContadora } = useAuth();
-  const [searchParams] = useSearchParams();
-  const location = useLocation();
-  const vistaUrl = searchParams.get('vista');
-  const esRutaGestion =
-    modoGestion || /\/control-proyectos\/gestion\/?$/.test(location.pathname);
-  const puedeProy = esRutaGestion || esAdmin() || esContadora();
-  const [tab, setTab] = useState(() => {
-    if (esRutaGestion || vistaUrl === 'proyectos') return 'proyectos';
-    return 'actividades';
-  });
+const ControlProyectos = () => {
+  const { usuario, puedeGestionarProyectosCp, esAdmin } = useAuth();
+  const puedeProy = puedeGestionarProyectosCp();
+  const [tab, setTab] = useState(puedeProy ? 'proyectos' : 'actividades');
   const [cargando, setCargando] = useState(true);
   const [proyectos, setProyectos] = useState([]);
   const [misProyectos, setMisProyectos] = useState([]);
@@ -170,13 +162,8 @@ const ControlProyectos = ({ modoGestion = false }) => {
   }, [puedeProy, cargarMisProyectos, cargarProyectosTodos]);
 
   useEffect(() => {
-    if (!puedeProy) {
-      setTab((t) => (t === 'proyectos' ? 'actividades' : t));
-      return;
-    }
-    if (esRutaGestion || vistaUrl === 'proyectos') setTab('proyectos');
-    else if (vistaUrl === 'actividades') setTab('actividades');
-  }, [puedeProy, vistaUrl, esRutaGestion]);
+    if (!puedeProy && tab === 'proyectos') setTab('actividades');
+  }, [puedeProy, tab]);
 
   useEffect(() => {
     let cancel = false;
@@ -189,10 +176,8 @@ const ControlProyectos = ({ modoGestion = false }) => {
         const params = proyectoEditId ? { proyecto_id: proyectoEditId } : {};
         const { data } = await controlProyectosService.consultoresSelect(params);
         if (!cancel) setConsultores(data.data || []);
-      } catch (err) {
-        if (!cancel) {
-          toast.error(err.response?.data?.mensaje || 'Error al cargar listado de consultores.');
-        }
+      } catch {
+        if (!cancel) toast.error('Error al cargar listado de consultores.');
       }
     })();
     return () => {
@@ -507,33 +492,16 @@ const ControlProyectos = ({ modoGestion = false }) => {
             <FolderIcon className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">
-              {esRutaGestion ? 'Gestión de proyectos — Bolsa de Horas' : 'Bolsa de Horas'}
-            </h1>
+            <h1 className="text-2xl font-bold text-slate-800">Bolsa de Horas</h1>
             <p className="text-sm text-slate-500 mt-1">
-              {esRutaGestion ? (
-                <>
-                  Crear y editar proyectos, consultores y bolsas de horas. Para registrar horas del
-                  equipo usa{' '}
-                  <Link to="/control-proyectos?vista=actividades" className="text-indigo-600 hover:underline">
-                    Actividades
-                  </Link>
-                  .
-                </>
-              ) : (
-                <>
-                  Registro de <span className="font-medium text-slate-700">actividades</span> del
-                  equipo. Admin y contadora configuran costos desde{' '}
-                  <Link to="/admin/control-proyectos-costo-hora" className="text-indigo-600 hover:underline">
-                    Costo por hora
-                  </Link>
-                  .
-                </>
-              )}
+              Crear proyectos y ver el listado global solo pueden el{' '}
+              <span className="font-medium text-slate-700">administrador</span> y la cuenta de gestión de bolsa (
+              habitualmente asistente@prayaga.biz). El equipo registra{' '}
+              <span className="font-medium text-slate-700">Actividades</span>.
             </p>
           </div>
         </div>
-        {(esAdmin() || esContadora()) && (
+        {esAdmin() && (
           <Link
             to="/admin/control-proyectos-costo-hora"
             className="text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100"

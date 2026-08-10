@@ -608,7 +608,7 @@ const Portal = () => {
                       : modulo.id === 'caja-chica'
                         ? puedeAccederModuloPortal('caja-chica')
                         : modulo.id === 'control-proyectos'
-                          ? esAdmin() || esContadora()
+                          ? esAdmin()
                           : modulo.id === 'rendicion-presupuesto'
                             ? esAdmin()
                             : modulo.id === 'vacaciones-permisos'

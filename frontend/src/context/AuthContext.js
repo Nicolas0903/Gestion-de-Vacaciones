@@ -101,8 +101,7 @@ export const AuthProvider = ({ children }) => {
 
   const tieneRol = (...roles) => {
     if (!usuario) return false;
-    const rol = (usuario.rol_nombre || '').toLowerCase().trim();
-    return roles.some((r) => r.toLowerCase().trim() === rol);
+    return roles.includes(usuario.rol_nombre);
   };
 
   const puedeAprobar = () => {
@@ -150,8 +149,28 @@ export const AuthProvider = ({ children }) => {
   /**
    * Si hay mapa modulos_portal guardado, solo módulos con true. Si no, lógica histórica por rol/correo.
    */
-  /** Admin o contadora: CRUD proyectos en Bolsa de Horas. */
-  const puedeGestionarProyectosCp = () => esAdmin() || esContadora();
+  /** Admin o cuenta de gestión (por defecto asistente@prayaga.biz): CRUD proyectos en Bolsa de Horas */
+  const emailsGestionBolsaHorasCp = () => {
+    const multi = process.env.REACT_APP_CONTROL_PROYECTOS_GESTORES_EMAIL;
+    if (multi && String(multi).trim()) {
+      return String(multi)
+        .split(',')
+        .map((x) => x.trim().toLowerCase())
+        .filter(Boolean);
+    }
+    return [
+      (process.env.REACT_APP_CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz')
+        .toLowerCase()
+        .trim()
+    ];
+  };
+
+  const puedeGestionarProyectosCp = () => {
+    if (!usuario) return false;
+    if (esAdmin()) return true;
+    const em = (usuario.email || '').toLowerCase().trim();
+    return emailsGestionBolsaHorasCp().includes(em);
+  };
 
   const accesoPortalOpts = useMemo(
     () => ({

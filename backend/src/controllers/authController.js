@@ -7,7 +7,6 @@ const TokenRecuperacion = require('../models/TokenRecuperacion');
 const SolicitudRegistro = require('../models/SolicitudRegistro');
 const { pool } = require('../config/database');
 const emailService = require('../services/emailService');
-const { puedeGestionProyectos } = require('./controlProyectoController');
 
 // Login
 const login = async (req, res) => {
@@ -66,11 +65,7 @@ const login = async (req, res) => {
       mensaje: 'Login exitoso',
       data: {
         token,
-        usuario: {
-          ...empleadoSinPassword,
-          es_aprobador_reembolsos,
-          puede_gestionar_proyectos_cp: puedeGestionProyectos(empleado)
-        }
+        usuario: { ...empleadoSinPassword, es_aprobador_reembolsos }
       }
     });
   } catch (error) {
@@ -95,11 +90,7 @@ const perfil = async (req, res) => {
 
     res.json({
       success: true,
-      data: {
-        ...usuarioSinPassword,
-        es_aprobador_reembolsos,
-        puede_gestionar_proyectos_cp: puedeGestionProyectos(req.usuario)
-      }
+      data: { ...usuarioSinPassword, es_aprobador_reembolsos }
     });
   } catch (error) {
     console.error('Error al obtener perfil:', error);

@@ -19,17 +19,6 @@ const EMAILS_MODULO_CAJA_CHICA = [
 /** Consumo Fabric: acceso y gestión (subir PAYG, montos) sin rol admin. */
 const EMAILS_MODULO_CONSUMO_FABRIC = ['veronica.gonzales@prayaga.biz'];
 
-function normalizarRol(rol) {
-  return (rol || '').toLowerCase().trim();
-}
-
-/** Solo admin o contadora: CRUD de proyectos en Bolsa de Horas. */
-function puedeGestionarBolsaHoras(empleado) {
-  if (!empleado) return false;
-  const rol = normalizarRol(empleado.rol_nombre);
-  return rol === 'admin' || rol === 'contadora';
-}
-
 /**
  * Si el rol (y correo cuando aplica) permitiría ver el módulo antes de aplicar modulos_portal.
  */
@@ -152,7 +141,6 @@ module.exports = {
   tieneAccesoEfectivoModulo,
   accesoPortalDetalleCompleto,
   etiquetasAccesoResumen,
-  puedeGestionarBolsaHoras,
   EMAILS_REPORTE_ASISTENCIA,
   EMAILS_MODULO_CAJA_CHICA,
   EMAILS_MODULO_CONSUMO_FABRIC

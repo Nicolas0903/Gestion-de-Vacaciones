@@ -2,9 +2,8 @@ const ControlProyecto = require('../models/ControlProyecto');
 const BolsaHorasAvisoPendiente = require('../models/BolsaHorasAvisoPendiente');
 const PDFService = require('../services/pdfService');
 const emailService = require('../services/emailService');
-const { puedeGestionarBolsaHoras } = require('../utils/portalAcceso');
 
-/** Emails de referencia para notificaciones (no define permisos de gestión). */
+/** Emails que pueden crear/editar/eliminar proyectos además del rol admin. Por defecto: asistente@prayaga.biz */
 function emailsGestionProyectosBolsaHoras() {
   const lista = process.env.CONTROL_PROYECTOS_GESTORES_EMAIL;
   if (lista && String(lista).trim()) {
@@ -13,17 +12,12 @@ function emailsGestionProyectosBolsaHoras() {
       .map((x) => x.trim().toLowerCase())
       .filter(Boolean);
   }
-  const veronica = (process.env.CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz')
-    .toLowerCase()
-    .trim();
-  return [...new Set([veronica, 'rocio.picon@prayaga.biz'].filter(Boolean))];
+  return [
+    (process.env.CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz').toLowerCase().trim()
+  ];
 }
 
 const EMAIL_VERONICA_CP = emailsGestionProyectosBolsaHoras()[0] || '';
-
-function puedeGestionProyectos(u) {
-  return puedeGestionarBolsaHoras(u);
-}
 
 const ESTADOS_PROYECTO = new Set(['finalizado', 'en_curso', 'pendiente', 'perdido']);
 const REQUERIDO_POR = new Set([
@@ -45,6 +39,13 @@ function textoRequeridoPorOtrosValido(raw) {
 const PRIORIDADES = new Set(['baja', 'media', 'alta']);
 const ESTADOS_ACT = new Set(['no_iniciado', 'en_progreso', 'cerrado']);
 const SIT_PAGO = new Set(['pagado', 'pendiente']);
+
+function puedeGestionProyectos(u) {
+  if (!u) return false;
+  if (u.rol_nombre === 'admin') return true;
+  const e = (u.email || '').toLowerCase().trim();
+  return emailsGestionProyectosBolsaHoras().includes(e);
+}
 
 function parseNum(v, def = 0) {
   const n = parseFloat(v);
@@ -129,12 +130,12 @@ function parseConsultoresEmpleadoIds(body) {
 }
 
 function sqlMissing(msg) {
-  if (typeof msg !== 'string') return false;
   return (
-    msg.includes("doesn't exist") ||
-    msg.includes('Unknown table') ||
-    (msg.includes('Unknown column') &&
-      (msg.includes('cp_') || msg.includes('es_consultor_cp') || msg.includes('encargado_empleado_id')))
+    typeof msg === 'string' &&
+    (msg.includes("doesn't exist") ||
+      msg.includes("Unknown table 'cp_") ||
+      (msg.includes('cp_proyectos') && msg.includes("doesn't exist")) ||
+      (msg.includes('cp_proyecto_consultores') && msg.includes("doesn't exist")))
   );
 }
 
@@ -222,13 +223,6 @@ const consultoresParaProyectos = async (req, res) => {
     res.json({ success: true, data });
   } catch (e) {
     console.error(e);
-    if (sqlMissing(e.sqlMessage || e.message)) {
-      return res.status(503).json({
-        success: false,
-        mensaje:
-          'Falta migración SQL de bolsa de horas (consultores). Ejecute backend/sql/20260506_empleados_es_consultor_cp.sql y backend/sql/cp_proyecto_consultores_multiples.sql (o control_proyectos.sql completo).'
-      });
-    }
     res.status(500).json({ success: false, mensaje: 'Error al listar consultores.' });
   }
 };
