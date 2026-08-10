@@ -660,8 +660,7 @@ class ControlProyecto {
    * Filtros: rango inclusivo sobre DATE(a.fecha_hora_fin); opcional proyecto, empresa y consultor asignado.
    * Alcance: gestión = todas las actividades de proyectos en alcance; colaborador = solo sus actividades en esos proyectos.
    * `consultorEmpleadoId` solo aplica cuando `verTodo` es verdadero (administración).
-   * Las horas restantes del KPI usan consumo acumulado del consultor en alcance (sin filtro de fechas),
-   * no el consumo del solo período ni horas de otros consultores del mismo proyecto.
+   * Las horas restantes del KPI usan consumo acumulado del proyecto (sin filtro de fechas), no el consumo del solo período.
    */
   static async reporteActividadesVistaBi({
     verTodo,
@@ -754,28 +753,20 @@ class ControlProyecto {
       paramsActs
     );
 
-    /** Consumidas históricas del mismo consultor/alcance que el filtro (sin rango de fechas). */
+    /** Consumidas en todos los períodos (mismo alcance de proyectos que la bolsa); sirve para horas restantes por proyecto */
     const condicionesConsumoAcumuladoProyecto = `
       ${filtroProyecto}
       ${filtroExtraProySuffix}
       ${bolsaConsultorSuffix}
       AND a.fecha_hora_fin IS NOT NULL
-      ${clauseConsultorActs}
     `;
-
-    const paramsAcum = [...paramsBolsaFull];
-    if (!verTodo) {
-      paramsAcum.push(emp);
-    } else if (consultorFiltro != null) {
-      paramsAcum.push(consultorFiltro);
-    }
 
     const [aggAcumRow] = await pool.execute(
       `SELECT CAST(COALESCE(SUM(a.horas_trabajadas), 0) AS DECIMAL(16, 4)) AS horas_consumidas_acumulado_total
        FROM cp_actividades a
        INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
        WHERE ${condicionesConsumoAcumuladoProyecto.trim()}`,
-      paramsAcum
+      paramsBolsaFull
     );
 
     const [diasRow] = await pool.execute(
