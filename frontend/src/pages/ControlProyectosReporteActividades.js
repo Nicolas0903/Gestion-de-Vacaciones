@@ -7,9 +7,7 @@ import {
   ArrowPathIcon,
   DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { parseFechaSegura } from '../utils/dateUtils';
+import { formatoDatetimeBolsaHoras } from '../utils/bolsaHorasDateUtils';
 import { controlProyectosService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import ControlProyectosReporteNav from '../components/ControlProyectosReporteNav';
@@ -50,31 +48,6 @@ function rangoPorDefectoFin() {
   const desde = new Date(hasta);
   desde.setDate(desde.getDate() - 89);
   return { desde: ymdDesdeLocal(desde), hasta: ymdDesdeLocal(hasta) };
-}
-
-/** Fecha de fin como calendario local (filtro igual que el backend DATE(fecha_hora_fin)). */
-function fmtFinLocal(fechaServidorStr) {
-  if (!fechaServidorStr) return '—';
-  try {
-    const s = String(fechaServidorStr).trim().replace(/\.\d{3}$/, '');
-    const conT = /\d{4}-\d{2}-\d{2} \d{2}:/.test(s) ? `${s.replace(' ', 'T')}` : s;
-    const d = new Date(conT);
-    if (Number.isNaN(d.getTime())) return fechaServidorStr;
-    return format(d, 'dd/MM/yyyy hh:mm:ss a', { locale: es });
-  } catch {
-    return String(fechaServidorStr);
-  }
-}
-
-/** Inicio: misma zona local que en operaciones. */
-function fmtInicio(fechaServidorStr) {
-  if (!fechaServidorStr) return '—';
-  try {
-    const d = parseFechaSegura(String(fechaServidorStr));
-    return format(d, 'dd/MM/yyyy hh:mm:ss a', { locale: es });
-  } catch {
-    return String(fechaServidorStr).slice(0, 16);
-  }
 }
 
 const ControlProyectosReporteActividades = () => {
@@ -274,12 +247,12 @@ const ControlProyectosReporteActividades = () => {
                 </select>
               </label>
               {gestor && (
-                <label className="flex flex-col text-xs font-medium text-slate-300 gap-1 min-w-[200px] max-w-[240px] shrink-0 xl:ml-2 xl:pl-6 xl:border-l xl:border-slate-600/90">
+                <label className="flex flex-col text-xs font-medium text-slate-300 gap-1 min-w-[240px] max-w-[320px] shrink-0 xl:ml-2 xl:pl-6 xl:border-l xl:border-slate-600/90">
                   Consultor asignado
                   <select
                     value={consultorEmpId}
                     onChange={(e) => setConsultorEmpId(e.target.value)}
-                    className="rounded-lg border-0 px-3 py-2 bg-white text-sm text-slate-900 truncate"
+                    className="rounded-lg border-0 px-3 py-2 bg-white text-sm text-slate-900"
                     title={
                       consultorEmpId
                         ? consultoresOpts.find((c) => String(c.id) === consultorEmpId)?.nombre_completo || ''
@@ -378,9 +351,10 @@ const ControlProyectosReporteActividades = () => {
           <table className="min-w-full text-sm">
             <thead>
               <tr className="bg-teal-700 text-white">
+                <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">ID</th>
                 <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Proyecto</th>
                 <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Requerido por</th>
-                <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Consultor asignado</th>
+                <th className="px-3 py-3 text-left font-semibold whitespace-nowrap min-w-[160px]">Consultor asignado</th>
                 <th className="px-3 py-3 text-left font-semibold min-w-[200px]">Descripción de actividad</th>
                 <th className="px-3 py-3 text-left font-semibold">Prioridad</th>
                 <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Fecha y hora de inicio</th>
@@ -392,25 +366,28 @@ const ControlProyectosReporteActividades = () => {
             <tbody className="divide-y divide-slate-100">
               {loading && !data ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={10} className="px-4 py-8 text-center text-slate-500">
                     Cargando…
                   </td>
                 </tr>
               ) : (
                 actividades.map((a, idx) => (
                   <tr key={a.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/90'}>
+                    <td className="px-3 py-2 text-slate-500 font-mono text-xs whitespace-nowrap">#{a.id}</td>
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap max-w-[180px] truncate" title={a.proyecto_nombre}>
                       {a.proyecto_nombre}
                     </td>
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{labelReq(a)}</td>
-                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{a.consultor_nombre}</td>
+                    <td className="px-3 py-2 text-slate-700 min-w-[160px] whitespace-normal align-top" title={a.consultor_nombre}>
+                      {a.consultor_nombre}
+                    </td>
                     <td className="px-3 py-2 text-slate-600 min-w-[260px] whitespace-normal align-top">{a.descripcion_actividad}</td>
                     <td className="px-3 py-2 text-slate-700">{labelPri(a.prioridad)}</td>
-                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap font-mono text-xs">{fmtInicio(a.fecha_hora_inicio)}</td>
+                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap font-mono text-xs">{formatoDatetimeBolsaHoras(a.fecha_hora_inicio)}</td>
                     <td className="px-3 py-2 text-right tabular-nums font-medium text-slate-800">
                       {fmtNum(a.horas_trabajadas)}
                     </td>
-                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap font-mono text-xs">{fmtFinLocal(a.fecha_hora_fin)}</td>
+                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap font-mono text-xs">{formatoDatetimeBolsaHoras(a.fecha_hora_fin)}</td>
                     <td className="px-3 py-2 text-slate-700">{labelEst(a.estado_actividad)}</td>
                   </tr>
                 ))
@@ -418,7 +395,7 @@ const ControlProyectosReporteActividades = () => {
             </tbody>
             <tfoot>
               <tr className="bg-teal-50 border-t-2 border-teal-200">
-                <td colSpan={6} className="px-3 py-3 text-right font-bold text-teal-900">
+                <td colSpan={7} className="px-3 py-3 text-right font-bold text-teal-900">
                   Total
                 </td>
                 <td className="px-3 py-3 text-right font-bold tabular-nums text-teal-900">{fmtNum(totalTablaHoras)}</td>

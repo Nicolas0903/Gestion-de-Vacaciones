@@ -4,7 +4,8 @@ import toast from 'react-hot-toast';
 import { ArrowLeftIcon, FolderIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { controlProyectosService, empleadoService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { formatoFechaDMY, formatoFechaHoraDMY } from '../utils/dateUtils';
+import { formatoFechaDMY } from '../utils/dateUtils';
+import { datetimeBolsaHorasALocalInput, formatoDatetimeBolsaHoras } from '../utils/bolsaHorasDateUtils';
 
 const REQUERIDO_POR_OPTS = [
   { value: 'ricardo_martinez', label: 'Ricardo Martínez' },
@@ -38,14 +39,6 @@ const SIT_PAGO = [
   { value: 'pagado', label: 'Pagado' },
   { value: 'pendiente', label: 'Pendiente' }
 ];
-
-function sqlADatetimeLocal(v) {
-  if (!v) return '';
-  const s = String(v).trim();
-  if (s.includes('T')) return s.slice(0, 16);
-  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(s)) return s.replace(' ', 'T').slice(0, 16);
-  return '';
-}
 
 function previewHorasIniFin(iniLocal, finLocal) {
   if (!iniLocal || !finLocal || iniLocal.length < 16 || finLocal.length < 16) return null;
@@ -433,8 +426,8 @@ const ControlProyectos = () => {
 
   const abrirEditActividad = (a) => {
     setActividadEditId(a.id);
-    const fhiLocal = sqlADatetimeLocal(a.fecha_hora_inicio);
-    const fhfLocal = sqlADatetimeLocal(a.fecha_hora_fin);
+    const fhiLocal = datetimeBolsaHorasALocalInput(a.fecha_hora_inicio);
+    const fhfLocal = datetimeBolsaHorasALocalInput(a.fecha_hora_fin);
 
     /* Detección automática del modo: si las horas guardadas difieren
      * (con tolerancia) del cálculo por fechas, asumimos que se ingresaron
@@ -1108,6 +1101,7 @@ const ControlProyectos = () => {
                     <table className="min-w-full text-sm">
                       <thead className="bg-slate-50 text-slate-600">
                         <tr>
+                          <th className="px-4 py-2 text-left whitespace-nowrap">ID</th>
                           <th className="px-4 py-2 text-left">Proyecto</th>
                           <th className="px-4 py-2 text-left">Req. por</th>
                           <th className="px-4 py-2 text-left whitespace-nowrap">Inicio–Fin</th>
@@ -1120,15 +1114,16 @@ const ControlProyectos = () => {
                       <tbody className="divide-y divide-slate-100">
                         {actividades.map((a) => (
                           <tr key={a.id}>
+                            <td className="px-4 py-2 text-xs font-mono text-slate-500 whitespace-nowrap">#{a.id}</td>
                             <td className="px-4 py-2 max-w-[200px]" title={`${a.empresa_nombre} · ${a.proyecto_nombre}`}>
                               <div className="font-medium truncate">{a.proyecto_nombre}</div>
                               <div className="text-xs text-slate-500 truncate">{a.empresa_nombre}</div>
                             </td>
                             <td className="px-4 py-2 text-xs">{labelReqActividad(a)}</td>
                             <td className="px-4 py-2 text-xs whitespace-nowrap">
-                              {formatoFechaHoraDMY(a.fecha_hora_inicio)}
+                              {formatoDatetimeBolsaHoras(a.fecha_hora_inicio)}
                               <br />
-                              {formatoFechaHoraDMY(a.fecha_hora_fin)}
+                              {formatoDatetimeBolsaHoras(a.fecha_hora_fin)}
                             </td>
                             <td className="px-4 py-2 text-right tabular-nums">{Number(a.horas_trabajadas).toFixed(2)}</td>
                             <td className="px-4 py-2">{EST_ACT.find((x) => x.value === a.estado)?.label}</td>

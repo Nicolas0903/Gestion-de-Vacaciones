@@ -622,8 +622,15 @@ class PDFService {
     const EST = { no_iniciado: 'No iniciado', en_progreso: 'En progreso', cerrado: 'Cerrado' };
     function fmtDt(v) {
       if (v == null || v === '') return '—';
-      const mo = moment(v);
-      return mo.isValid() ? mo.format('DD/MM/YYYY hh:mm:ss a') : String(v).slice(0, 22);
+      const s = String(v).trim().replace(/\.\d{3}$/, '');
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (!m) return String(v).slice(0, 22);
+      const hh = m[4];
+      const mm = m[5];
+      const ss = m[6] || '00';
+      const h12 = ((+hh + 11) % 12) + 1;
+      const ampm = +hh >= 12 ? 'pm' : 'am';
+      return `${m[3]}/${m[2]}/${m[1]} ${String(h12).padStart(2, '0')}:${mm}:${ss} ${ampm}`;
     }
     function fmtN2(x) {
       const n = Number(x);
@@ -737,16 +744,18 @@ class PDFService {
         }
         y += 74;
 
-        const colProj = m;
-        const wProj = 100;
-        const wReq = 58;
-        const wCons = 72;
-        const wDesc = 192;
-        const wPri = 38;
-        const wIni = 96;
-        const wHor = 40;
-        const wFin = 100;
-        const wEst = 48;
+        const colId = m;
+        const wId = 26;
+        const colProj = colId + wId;
+        const wProj = 92;
+        const wReq = 54;
+        const wCons = 98;
+        const wDesc = 178;
+        const wPri = 34;
+        const wIni = 88;
+        const wHor = 38;
+        const wFin = 92;
+        const wEst = 44;
         const xReq = colProj + wProj;
         const xCons = xReq + wReq;
         const xDesc = xCons + wCons;
@@ -765,8 +774,9 @@ class PDFService {
         }
 
         function drawColumnHeaderRow() {
-          doc.rect(colProj, y, contentW, 16).fillAndStroke('#0f766e', '#0f766e');
+          doc.rect(colId, y, contentW, 16).fillAndStroke('#0f766e', '#0f766e');
           doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff');
+          doc.text('ID', colId + 2, y + 4, { width: wId - 4 });
           doc.text('Proyecto', colProj + 3, y + 4, { width: wProj });
           doc.text('Req. por', xReq + 2, y + 4, { width: wReq });
           doc.text('Consultor', xCons + 2, y + 4, { width: wCons });
@@ -796,7 +806,7 @@ class PDFService {
           }
 
           const zebra = i % 2 === 0 ? '#f8fafc' : '#ffffff';
-          doc.rect(colProj, y, contentW, rowH).fillAndStroke(zebra, '#e2e8f0');
+          doc.rect(colId, y, contentW, rowH).fillAndStroke(zebra, '#e2e8f0');
 
           const reqLbl =
             a.requerido_por === 'otros' && String(a.requerido_por_otros || '').trim()
@@ -805,9 +815,10 @@ class PDFService {
           const priLbl = PRI[a.prioridad] || a.prioridad || '—';
           const estLbl = EST[a.estado_actividad] || a.estado_actividad || '—';
           doc.fontSize(6).font('Helvetica').fillColor('#0f172a');
+          doc.text(String(a.id ?? '—'), colId + 2, y + 3, { width: wId - 4 });
           doc.text(trunc(a.proyecto_nombre, 62), colProj + 3, y + 3, { width: wProj - 4 });
           doc.text(trunc(reqLbl, 42), xReq + 2, y + 3, { width: wReq - 4 });
-          doc.text(trunc(a.consultor_nombre, 48), xCons + 2, y + 3, { width: wCons - 4 });
+          doc.text(String(a.consultor_nombre || '—'), xCons + 2, y + 3, { width: wCons - 4, lineGap: 0 });
           doc.text(descTxt, xDesc + 2, y + 3, { width: wDesc - 4, lineGap: 0 });
           doc.text(priLbl, xPri + 2, y + 3, { width: wPri - 4 });
           doc.fontSize(6).text(fmtDt(a.fecha_hora_inicio), xIni + 2, y + 3, { width: wIni - 4 });
@@ -823,7 +834,7 @@ class PDFService {
           totalHorasLista != null && Number.isFinite(Number(totalHorasLista))
             ? Number(totalHorasLista)
             : totCalc;
-        doc.rect(colProj, y, contentW, 18).fillAndStroke('#ccfbf1', '#5eead4');
+        doc.rect(colId, y, contentW, 18).fillAndStroke('#ccfbf1', '#5eead4');
         doc.fontSize(8).font('Helvetica-Bold').fillColor('#115e59')
           .text(`Total horas trabajadas (lista): ${fmtN2(totShown)}`, m + 6, y + 5, {
             width: contentW - 12
