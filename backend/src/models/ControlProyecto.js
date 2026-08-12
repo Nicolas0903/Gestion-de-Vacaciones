@@ -361,7 +361,8 @@ class ControlProyecto {
       `SELECT a.*,
         p.proyecto AS proyecto_nombre,
         p.empresa AS empresa_nombre,
-        CONCAT(TRIM(ec.nombres), ' ', TRIM(ec.apellidos)) AS consultor_nombre
+        CONCAT(TRIM(ec.nombres), ' ', TRIM(ec.apellidos)) AS consultor_nombre,
+        LOWER(TRIM(ec.email)) AS consultor_email
        FROM cp_actividades a
        INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
        INNER JOIN empleados ec ON ec.id = a.consultor_asignado_id
@@ -775,7 +776,8 @@ class ControlProyecto {
          a.fecha_hora_fin,
          CAST(a.horas_trabajadas AS DECIMAL(14, 4)) AS horas_trabajadas,
          a.estado AS estado_actividad,
-         CONCAT(TRIM(ec.nombres), ' ', TRIM(ec.apellidos)) AS consultor_nombre
+         CONCAT(TRIM(ec.nombres), ' ', TRIM(ec.apellidos)) AS consultor_nombre,
+        LOWER(TRIM(ec.email)) AS consultor_email
        FROM cp_actividades a
        INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
        INNER JOIN empleados ec ON ec.id = a.consultor_asignado_id

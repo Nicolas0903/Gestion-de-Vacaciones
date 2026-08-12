@@ -1,4 +1,4 @@
-const ControlProyecto = require('../models/ControlProyecto');
+const { ccReporteBolsaHorasEncargado } = require('../config/bolsaHorasEmails');
 const BolsaHorasAvisoPendiente = require('../models/BolsaHorasAvisoPendiente');
 const PDFService = require('../services/pdfService');
 const emailService = require('../services/emailService');
@@ -90,11 +90,18 @@ async function intentarCorreoEncargadoPorActividad({ proyecto, actividad, modo, 
       descripcion_resumen: actividad.descripcion_actividad || '',
       horas_trabajadas: actividad.horas_trabajadas,
       consultor_nombre: actividad.consultor_nombre || '—',
+      consultor_empleado_id:
+        actividad.consultor_asignado_id != null ? parseInt(String(actividad.consultor_asignado_id), 10) : null,
+      consultor_email:
+        actividad.consultor_email && String(actividad.consultor_email).trim()
+          ? String(actividad.consultor_email).trim().toLowerCase()
+          : null,
       usuario_nombre: nombreUsuarioPortal(usuarioQueActua),
       usuario_email: usuarioQueActua.email || ''
     };
 
     if (process.env.BOLSA_HORAS_AVISO_INMEDIATO === 'true') {
+      const filaCc = [{ consultor_email: payload.consultor_email }];
       await emailService.notificarActividadBolsaHorasEncargado({
         encargadoEmail: payload.encargado_email,
         encargadoNombre: payload.encargado_nombre,
@@ -106,7 +113,8 @@ async function intentarCorreoEncargadoPorActividad({ proyecto, actividad, modo, 
         horasTrabajadas: payload.horas_trabajadas,
         consultorNombre: payload.consultor_nombre,
         usuarioNombre: payload.usuario_nombre,
-        usuarioEmail: payload.usuario_email
+        usuarioEmail: payload.usuario_email,
+        cc: ccReporteBolsaHorasEncargado(payload.encargado_email, filaCc)
       });
       return;
     }

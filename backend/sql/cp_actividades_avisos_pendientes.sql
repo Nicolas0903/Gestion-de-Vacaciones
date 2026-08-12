@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS cp_actividades_avisos_pendientes (
   descripcion_resumen TEXT NULL,
   horas_trabajadas DECIMAL(10, 2) NULL,
   consultor_nombre VARCHAR(200) NULL,
+  consultor_empleado_id INT NULL,
+  consultor_email VARCHAR(255) NULL,
   usuario_nombre VARCHAR(200) NULL,
   usuario_email VARCHAR(255) NULL,
   registrado_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -882,21 +882,29 @@ const notificarPermisoPendienteContadora = async (permiso, empleado, contadora) 
 };
 
 /**
- * Bolsa de horas: reporte semanal consolidado de altas/modificaciones para el encargado.
+ * Bolsa de horas: reporte consolidado (semanal o mensual) para el encargado + CC.
  */
-const enviarReporteSemanalBolsaHorasEncargado = async ({
+const enviarReporteBolsaHorasEncargado = async ({
   encargadoEmail,
   encargadoNombre,
   cambios,
   rangoDesde,
-  rangoHasta
+  rangoHasta,
+  periodo = 'semanal',
+  cc = []
 }) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.log('Email no configurado — reporte semanal bolsa horas omitido');
+    console.log('Email no configurado — reporte bolsa horas omitido');
     return false;
   }
   const to = encargadoEmail != null ? String(encargadoEmail).trim().toLowerCase() : '';
   if (!to || !Array.isArray(cambios) || cambios.length === 0) return false;
+
+  const esMensual = periodo === 'mensual';
+  const tituloPeriodo = esMensual ? 'mensual' : 'semanal';
+  const introPeriodo = esMensual
+    ? 'Resumen mensual de <strong>cambios en bolsa de horas</strong>'
+    : 'Resumen semanal de <strong>cambios en bolsa de horas</strong>';
 
   const filasHtml = cambios
     .map((c) => {
@@ -915,6 +923,7 @@ const enviarReporteSemanalBolsaHorasEncargado = async ({
         : '—';
       return `
         <tr>
+          <td style="padding:8px;border-bottom:1px solid #e2e8f0;white-space:nowrap;font-family:monospace;">#${escapeHtml(String(c.actividad_id ?? '—'))}</td>
           <td style="padding:8px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${escapeHtml(modoLbl)}</td>
           <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${escapeHtml(c.proyecto_nombre || '—')}</td>
           <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;">${escapeHtml(horasLbl)}</td>
@@ -928,12 +937,13 @@ const enviarReporteSemanalBolsaHorasEncargado = async ({
 
   const contenido = `
     <p>Hola <strong>${escapeHtml(encargadoNombre || 'encargado')}</strong>,</p>
-    <p>Resumen semanal de <strong>cambios en bolsa de horas</strong> en proyectos donde figura como encargado/a.</p>
+    <p>${introPeriodo} en proyectos donde figura como encargado/a.</p>
     <p style="color:#64748b;font-size:14px;">Período del reporte: ${escapeHtml(rangoDesde || '—')} al ${escapeHtml(rangoHasta || '—')} · ${cambios.length} registro(s)</p>
     <div style="overflow-x:auto;margin:16px 0;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="background:#f1f5f9;text-align:left;">
+            <th style="padding:8px;">ID</th>
             <th style="padding:8px;">Tipo</th>
             <th style="padding:8px;">Proyecto</th>
             <th style="padding:8px;text-align:right;">Horas</th>
@@ -951,21 +961,31 @@ const enviarReporteSemanalBolsaHorasEncargado = async ({
     </center>
   `;
 
+  const ccList = (Array.isArray(cc) ? cc : [])
+    .map((e) => String(e || '').trim().toLowerCase())
+    .filter((e) => e && e !== to);
+
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
       from: remitente('bolsaHoras'),
       to,
-      subject: `Reporte semanal bolsa de horas · ${cambios.length} cambio(s)`,
-      html: plantillaEmail(contenido, 'Reporte semanal bolsa de horas', 'bolsaHoras')
+      ...(ccList.length ? { cc: ccList } : {}),
+      subject: `Reporte ${tituloPeriodo} bolsa de horas · ${cambios.length} cambio(s)`,
+      html: plantillaEmail(contenido, `Reporte ${tituloPeriodo} bolsa de horas`, 'bolsaHoras')
     });
-    console.log(`Email reporte semanal bolsa horas → ${to} (${cambios.length} cambios)`);
+    const ccLog = ccList.length ? ` CC: ${ccList.join(', ')}` : '';
+    console.log(`Email reporte ${tituloPeriodo} bolsa horas → ${to} (${cambios.length} cambios)${ccLog}`);
     return true;
   } catch (error) {
-    console.error('Error al enviar reporte semanal bolsa horas:', error.message);
+    console.error(`Error al enviar reporte ${tituloPeriodo} bolsa horas:`, error.message);
     return false;
   }
 };
+
+/** @deprecated alias */
+const enviarReporteSemanalBolsaHorasEncargado = (opts) =>
+  enviarReporteBolsaHorasEncargado({ ...opts, periodo: 'semanal' });
 
 /**
  * Bolsa de horas: avisar al encargado del proyecto cuando se registra o modifica una actividad (horas).
@@ -981,7 +1001,8 @@ const notificarActividadBolsaHorasEncargado = async ({
   horasTrabajadas,
   consultorNombre,
   usuarioNombre,
-  usuarioEmail
+  usuarioEmail,
+  cc = []
 }) => {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.log('Email no configurado — aviso bolsa horas encargado omitido');
@@ -1042,9 +1063,13 @@ const notificarActividadBolsaHorasEncargado = async ({
 
   try {
     const transporter = createTransporter();
+    const ccList = (Array.isArray(cc) ? cc : [])
+      .map((e) => String(e || '').trim().toLowerCase())
+      .filter((e) => e && e !== to);
     await transporter.sendMail({
       from: remitente('bolsaHoras'),
       to,
+      ...(ccList.length ? { cc: ccList } : {}),
       subject: `${verboTitulo} · ${proyectoNombre ? String(proyectoNombre).slice(0, 60) : 'Proyecto'}`,
       html: plantillaEmail(contenido, verboTitulo, 'bolsaHoras')
     });
@@ -1824,6 +1849,7 @@ module.exports = {
   notificarRegistroRechazado,
   notificarPermisoPendienteContadora,
   notificarActividadBolsaHorasEncargado,
+  enviarReporteBolsaHorasEncargado,
   enviarReporteSemanalBolsaHorasEncargado,
   notificarNuevaSolicitudReembolsoAprobador,
   notificarReembolsoResueltoEmpleado,
