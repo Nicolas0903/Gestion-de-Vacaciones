@@ -1,3 +1,4 @@
+const ControlProyecto = require('../models/ControlProyecto');
 const { ccReporteBolsaHorasEncargado } = require('../config/bolsaHorasEmails');
 const BolsaHorasAvisoPendiente = require('../models/BolsaHorasAvisoPendiente');
 const PDFService = require('../services/pdfService');
