@@ -90,7 +90,7 @@ class ControlProyecto {
         : null;
     if (pid) {
       const [rows] = await pool.execute(
-        `SELECT DISTINCT e.id,
+        `SELECT e.id,
           CONCAT(TRIM(e.nombres), ' ', TRIM(e.apellidos)) AS nombre_completo,
           e.email,
           e.activo
