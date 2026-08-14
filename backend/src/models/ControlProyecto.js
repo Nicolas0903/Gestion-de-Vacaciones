@@ -658,7 +658,8 @@ class ControlProyecto {
 
   /**
    * Reporte detallado de actividades (registro de horas).
-   * Filtros: rango inclusivo sobre DATE(a.fecha_hora_fin); opcional proyecto, empresa y consultor asignado.
+   * Filtros: rango inclusivo sobre DATE(a.fecha_hora_fin); opcional rango sobre DATE(a.created_at);
+   * opcional proyecto, empresa y consultor asignado.
    * Alcance: gestión = todas las actividades de proyectos en alcance; colaborador = solo sus actividades en esos proyectos.
    * `consultorEmpleadoId` solo aplica cuando `verTodo` es verdadero (administración).
    * Las horas restantes del KPI = bolsa en alcance − consumidas del rango (misma base que la tarjeta de consumidas).
@@ -670,6 +671,8 @@ class ControlProyecto {
     empresa,
     fechaFinDesde,
     fechaFinHasta,
+    fechaSubidaDesde = null,
+    fechaSubidaHasta = null,
     consultorEmpleadoId: consultorRaw
   }) {
     const scope = verTodo ? 1 : 0;
@@ -776,6 +779,7 @@ class ControlProyecto {
          a.fecha_hora_fin,
          CAST(a.horas_trabajadas AS DECIMAL(14, 4)) AS horas_trabajadas,
          a.estado AS estado_actividad,
+         a.created_at AS fecha_subida,
          CONCAT(TRIM(ec.nombres), ' ', TRIM(ec.apellidos)) AS consultor_nombre,
         LOWER(TRIM(ec.email)) AS consultor_email
        FROM cp_actividades a
@@ -815,6 +819,8 @@ class ControlProyecto {
       filtros: {
         fecha_fin_desde: fechaFinDesde,
         fecha_fin_hasta: fechaFinHasta,
+        fecha_subida_desde: subidaDesdeNorm,
+        fecha_subida_hasta: subidaHastaNorm,
         proyecto_id: proyectoIdSql,
         empresa: empresaNorm,
         consultor_empleado_id: consultorFiltro,

@@ -60,6 +60,8 @@ const ControlProyectosReporteActividades = () => {
   const [exportandoPdf, setExportandoPdf] = useState(false);
   const [finDesde, setFinDesde] = useState(defs.desde);
   const [finHasta, setFinHasta] = useState(defs.hasta);
+  const [subidaDesde, setSubidaDesde] = useState('');
+  const [subidaHasta, setSubidaHasta] = useState('');
   const [proyectoId, setProyectoId] = useState('');
   const [empresaSel, setEmpresaSel] = useState('Todas');
   const [consultorEmpId, setConsultorEmpId] = useState('');
@@ -75,6 +77,10 @@ const ControlProyectosReporteActividades = () => {
       if (proyectoId) params.proyecto_id = proyectoId;
       if (empresaSel !== 'Todas' && empresaSel) params.empresa = empresaSel;
       if (gestor && consultorEmpId) params.consultor_empleado_id = consultorEmpId;
+      if (subidaDesde && subidaHasta) {
+        params.fecha_subida_desde = subidaDesde;
+        params.fecha_subida_hasta = subidaHasta;
+      }
 
       const { data: res } = await controlProyectosService.reporteActividadesBi(params);
       if (res.success) setData(res.data);
@@ -84,7 +90,7 @@ const ControlProyectosReporteActividades = () => {
     } finally {
       setLoading(false);
     }
-  }, [finDesde, finHasta, proyectoId, empresaSel, gestor, consultorEmpId]);
+  }, [finDesde, finHasta, subidaDesde, subidaHasta, proyectoId, empresaSel, gestor, consultorEmpId]);
 
   const exportarPdf = useCallback(async () => {
     setExportandoPdf(true);
@@ -96,6 +102,10 @@ const ControlProyectosReporteActividades = () => {
       if (proyectoId) params.proyecto_id = proyectoId;
       if (empresaSel !== 'Todas' && empresaSel) params.empresa = empresaSel;
       if (gestor && consultorEmpId) params.consultor_empleado_id = consultorEmpId;
+      if (subidaDesde && subidaHasta) {
+        params.fecha_subida_desde = subidaDesde;
+        params.fecha_subida_hasta = subidaHasta;
+      }
 
       const res = await controlProyectosService.reporteActividadesPdf(params);
       const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' });
@@ -123,7 +133,7 @@ const ControlProyectosReporteActividades = () => {
     } finally {
       setExportandoPdf(false);
     }
-  }, [finDesde, finHasta, proyectoId, empresaSel, gestor, consultorEmpId]);
+  }, [finDesde, finHasta, subidaDesde, subidaHasta, proyectoId, empresaSel, gestor, consultorEmpId]);
 
   useEffect(() => {
     if (!gestor) {
@@ -293,6 +303,27 @@ const ControlProyectosReporteActividades = () => {
                   />
                 </label>
               </fieldset>
+              <fieldset className="flex flex-wrap gap-3 border border-slate-600 rounded-lg px-3 py-2 pb-3 bg-slate-700/50">
+                <legend className="text-xs px-2 text-slate-200">Fecha de subida del registro (opcional)</legend>
+                <label className="flex flex-col text-[11px] text-slate-200 gap-1">
+                  Desde
+                  <input
+                    type="date"
+                    value={subidaDesde}
+                    onChange={(e) => setSubidaDesde(e.target.value)}
+                    className="rounded-lg px-2 py-1.5 bg-white text-slate-900 text-sm border-0"
+                  />
+                </label>
+                <label className="flex flex-col text-[11px] text-slate-200 gap-1">
+                  Hasta
+                  <input
+                    type="date"
+                    value={subidaHasta}
+                    onChange={(e) => setSubidaHasta(e.target.value)}
+                    className="rounded-lg px-2 py-1.5 bg-white text-slate-900 text-sm border-0"
+                  />
+                </label>
+              </fieldset>
               <button
                 type="button"
                 onClick={() => cargar()}
@@ -360,13 +391,14 @@ const ControlProyectosReporteActividades = () => {
                 <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Fecha y hora de inicio</th>
                 <th className="px-3 py-3 text-right font-semibold whitespace-nowrap">Horas trabajadas</th>
                 <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Fecha y hora de fin</th>
+                <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Fecha de subida</th>
                 <th className="px-3 py-3 text-left font-semibold">Estado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && !data ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
                     Cargando…
                   </td>
                 </tr>
@@ -388,6 +420,7 @@ const ControlProyectosReporteActividades = () => {
                       {fmtNum(a.horas_trabajadas)}
                     </td>
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap font-mono text-xs">{formatoDatetimeBolsaHoras(a.fecha_hora_fin)}</td>
+                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap font-mono text-xs">{formatoDatetimeBolsaHoras(a.fecha_subida)}</td>
                     <td className="px-3 py-2 text-slate-700">{labelEst(a.estado_actividad)}</td>
                   </tr>
                 ))
@@ -395,11 +428,11 @@ const ControlProyectosReporteActividades = () => {
             </tbody>
             <tfoot>
               <tr className="bg-teal-50 border-t-2 border-teal-200">
-                <td colSpan={7} className="px-3 py-3 text-right font-bold text-teal-900">
+                <td colSpan={8} className="px-3 py-3 text-right font-bold text-teal-900">
                   Total
                 </td>
                 <td className="px-3 py-3 text-right font-bold tabular-nums text-teal-900">{fmtNum(totalTablaHoras)}</td>
-                <td colSpan={2} />
+                <td colSpan={3} />
               </tr>
             </tfoot>
           </table>

@@ -650,6 +650,8 @@ class PDFService {
           consultorFiltroLabel,
           fechaFinDesdeLabel,
           fechaFinHastaLabel,
+          fechaSubidaDesdeLabel,
+          fechaSubidaHastaLabel,
           alcanceLinea,
           kpis,
           actividades,
@@ -695,6 +697,15 @@ class PDFService {
           width: contentW
         });
         y += 13;
+        if (fechaSubidaDesdeLabel && fechaSubidaHastaLabel) {
+          doc.text(
+            `Rango fecha de subida del registro (inclusive por día): ${fechaSubidaDesdeLabel} → ${fechaSubidaHastaLabel}`,
+            m,
+            y,
+            { width: contentW }
+          );
+          y += 13;
+        }
         doc.fontSize(8).fillColor('#64748b')
           .text(alcanceLinea || '', m, y, { width: contentW });
         y += 16;

@@ -208,7 +208,20 @@ function parseQueryReporteActividades(req) {
   const consultorEmpleadoId =
     Number.isFinite(consultorParsed) && consultorParsed > 0 ? consultorParsed : null;
 
-  return { desde, hasta, proyectoId, empresaTrim, consultorEmpleadoId };
+  let subidaDesde = parseFechaSoloDia(req.query.fecha_subida_desde);
+  let subidaHasta = parseFechaSoloDia(req.query.fecha_subida_hasta);
+  if (subidaDesde && subidaHasta) {
+    if (subidaDesde > subidaHasta) {
+      const t = subidaDesde;
+      subidaDesde = subidaHasta;
+      subidaHasta = t;
+    }
+  } else {
+    subidaDesde = null;
+    subidaHasta = null;
+  }
+
+  return { desde, hasta, proyectoId, empresaTrim, consultorEmpleadoId, subidaDesde, subidaHasta };
 }
 
 function formatoFechaReporteDdMmYyyy(ymd) {
@@ -743,8 +756,15 @@ async function responderReporteCp(req, res, modo) {
 
 const reporteActividadesCp = async (req, res) => {
   try {
-    const { desde, hasta, proyectoId: proyectoIdFinal, empresaTrim, consultorEmpleadoId } =
-      parseQueryReporteActividades(req);
+    const {
+      desde,
+      hasta,
+      proyectoId: proyectoIdFinal,
+      empresaTrim,
+      consultorEmpleadoId,
+      subidaDesde,
+      subidaHasta
+    } = parseQueryReporteActividades(req);
 
     const verTodo = puedeGestionProyectos(req.usuario);
     const consultorFiltrado = verTodo ? consultorEmpleadoId : null;
@@ -755,6 +775,8 @@ const reporteActividadesCp = async (req, res) => {
       empresa: empresaTrim === '' ? null : empresaTrim,
       fechaFinDesde: desde,
       fechaFinHasta: hasta,
+      fechaSubidaDesde: subidaDesde,
+      fechaSubidaHasta: subidaHasta,
       consultorEmpleadoId: consultorFiltrado
     });
     res.json({ success: true, data });
@@ -773,7 +795,7 @@ const reporteActividadesCp = async (req, res) => {
 
 const reporteActividadesPdfCp = async (req, res) => {
   try {
-    const { desde, hasta, proyectoId, empresaTrim, consultorEmpleadoId } =
+    const { desde, hasta, proyectoId, empresaTrim, consultorEmpleadoId, subidaDesde, subidaHasta } =
       parseQueryReporteActividades(req);
 
     const verTodo = puedeGestionProyectos(req.usuario);
@@ -785,6 +807,8 @@ const reporteActividadesPdfCp = async (req, res) => {
       empresa: empresaTrim === '' ? null : empresaTrim,
       fechaFinDesde: desde,
       fechaFinHasta: hasta,
+      fechaSubidaDesde: subidaDesde,
+      fechaSubidaHasta: subidaHasta,
       consultorEmpleadoId: consultorFiltrado
     });
 
@@ -816,6 +840,8 @@ const reporteActividadesPdfCp = async (req, res) => {
       consultorFiltroLabel,
       fechaFinDesdeLabel: formatoFechaReporteDdMmYyyy(desde),
       fechaFinHastaLabel: formatoFechaReporteDdMmYyyy(hasta),
+      fechaSubidaDesdeLabel: subidaDesde ? formatoFechaReporteDdMmYyyy(subidaDesde) : null,
+      fechaSubidaHastaLabel: subidaHasta ? formatoFechaReporteDdMmYyyy(subidaHasta) : null,
       alcanceLinea,
       kpis: data.kpis,
       actividades: acts,
