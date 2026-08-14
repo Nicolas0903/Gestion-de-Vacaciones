@@ -722,17 +722,30 @@ class ControlProyecto {
       clauseConsultorActs = ' AND a.consultor_asignado_id = ?';
     }
 
+    let filtroSubidaSql = '';
+    const subidaDesdeNorm =
+      fechaSubidaDesde && String(fechaSubidaDesde).trim() ? String(fechaSubidaDesde).trim().slice(0, 10) : null;
+    const subidaHastaNorm =
+      fechaSubidaHasta && String(fechaSubidaHasta).trim() ? String(fechaSubidaHasta).trim().slice(0, 10) : null;
+    if (subidaDesdeNorm && subidaHastaNorm) {
+      filtroSubidaSql = ' AND DATE(a.created_at) BETWEEN ? AND ?';
+    }
+
     const condicionesActividades = `
       ${filtroProyecto}
       ${filtroExtraProySuffix}
       AND DATE(a.fecha_hora_fin) BETWEEN ? AND ?
       AND a.fecha_hora_fin IS NOT NULL
+      ${filtroSubidaSql}
       ${clauseConsultorActs}
     `;
 
     const paramsBolsa = [scope, emp, ...filtroExtraProyParams];
     const paramsBolsaFull = [...paramsBolsa, ...bolsaConsultorParams];
     const paramsActs = [...paramsBolsa, fechaFinDesde, fechaFinHasta];
+    if (subidaDesdeNorm && subidaHastaNorm) {
+      paramsActs.push(subidaDesdeNorm, subidaHastaNorm);
+    }
     if (!verTodo) {
       paramsActs.push(emp);
     } else if (consultorFiltro != null) {
