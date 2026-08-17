@@ -4,7 +4,7 @@ const BolsaHorasAvisoPendiente = require('../models/BolsaHorasAvisoPendiente');
 const PDFService = require('../services/pdfService');
 const emailService = require('../services/emailService');
 
-/** Emails que pueden crear/editar/eliminar proyectos además del rol admin. Por defecto: asistente@prayaga.biz */
+/** Emails con acceso completo a bolsa de horas (reportes y gestión). Por defecto: asistente + Rocío. */
 function emailsGestionProyectosBolsaHoras() {
   const lista = process.env.CONTROL_PROYECTOS_GESTORES_EMAIL;
   if (lista && String(lista).trim()) {
@@ -13,9 +13,10 @@ function emailsGestionProyectosBolsaHoras() {
       .map((x) => x.trim().toLowerCase())
       .filter(Boolean);
   }
-  return [
-    (process.env.CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz').toLowerCase().trim()
-  ];
+  const veronica = (process.env.CONTROL_PROYECTOS_VERONICA_EMAIL || 'asistente@prayaga.biz')
+    .toLowerCase()
+    .trim();
+  return [veronica, 'rocio.picon@prayaga.biz'];
 }
 
 const EMAIL_VERONICA_CP = emailsGestionProyectosBolsaHoras()[0] || '';
