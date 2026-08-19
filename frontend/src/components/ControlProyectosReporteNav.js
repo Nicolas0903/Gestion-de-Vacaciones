@@ -8,7 +8,7 @@ const idleCls =
 
 /**
  * Navegación entre vistas del reporte de control de proyectos (tipo BI).
- * @param {{ active: 'resumen'|'proyectos'|'actividades' }} props
+ * @param {{ active: 'resumen'|'proyectos'|'actividades'|'locadores' }} props
  */
 export default function ControlProyectosReporteNav({ active }) {
   return (
@@ -21,6 +21,9 @@ export default function ControlProyectosReporteNav({ active }) {
       </Link>
       <Link to="/control-proyectos/reporte/actividades" className={active === 'actividades' ? activeCls : idleCls}>
         Actividades
+      </Link>
+      <Link to="/control-proyectos/reporte/locadores" className={active === 'locadores' ? activeCls : idleCls}>
+        Flujo locadores
       </Link>
     </div>
   );

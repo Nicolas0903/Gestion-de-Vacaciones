@@ -24,6 +24,10 @@ router.put('/actividades/:id', ctrl.actualizarActividad);
 
 router.get('/reporte/actividades/pdf', ctrl.reporteActividadesPdfCp);
 
+router.get('/actividades-aprobacion/pendientes', ctrl.listarPendientesAprobacionActividades);
+router.post('/actividades-aprobacion/:id/aprobar', ctrl.aprobarActividadBolsaHoras);
+router.post('/actividades-aprobacion/:id/rechazar', ctrl.rechazarActividadBolsaHoras);
+
 router.get('/reporte', ctrl.reporteDashboard);
 router.get('/reporte/proyectos-bi', ctrl.reporteProyectosVistaBi);
 router.get('/costo-hora', verificarRol('admin'), ctrl.listarCostosHora);

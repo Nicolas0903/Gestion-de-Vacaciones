@@ -384,17 +384,21 @@ class ControlProyecto {
     estado,
     comentarios,
     situacion_pago,
-    horas_trabajadas
+    horas_trabajadas,
+    estado_aprobacion = 'no_aplica'
   }) {
     const ht = horas_trabajadas ?? horasDesdeDatetime(fecha_hora_inicio, fecha_hora_fin);
     if (ht == null || ht < 0) {
       throw new Error('Horas trabajadas inválidas');
     }
+    const estApr = ['no_aplica', 'pendiente', 'aprobada', 'rechazada'].includes(estado_aprobacion)
+      ? estado_aprobacion
+      : 'no_aplica';
     const [r] = await pool.execute(
       `INSERT INTO cp_actividades
        (proyecto_id, requerido_por, requerido_por_otros, consultor_asignado_id, descripcion_actividad, prioridad,
-        fecha_hora_inicio, fecha_hora_fin, horas_trabajadas, estado, comentarios, situacion_pago)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        fecha_hora_inicio, fecha_hora_fin, horas_trabajadas, estado, comentarios, situacion_pago, estado_aprobacion)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         proyecto_id,
         requerido_por,
@@ -407,7 +411,8 @@ class ControlProyecto {
         ht,
         estado,
         comentarios || null,
-        situacion_pago
+        situacion_pago,
+        estApr
       ]
     );
     return r.insertId;
@@ -673,7 +678,9 @@ class ControlProyecto {
     fechaFinHasta,
     fechaSubidaDesde = null,
     fechaSubidaHasta = null,
-    consultorEmpleadoId: consultorRaw
+    consultorEmpleadoId: consultorRaw,
+    estadoAprobacion = null,
+    soloFlujoLocadores = false
   }) {
     const scope = verTodo ? 1 : 0;
     const emp = empleadoId;
@@ -731,12 +738,24 @@ class ControlProyecto {
       filtroSubidaSql = ' AND DATE(a.created_at) BETWEEN ? AND ?';
     }
 
+    let filtroAprobacionSql = '';
+    const estAprNorm =
+      estadoAprobacion && ['no_aplica', 'pendiente', 'aprobada', 'rechazada'].includes(String(estadoAprobacion))
+        ? String(estadoAprobacion)
+        : null;
+    if (soloFlujoLocadores) {
+      filtroAprobacionSql = " AND a.estado_aprobacion <> 'no_aplica'";
+    } else if (estAprNorm) {
+      filtroAprobacionSql = ' AND a.estado_aprobacion = ?';
+    }
+
     const condicionesActividades = `
       ${filtroProyecto}
       ${filtroExtraProySuffix}
       AND DATE(a.fecha_hora_fin) BETWEEN ? AND ?
       AND a.fecha_hora_fin IS NOT NULL
       ${filtroSubidaSql}
+      ${filtroAprobacionSql}
       ${clauseConsultorActs}
     `;
 
@@ -745,6 +764,9 @@ class ControlProyecto {
     const paramsActs = [...paramsBolsa, fechaFinDesde, fechaFinHasta];
     if (subidaDesdeNorm && subidaHastaNorm) {
       paramsActs.push(subidaDesdeNorm, subidaHastaNorm);
+    }
+    if (estAprNorm && !soloFlujoLocadores) {
+      paramsActs.push(estAprNorm);
     }
     if (!verTodo) {
       paramsActs.push(emp);
@@ -792,6 +814,10 @@ class ControlProyecto {
          a.fecha_hora_fin,
          CAST(a.horas_trabajadas AS DECIMAL(14, 4)) AS horas_trabajadas,
          a.estado AS estado_actividad,
+         a.estado_aprobacion,
+         a.comentario_aprobacion,
+         a.aprobado_at,
+         a.rechazado_at,
          a.created_at AS fecha_subida,
          CONCAT(TRIM(ec.nombres), ' ', TRIM(ec.apellidos)) AS consultor_nombre,
         LOWER(TRIM(ec.email)) AS consultor_email
@@ -837,7 +863,9 @@ class ControlProyecto {
         proyecto_id: proyectoIdSql,
         empresa: empresaNorm,
         consultor_empleado_id: consultorFiltro,
-        consultor_nombre: consultorNombreFiltro
+        consultor_nombre: consultorNombreFiltro,
+        estado_aprobacion: estAprNorm,
+        solo_flujo_locadores: soloFlujoLocadores
       },
       kpis: {
         horas_asignadas_total: bolsaTotal,

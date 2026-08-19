@@ -140,7 +140,8 @@ const crearEmpleado = async (req, res) => {
       rol_id,
       jefe_id,
       modulos_portal,
-      es_consultor_cp
+      es_consultor_cp,
+      requiere_aprobacion_horas
     } = req.body;
 
     const areaNormalizada = normalizarArea(area);
@@ -185,6 +186,10 @@ const crearEmpleado = async (req, res) => {
       esRolConsultor
         ? 1
         : 0;
+    const reqAprHoras =
+      requiere_aprobacion_horas === true || requiere_aprobacion_horas === 1 || requiere_aprobacion_horas === '1'
+        ? 1
+        : 0;
 
     let modulosJson = null;
     if (modulos_portal && typeof modulos_portal === 'object') {
@@ -205,7 +210,8 @@ const crearEmpleado = async (req, res) => {
       rol_id,
       jefe_id,
       modulos_portal: modulosJson,
-      es_consultor_cp: esConsultorCp
+      es_consultor_cp: esConsultorCp,
+      requiere_aprobacion_horas: reqAprHoras
     });
 
     await PeriodoVacaciones.generarPeriodos(nuevoId, fecha_ingreso);
@@ -315,7 +321,8 @@ const actualizarCuenta = async (req, res) => {
       'fecha_ingreso',
       'codigo_empleado',
       'rol_id',
-      'es_consultor_cp'
+      'es_consultor_cp',
+      'requiere_aprobacion_horas'
     ];
     const datos = {};
     for (const k of permitidos) {
@@ -335,6 +342,11 @@ const actualizarCuenta = async (req, res) => {
       if (k === 'es_consultor_cp') {
         const v = req.body[k];
         datos.es_consultor_cp = v === true || v === 1 || v === '1' ? 1 : 0;
+        continue;
+      }
+      if (k === 'requiere_aprobacion_horas') {
+        const v = req.body[k];
+        datos.requiere_aprobacion_horas = v === true || v === 1 || v === '1' ? 1 : 0;
         continue;
       }
       const v = req.body[k];

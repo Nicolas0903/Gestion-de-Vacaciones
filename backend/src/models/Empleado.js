@@ -25,7 +25,7 @@ class Empleado {
   static async crear(datos) {
     const {
       codigo_empleado, nombres, apellidos, dni, email, password,
-      cargo, area, fecha_ingreso, rol_id, jefe_id, modulos_portal, es_consultor_cp
+      cargo, area, fecha_ingreso, rol_id, jefe_id, modulos_portal, es_consultor_cp, requiere_aprobacion_horas
     } = datos;
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -34,11 +34,12 @@ class Empleado {
         ? JSON.stringify(modulos_portal)
         : null;
     const consultorCp = es_consultor_cp === 1 || es_consultor_cp === true ? 1 : 0;
+    const reqApr = requiere_aprobacion_horas === 1 || requiere_aprobacion_horas === true ? 1 : 0;
 
     const [result] = await pool.execute(
       `INSERT INTO empleados 
-       (codigo_empleado, nombres, apellidos, dni, email, password, cargo, area, fecha_ingreso, rol_id, jefe_id, modulos_portal, es_consultor_cp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (codigo_empleado, nombres, apellidos, dni, email, password, cargo, area, fecha_ingreso, rol_id, jefe_id, modulos_portal, es_consultor_cp, requiere_aprobacion_horas)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         codigo_empleado,
         nombres,
@@ -52,7 +53,8 @@ class Empleado {
         rol_id,
         jefe_id || null,
         modulosJson,
-        consultorCp
+        consultorCp,
+        reqApr
       ]
     );
 

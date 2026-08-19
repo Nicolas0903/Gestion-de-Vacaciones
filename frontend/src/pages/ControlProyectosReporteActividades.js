@@ -18,7 +18,21 @@ const REQUERIDO_POR_OPTS = [
   { value: 'juan_pena', label: 'Juan Peña' },
   { value: 'magali_sevillano', label: 'Magali Sevillano' },
   { value: 'enrique_agapito', label: 'Enrique Agapito' },
+  { value: 'luis_aguayo', label: 'Luis Aguayo' },
+  { value: 'stephanie_agapito', label: 'Stephanie Agapito' },
+  { value: 'jeff_pena', label: 'Jeff Peña' },
   { value: 'otros', label: 'Otros' }
+];
+
+const REQUERIDO_POR_FORM_OPTS = REQUERIDO_POR_OPTS.filter(
+  (o) => !['rodrigo_loayza', 'juan_pena'].includes(o.value)
+);
+
+const EST_APROB = [
+  { value: 'no_aplica', label: 'N/A' },
+  { value: 'pendiente', label: 'Pendiente' },
+  { value: 'aprobada', label: 'Aprobada' },
+  { value: 'rechazada', label: 'Rechazada' }
 ];
 
 const PRIOR = [
@@ -66,6 +80,7 @@ const ControlProyectosReporteActividades = () => {
   const [empresaSel, setEmpresaSel] = useState('Todas');
   const [consultorEmpId, setConsultorEmpId] = useState('');
   const [consultoresOpts, setConsultoresOpts] = useState([]);
+  const [estadoAprobacion, setEstadoAprobacion] = useState('');
 
   const cargar = useCallback(async () => {
     try {
@@ -81,6 +96,7 @@ const ControlProyectosReporteActividades = () => {
         params.fecha_subida_desde = subidaDesde;
         params.fecha_subida_hasta = subidaHasta;
       }
+      if (estadoAprobacion) params.estado_aprobacion = estadoAprobacion;
 
       const { data: res } = await controlProyectosService.reporteActividadesBi(params);
       if (res.success) setData(res.data);
@@ -90,7 +106,7 @@ const ControlProyectosReporteActividades = () => {
     } finally {
       setLoading(false);
     }
-  }, [finDesde, finHasta, subidaDesde, subidaHasta, proyectoId, empresaSel, gestor, consultorEmpId]);
+  }, [finDesde, finHasta, subidaDesde, subidaHasta, proyectoId, empresaSel, gestor, consultorEmpId, estadoAprobacion]);
 
   const exportarPdf = useCallback(async () => {
     setExportandoPdf(true);
@@ -133,7 +149,7 @@ const ControlProyectosReporteActividades = () => {
     } finally {
       setExportandoPdf(false);
     }
-  }, [finDesde, finHasta, subidaDesde, subidaHasta, proyectoId, empresaSel, gestor, consultorEmpId]);
+  }, [finDesde, finHasta, subidaDesde, subidaHasta, proyectoId, empresaSel, gestor, consultorEmpId, estadoAprobacion]);
 
   useEffect(() => {
     if (!gestor) {
@@ -178,6 +194,7 @@ const ControlProyectosReporteActividades = () => {
   const totalTablaHoras =
     Math.round(actividades.reduce((s, r) => s + (Number(r.horas_trabajadas) || 0), 0) * 100) / 100;
 
+  const labelEstApr = (v) => EST_APROB.find((x) => x.value === v)?.label || v || 'N/A';
   const labelReq = (a) => {
     if (a?.requerido_por === 'otros') {
       const t = String(a.requerido_por_otros || '').trim();
@@ -324,6 +341,21 @@ const ControlProyectosReporteActividades = () => {
                   />
                 </label>
               </fieldset>
+              <label className="flex flex-col text-xs font-medium text-slate-300 gap-1 min-w-[160px]">
+                Aprobación
+                <select
+                  value={estadoAprobacion}
+                  onChange={(e) => setEstadoAprobacion(e.target.value)}
+                  className="rounded-lg border-0 px-3 py-2 bg-white text-sm text-slate-900"
+                >
+                  <option value="">Todas</option>
+                  {EST_APROB.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 type="button"
                 onClick={() => cargar()}
@@ -393,12 +425,13 @@ const ControlProyectosReporteActividades = () => {
                 <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Fecha y hora de fin</th>
                 <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Fecha de subida</th>
                 <th className="px-3 py-3 text-left font-semibold">Estado</th>
+                <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Aprobación</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && !data ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
                     Cargando…
                   </td>
                 </tr>
@@ -422,6 +455,7 @@ const ControlProyectosReporteActividades = () => {
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap font-mono text-xs">{formatoDatetimeBolsaHoras(a.fecha_hora_fin)}</td>
                     <td className="px-3 py-2 text-slate-700 whitespace-nowrap font-mono text-xs">{formatoDatetimeBolsaHoras(a.fecha_subida)}</td>
                     <td className="px-3 py-2 text-slate-700">{labelEst(a.estado_actividad)}</td>
+                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{labelEstApr(a.estado_aprobacion)}</td>
                   </tr>
                 ))
               )}
@@ -432,7 +466,7 @@ const ControlProyectosReporteActividades = () => {
                   Total
                 </td>
                 <td className="px-3 py-3 text-right font-bold tabular-nums text-teal-900">{fmtNum(totalTablaHoras)}</td>
-                <td colSpan={3} />
+                <td colSpan={4} />
               </tr>
             </tfoot>
           </table>

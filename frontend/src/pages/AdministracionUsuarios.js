@@ -180,7 +180,8 @@ export default function AdministracionUsuarios() {
     fecha_ingreso: '',
     codigo_empleado: '',
     rol_id: '',
-    es_consultor_cp: false
+    es_consultor_cp: false,
+    requiere_aprobacion_horas: false
   });
   const [roles, setRoles] = useState([]);
   const [formAlta, setFormAlta] = useState({
@@ -194,7 +195,8 @@ export default function AdministracionUsuarios() {
     area: '',
     fecha_ingreso: '',
     rol_id: '',
-    es_consultor_cp: false
+    es_consultor_cp: false,
+    requiere_aprobacion_horas: false
   });
   const [codigosCatalogoAlta, setCodigosCatalogoAlta] = useState([]);
   const ultimoCodigoSugeridoAltaRef = useRef('');
@@ -315,7 +317,8 @@ export default function AdministracionUsuarios() {
         fecha_ingreso: (empleado.fecha_ingreso || '').slice(0, 10),
         codigo_empleado: empleado.codigo_empleado || '',
         rol_id: empleado.rol_id != null ? String(empleado.rol_id) : '',
-        es_consultor_cp: !!empleado.es_consultor_cp
+        es_consultor_cp: !!empleado.es_consultor_cp,
+        requiere_aprobacion_horas: !!empleado.requiere_aprobacion_horas
       });
     } catch (e) {
       toast.error(e.response?.data?.mensaje || 'No se pudo cargar el usuario');
@@ -511,7 +514,8 @@ export default function AdministracionUsuarios() {
         fecha_ingreso: formCuenta.fecha_ingreso,
         codigo_empleado: formCuenta.codigo_empleado,
         rol_id: formCuenta.rol_id ? parseInt(formCuenta.rol_id, 10) : undefined,
-        es_consultor_cp: formCuenta.es_consultor_cp
+        es_consultor_cp: formCuenta.es_consultor_cp,
+        requiere_aprobacion_horas: formCuenta.requiere_aprobacion_horas
       });
       toast.success('Cuenta actualizada');
       const res = await adminPortalUsuariosService.obtener(detalle.empleado.id);
@@ -555,7 +559,8 @@ export default function AdministracionUsuarios() {
         es_consultor_cp:
           formAlta.es_consultor_cp ||
           esTextoCargoConsultor(formAlta.cargo) ||
-          esRolConsultor(formAlta.rol_id, roles)
+          esRolConsultor(formAlta.rol_id, roles),
+        requiere_aprobacion_horas: formAlta.requiere_aprobacion_horas
       };
       await adminPortalUsuariosService.crear(body);
       toast.success('Usuario creado. Recuerda copiar y enviar la contraseña inicial al colaborador.');
@@ -573,7 +578,8 @@ export default function AdministracionUsuarios() {
         area: '',
         fecha_ingreso: '',
         rol_id: '',
-        es_consultor_cp: false
+        es_consultor_cp: false,
+        requiere_aprobacion_horas: false
       });
       cargarLista();
     } catch (err) {
@@ -619,7 +625,8 @@ export default function AdministracionUsuarios() {
       area: '',
       fecha_ingreso: '',
       rol_id: '',
-      es_consultor_cp: false
+      es_consultor_cp: false,
+      requiere_aprobacion_horas: false
     });
     setModalAlta(true);
   };
@@ -1048,6 +1055,22 @@ export default function AdministracionUsuarios() {
                       </span>
                     </span>
                   </label>
+                  <label className="flex gap-3 items-start p-3 rounded-lg border border-white/10 bg-[#1c1b1a] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formCuenta.requiere_aprobacion_horas}
+                      onChange={(e) =>
+                        setFormCuenta((f) => ({ ...f, requiere_aprobacion_horas: e.target.checked }))
+                      }
+                      className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500"
+                    />
+                    <span>
+                      <span className="font-medium text-gray-200 block">Locador — requiere aprobación de horas</span>
+                      <span className="text-xs text-gray-400 block mt-0.5">
+                        Si está activo, sus actividades nuevas entran al flujo de aprobación según «Requerido por».
+                      </span>
+                    </span>
+                  </label>
                   <div>
                     <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
                       Estado
@@ -1454,6 +1477,22 @@ export default function AdministracionUsuarios() {
                   <span className="font-medium text-gray-200 block">Consultor en control de proyectos</span>
                   <span className="text-xs text-gray-400 block mt-0.5">
                     Se activa automáticamente si el cargo es Consultor o el rol es consultor.
+                  </span>
+                </span>
+              </label>
+              <label className="flex gap-3 items-start p-3 rounded-lg border border-white/10 bg-[#1c1b1a] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formAlta.requiere_aprobacion_horas}
+                  onChange={(e) =>
+                    setFormAlta((f) => ({ ...f, requiere_aprobacion_horas: e.target.checked }))
+                  }
+                  className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500"
+                />
+                <span>
+                  <span className="font-medium text-gray-200 block">Locador — requiere aprobación de horas</span>
+                  <span className="text-xs text-gray-400 block mt-0.5">
+                    Actividades nuevas con aprobador activo en «Requerido por» quedarán pendientes.
                   </span>
                 </span>
               </label>

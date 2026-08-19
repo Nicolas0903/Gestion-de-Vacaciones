@@ -38,6 +38,7 @@ import ControlProyectos from './pages/ControlProyectos';
 import ControlProyectosReporte from './pages/ControlProyectosReporte';
 import ControlProyectosReporteProyectos from './pages/ControlProyectosReporteProyectos';
 import ControlProyectosReporteActividades from './pages/ControlProyectosReporteActividades';
+import ControlProyectosReporteLocadores from './pages/ControlProyectosReporteLocadores';
 import AdminCostoHoraProyectos from './pages/AdminCostoHoraProyectos';
 import AdministracionUsuarios from './pages/AdministracionUsuarios';
 import Proveedores from './pages/Proveedores';
@@ -319,6 +320,14 @@ function AppRoutes() {
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
             <PageWrapper wide><ControlProyectosReporteActividades /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/control-proyectos/reporte/locadores" element={
+        <ProtectedRoute>
+          <ModuloPortalRoute moduloId="control-proyectos">
+            <PageWrapper wide><ControlProyectosReporteLocadores /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

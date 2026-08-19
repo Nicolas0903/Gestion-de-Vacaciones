@@ -13,8 +13,29 @@ const REQUERIDO_POR_OPTS = [
   { value: 'juan_pena', label: 'Juan Peña' },
   { value: 'magali_sevillano', label: 'Magali Sevillano' },
   { value: 'enrique_agapito', label: 'Enrique Agapito' },
+  { value: 'luis_aguayo', label: 'Luis Aguayo' },
+  { value: 'stephanie_agapito', label: 'Stephanie Agapito' },
+  { value: 'jeff_pena', label: 'Jeff Peña' },
   { value: 'otros', label: 'Otros' }
 ];
+
+const REQUERIDO_POR_FORM_OPTS = REQUERIDO_POR_OPTS.filter(
+  (o) => !['rodrigo_loayza', 'juan_pena'].includes(o.value)
+);
+
+const EST_APROB_BADGE = {
+  no_aplica: 'bg-slate-100 text-slate-600',
+  pendiente: 'bg-amber-100 text-amber-800',
+  aprobada: 'bg-emerald-100 text-emerald-800',
+  rechazada: 'bg-red-100 text-red-800'
+};
+
+const EST_APROB_LABEL = {
+  no_aplica: 'N/A',
+  pendiente: 'Pendiente',
+  aprobada: 'Aprobada',
+  rechazada: 'Rechazada'
+};
 
 const EST_PROY = [
   { value: 'finalizado', label: 'Finalizado' },
@@ -102,9 +123,14 @@ const ControlProyectos = () => {
   const [filtroConsultor, setFiltroConsultor] = useState('');
   const [proyectoEditId, setProyectoEditId] = useState(null);
   const [actividadEditId, setActividadEditId] = useState(null);
+  const [actividadEditMeta, setActividadEditMeta] = useState(null);
   const [proyForm, setProyForm] = useState(proyectoVacio);
   const [actForm, setActForm] = useState(actividadVacia);
   const [filtroProyectoAct, setFiltroProyectoAct] = useState('');
+  const [pendientesAprobacion, setPendientesAprobacion] = useState([]);
+  const [rechazoId, setRechazoId] = useState(null);
+  const [rechazoComentario, setRechazoComentario] = useState('');
+  const [procesandoAprobacion, setProcesandoAprobacion] = useState(false);
   const nombreUsuario = `${usuario?.nombres || ''} ${usuario?.apellidos || ''}`.trim();
   const [empleadosEncargado, setEmpleadosEncargado] = useState([]);
 
@@ -136,6 +162,15 @@ const ControlProyectos = () => {
     setActividades(data.data || []);
   }, [filtroProyectoAct]);
 
+  const cargarPendientesAprobacion = useCallback(async () => {
+    try {
+      const { data } = await controlProyectosService.listarPendientesAprobacionActividades();
+      setPendientesAprobacion(data.data || []);
+    } catch {
+      setPendientesAprobacion([]);
+    }
+  }, []);
+
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -157,6 +192,20 @@ const ControlProyectos = () => {
   useEffect(() => {
     if (!puedeProy && tab === 'proyectos') setTab('actividades');
   }, [puedeProy, tab]);
+
+  useEffect(() => {
+    cargarPendientesAprobacion();
+  }, [cargarPendientesAprobacion]);
+
+  const requeridoPorSelectOpts = useMemo(() => {
+    const base = [...REQUERIDO_POR_FORM_OPTS];
+    const cur = actForm.requerido_por;
+    if (cur && !base.some((o) => o.value === cur)) {
+      const leg = REQUERIDO_POR_OPTS.find((o) => o.value === cur);
+      if (leg) base.unshift(leg);
+    }
+    return base;
+  }, [actForm.requerido_por]);
 
   useEffect(() => {
     let cancel = false;
@@ -376,7 +425,9 @@ const ControlProyectos = () => {
       }
       setActForm(actividadVacia());
       setActividadEditId(null);
+      setActividadEditMeta(null);
       await cargarActividades();
+      await cargarPendientesAprobacion();
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al guardar actividad');
     }
@@ -426,6 +477,10 @@ const ControlProyectos = () => {
 
   const abrirEditActividad = (a) => {
     setActividadEditId(a.id);
+    setActividadEditMeta({
+      estado_aprobacion: a.estado_aprobacion,
+      comentario_aprobacion: a.comentario_aprobacion
+    });
     const fhiLocal = datetimeBolsaHorasALocalInput(a.fecha_hora_inicio);
     const fhfLocal = datetimeBolsaHorasALocalInput(a.fecha_hora_fin);
 
@@ -467,6 +522,52 @@ const ControlProyectos = () => {
     }
     return REQUERIDO_POR_OPTS.find((x) => x.value === a.requerido_por)?.label || a.requerido_por;
   }, []);
+
+  const badgeAprobacion = (est) => {
+    const k = est || 'no_aplica';
+    const cls = EST_APROB_BADGE[k] || EST_APROB_BADGE.no_aplica;
+    const lbl = EST_APROB_LABEL[k] || k;
+    return (
+      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cls}`}>
+        {lbl}
+      </span>
+    );
+  };
+
+  const aprobarPendiente = async (id) => {
+    setProcesandoAprobacion(true);
+    try {
+      const { data } = await controlProyectosService.aprobarActividadBolsaHoras(id);
+      if (data.success) {
+        toast.success('Actividad aprobada.');
+        await cargarPendientesAprobacion();
+        await cargarActividades();
+      } else toast.error(data.mensaje || 'No se pudo aprobar.');
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'Error al aprobar.');
+    } finally {
+      setProcesandoAprobacion(false);
+    }
+  };
+
+  const confirmarRechazo = async () => {
+    if (!rechazoId) return;
+    setProcesandoAprobacion(true);
+    try {
+      const { data } = await controlProyectosService.rechazarActividadBolsaHoras(rechazoId, rechazoComentario);
+      if (data.success) {
+        toast.success('Actividad rechazada.');
+        setRechazoId(null);
+        setRechazoComentario('');
+        await cargarPendientesAprobacion();
+        await cargarActividades();
+      } else toast.error(data.mensaje || 'No se pudo rechazar.');
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'Error al rechazar.');
+    } finally {
+      setProcesandoAprobacion(false);
+    }
+  };
   const labelEstProy = useCallback((key) => EST_PROY.find((x) => x.value === key)?.label || key, []);
 
   return (
@@ -528,6 +629,15 @@ const ControlProyectos = () => {
           <ClockIcon className="w-4 h-4" />
           Actividades (registro de horas)
         </button>
+        {pendientesAprobacion.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setTab('aprobaciones')}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${tab === 'aprobaciones' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'}`}
+          >
+            Pendientes ({pendientesAprobacion.length})
+          </button>
+        )}
       </div>
 
       {cargando ? (
@@ -777,6 +887,19 @@ const ControlProyectos = () => {
                 <h2 className="text-lg font-semibold text-slate-800">
                   {actividadEditId ? `Editar actividad #${actividadEditId}` : 'Registro de horas'}
                 </h2>
+                {actividadEditMeta?.estado_aprobacion === 'rechazada' && (
+                  <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+                    <strong>Rechazada.</strong>{' '}
+                    {actividadEditMeta.comentario_aprobacion
+                      ? actividadEditMeta.comentario_aprobacion
+                      : 'Corrija y guarde para reenviar a aprobación.'}
+                  </div>
+                )}
+                {actividadEditMeta?.estado_aprobacion === 'pendiente' && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
+                    Pendiente de aprobación por el responsable indicado en «Requerido por».
+                  </div>
+                )}
                 <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-sm">
                   <span className="text-slate-500">Consultor (usted): </span>
                   <strong className="text-slate-800">{nombreUsuario || usuario?.email}</strong>
@@ -869,7 +992,7 @@ const ControlProyectos = () => {
                         }));
                       }}
                     >
-                      {REQUERIDO_POR_OPTS.map((o) => (
+                      {requeridoPorSelectOpts.map((o) => (
                         <option key={o.value} value={o.value}>
                           {o.label}
                         </option>
@@ -1067,6 +1190,7 @@ const ControlProyectos = () => {
                       onClick={() => {
                         setActividadEditId(null);
                         setActForm(actividadVacia());
+                        setActividadEditMeta(null);
                       }}
                       className="rounded-xl border border-slate-200 px-6 py-2 text-sm font-medium"
                     >
@@ -1107,6 +1231,7 @@ const ControlProyectos = () => {
                           <th className="px-4 py-2 text-left whitespace-nowrap">Inicio–Fin</th>
                           <th className="px-4 py-2 text-right">Hrs</th>
                           <th className="px-4 py-2 text-left">Estado</th>
+                          <th className="px-4 py-2 text-left">Aprobación</th>
                           {esAdmin() && <th className="px-4 py-2 text-left">Pago</th>}
                           <th className="px-4 py-2 text-left">Acción</th>
                         </tr>
@@ -1127,6 +1252,7 @@ const ControlProyectos = () => {
                             </td>
                             <td className="px-4 py-2 text-right tabular-nums">{Number(a.horas_trabajadas).toFixed(2)}</td>
                             <td className="px-4 py-2">{EST_ACT.find((x) => x.value === a.estado)?.label}</td>
+                            <td className="px-4 py-2">{badgeAprobacion(a.estado_aprobacion)}</td>
                             {esAdmin() && (
                               <td className="px-4 py-2">{SIT_PAGO.find((x) => x.value === a.situacion_pago)?.label}</td>
                             )}
@@ -1146,6 +1272,111 @@ const ControlProyectos = () => {
                   </div>
                 )}
               </div>
+            </>
+          )}
+
+          {tab === 'aprobaciones' && (
+            <>
+              <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden mb-8">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="text-lg font-semibold text-slate-800">Pendientes de aprobación</h2>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Actividades de locadores que requieren tu visto bueno. También puedes usar los enlaces del correo.
+                  </p>
+                </div>
+                {pendientesAprobacion.length === 0 ? (
+                  <p className="p-6 text-sm text-slate-500">No hay pendientes.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-amber-50 text-slate-600">
+                        <tr>
+                          <th className="px-4 py-2 text-left">ID</th>
+                          <th className="px-4 py-2 text-left">Consultor</th>
+                          <th className="px-4 py-2 text-left">Proyecto</th>
+                          <th className="px-4 py-2 text-left">Descripción</th>
+                          <th className="px-4 py-2 text-right">Hrs</th>
+                          <th className="px-4 py-2 text-left">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {pendientesAprobacion.map((a) => (
+                          <tr key={a.id}>
+                            <td className="px-4 py-2 font-mono text-xs">#{a.id}</td>
+                            <td className="px-4 py-2">{a.consultor_nombre}</td>
+                            <td className="px-4 py-2">
+                              <div className="font-medium">{a.proyecto_nombre}</div>
+                              <div className="text-xs text-slate-500">{a.empresa_nombre}</div>
+                            </td>
+                            <td className="px-4 py-2 max-w-[240px] truncate" title={a.descripcion_actividad}>
+                              {a.descripcion_actividad}
+                            </td>
+                            <td className="px-4 py-2 text-right tabular-nums">{Number(a.horas_trabajadas).toFixed(2)}</td>
+                            <td className="px-4 py-2 whitespace-nowrap space-x-2">
+                              <button
+                                type="button"
+                                disabled={procesandoAprobacion}
+                                onClick={() => aprobarPendiente(a.id)}
+                                className="text-emerald-700 text-xs font-semibold hover:underline disabled:opacity-50"
+                              >
+                                Aprobar
+                              </button>
+                              <button
+                                type="button"
+                                disabled={procesandoAprobacion}
+                                onClick={() => {
+                                  setRechazoId(a.id);
+                                  setRechazoComentario('');
+                                }}
+                                className="text-red-600 text-xs font-semibold hover:underline disabled:opacity-50"
+                              >
+                                Rechazar
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {rechazoId != null && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                  <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+                    <h3 className="text-lg font-semibold text-slate-800">Rechazar actividad #{rechazoId}</h3>
+                    <label className="block text-xs font-medium text-slate-600">
+                      Comentario para el locador (opcional)
+                      <textarea
+                        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm min-h-[80px]"
+                        value={rechazoComentario}
+                        onChange={(e) => setRechazoComentario(e.target.value)}
+                        maxLength={500}
+                      />
+                    </label>
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        type="button"
+                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm"
+                        onClick={() => {
+                          setRechazoId(null);
+                          setRechazoComentario('');
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={procesandoAprobacion}
+                        onClick={() => confirmarRechazo()}
+                        className="rounded-xl bg-red-600 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+                      >
+                        Confirmar rechazo
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </>

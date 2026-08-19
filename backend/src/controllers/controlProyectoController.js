@@ -3,6 +3,11 @@ const { ccReporteBolsaHorasEncargado } = require('../config/bolsaHorasEmails');
 const BolsaHorasAvisoPendiente = require('../models/BolsaHorasAvisoPendiente');
 const PDFService = require('../services/pdfService');
 const emailService = require('../services/emailService');
+const bolsaHorasAprobacionService = require('../services/bolsaHorasAprobacionService');
+const {
+  REQUERIDO_POR_LABELS,
+  REQUERIDO_POR_OPCIONES_NUEVAS
+} = require('../config/bolsaHorasAprobacion');
 
 /** Emails con acceso completo a bolsa de horas (reportes y gestión). Por defecto: asistente + Rocío. */
 function emailsGestionProyectosBolsaHoras() {
@@ -28,6 +33,9 @@ const REQUERIDO_POR = new Set([
   'juan_pena',
   'magali_sevillano',
   'enrique_agapito',
+  'luis_aguayo',
+  'stephanie_agapito',
+  'jeff_pena',
   'otros'
 ]);
 
@@ -222,7 +230,23 @@ function parseQueryReporteActividades(req) {
     subidaHasta = null;
   }
 
-  return { desde, hasta, proyectoId, empresaTrim, consultorEmpleadoId, subidaDesde, subidaHasta };
+  return {
+    desde,
+    hasta,
+    proyectoId,
+    empresaTrim,
+    consultorEmpleadoId,
+    subidaDesde,
+    subidaHasta,
+    estadoAprobacion: parseEstadoAprobacionQuery(req)
+  };
+}
+
+function parseEstadoAprobacionQuery(req) {
+  const raw = req.query.estado_aprobacion;
+  if (raw == null || String(raw).trim() === '') return null;
+  const v = String(raw).trim();
+  return ['no_aplica', 'pendiente', 'aprobada', 'rechazada'].includes(v) ? v : null;
 }
 
 function formatoFechaReporteDdMmYyyy(ymd) {
@@ -551,6 +575,11 @@ const crearActividad = async (req, res) => {
       horasCalculadasOpcional = h;
     }
 
+    const flujoCreacion = await bolsaHorasAprobacionService.evaluarFlujoAlCrear({
+      consultor_asignado_id,
+      requerido_por
+    });
+
     const id = await ControlProyecto.crearActividad({
       proyecto_id: pid,
       requerido_por,
@@ -563,9 +592,13 @@ const crearActividad = async (req, res) => {
       estado: estadoVal,
       comentarios: comentarios != null ? String(comentarios) : null,
       situacion_pago: sitVal,
-      horas_trabajadas: horasCalculadasOpcional
+      horas_trabajadas: horasCalculadasOpcional,
+      estado_aprobacion: flujoCreacion.estado
     });
-    const row = await ControlProyecto.obtenerActividad(id);
+    let row = await ControlProyecto.obtenerActividad(id);
+    if (flujoCreacion.aplica) {
+      void bolsaHorasAprobacionService.notificarAprobadorPendiente(row, { modo: 'creada' });
+    }
     const proyectoCompleto = await ControlProyecto.obtenerProyecto(pid);
     void intentarCorreoEncargadoPorActividad({
       proyecto: proyectoCompleto,
@@ -593,6 +626,13 @@ const actualizarActividad = async (req, res) => {
     }
 
     const patch = { ...req.body };
+    delete patch.estado_aprobacion;
+    delete patch.aprobado_por_empleado_id;
+    delete patch.aprobado_at;
+    delete patch.rechazado_at;
+    delete patch.comentario_aprobacion;
+
+    const flujoUpdate = await bolsaHorasAprobacionService.evaluarFlujoAlActualizar(prev, patch);
 
     const mergedReqRaw =
       patch.requerido_por !== undefined && patch.requerido_por !== null ? String(patch.requerido_por).trim() : null;
@@ -688,9 +728,21 @@ const actualizarActividad = async (req, res) => {
     const ok = await ControlProyecto.actualizarActividad(id, patch, { permiteCambiarConsultor: gestor });
     if (!ok) return res.status(400).json({ success: false, mensaje: 'No se actualizó la actividad.' });
 
+    const estPrev = prev.estado_aprobacion || 'no_aplica';
+    if (flujoUpdate.estado !== estPrev || flujoUpdate.limpiarAprobacion) {
+      await bolsaHorasAprobacionService.aplicarEstadoAprobacion(id, flujoUpdate.estado, {
+        limpiarAprobacion: flujoUpdate.limpiarAprobacion
+      });
+    }
+
     /* Recalcular proyecto si cambió horas/fechas desde modelo actualizar ya recalcula */
 
-    const row = await ControlProyecto.obtenerActividad(id);
+    let row = await ControlProyecto.obtenerActividad(id);
+    if (flujoUpdate.notificar) {
+      const modoNotif =
+        estPrev === 'rechazada' ? 'reenviada' : estPrev === 'aprobada' ? 'actualizada' : 'actualizada';
+      void bolsaHorasAprobacionService.notificarAprobadorPendiente(row, { modo: modoNotif });
+    }
     const proyectoCompleto = await ControlProyecto.obtenerProyecto(row.proyecto_id);
     void intentarCorreoEncargadoPorActividad({
       proyecto: proyectoCompleto,
@@ -764,7 +816,8 @@ const reporteActividadesCp = async (req, res) => {
       empresaTrim,
       consultorEmpleadoId,
       subidaDesde,
-      subidaHasta
+      subidaHasta,
+      estadoAprobacion
     } = parseQueryReporteActividades(req);
 
     const verTodo = puedeGestionProyectos(req.usuario);
@@ -778,7 +831,8 @@ const reporteActividadesCp = async (req, res) => {
       fechaFinHasta: hasta,
       fechaSubidaDesde: subidaDesde,
       fechaSubidaHasta: subidaHasta,
-      consultorEmpleadoId: consultorFiltrado
+      consultorEmpleadoId: consultorFiltrado,
+      estadoAprobacion
     });
     res.json({ success: true, data });
   } catch (e) {
@@ -796,7 +850,7 @@ const reporteActividadesCp = async (req, res) => {
 
 const reporteActividadesPdfCp = async (req, res) => {
   try {
-    const { desde, hasta, proyectoId, empresaTrim, consultorEmpleadoId, subidaDesde, subidaHasta } =
+    const { desde, hasta, proyectoId, empresaTrim, consultorEmpleadoId, subidaDesde, subidaHasta, estadoAprobacion } =
       parseQueryReporteActividades(req);
 
     const verTodo = puedeGestionProyectos(req.usuario);
@@ -810,7 +864,8 @@ const reporteActividadesPdfCp = async (req, res) => {
       fechaFinHasta: hasta,
       fechaSubidaDesde: subidaDesde,
       fechaSubidaHasta: subidaHasta,
-      consultorEmpleadoId: consultorFiltrado
+      consultorEmpleadoId: consultorFiltrado,
+      estadoAprobacion
     });
 
     let proyectoFiltroLabel = 'Todas';
@@ -875,7 +930,95 @@ const reporteDashboard = async (req, res) => {
   if (vista === 'actividades') {
     return reporteActividadesCp(req, res);
   }
+  if (vista === 'actividades-locadores') {
+    return reporteActividadesLocadoresCp(req, res);
+  }
   return responderReporteCp(req, res, 'resumen');
+};
+
+const reporteActividadesLocadoresCp = async (req, res) => {
+  try {
+    const {
+      desde,
+      hasta,
+      proyectoId: proyectoIdFinal,
+      empresaTrim,
+      consultorEmpleadoId,
+      subidaDesde,
+      subidaHasta,
+      estadoAprobacion
+    } = parseQueryReporteActividades(req);
+
+    const verTodo = puedeGestionProyectos(req.usuario);
+    const consultorFiltrado = verTodo ? consultorEmpleadoId : null;
+    const data = await ControlProyecto.reporteActividadesVistaBi({
+      verTodo,
+      empleadoId: req.usuario.id,
+      proyectoId: proyectoIdFinal,
+      empresa: empresaTrim === '' ? null : empresaTrim,
+      fechaFinDesde: desde,
+      fechaFinHasta: hasta,
+      fechaSubidaDesde: subidaDesde,
+      fechaSubidaHasta: subidaHasta,
+      consultorEmpleadoId: consultorFiltrado,
+      estadoAprobacion,
+      soloFlujoLocadores: true
+    });
+    res.json({ success: true, data });
+  } catch (e) {
+    console.error(e);
+    if (sqlMissing(e.sqlMessage || e.message)) {
+      return res.status(503).json({
+        success: false,
+        mensaje:
+          'Falta crear o actualizar las tablas de Control de Proyectos (incl. cp_actividades_aprobacion). Ver backend/sql/'
+      });
+    }
+    res.status(500).json({ success: false, mensaje: 'Error al generar el reporte de actividades (locadores).' });
+  }
+};
+
+const listarPendientesAprobacionActividades = async (req, res) => {
+  try {
+    const rows = await bolsaHorasAprobacionService.listarPendientesParaUsuario(req.usuario);
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al listar pendientes de aprobación.' });
+  }
+};
+
+const aprobarActividadBolsaHoras = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ success: false, mensaje: 'Id no válido.' });
+    }
+    const r = await bolsaHorasAprobacionService.aprobarActividad(id, req.usuario.id);
+    if (!r.ok) return res.status(400).json({ success: false, mensaje: r.mensaje });
+    const row = await ControlProyecto.obtenerActividad(id);
+    res.json({ success: true, data: row });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al aprobar actividad.' });
+  }
+};
+
+const rechazarActividadBolsaHoras = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ success: false, mensaje: 'Id no válido.' });
+    }
+    const comentario = req.body?.comentario ?? req.body?.motivo ?? null;
+    const r = await bolsaHorasAprobacionService.rechazarActividad(id, req.usuario.id, comentario);
+    if (!r.ok) return res.status(400).json({ success: false, mensaje: r.mensaje });
+    const row = await ControlProyecto.obtenerActividad(id);
+    res.json({ success: true, data: row });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al rechazar actividad.' });
+  }
 };
 
 /** Alias explícito (misma respuesta que /reporte?vista=proyectos). */
@@ -897,11 +1040,18 @@ module.exports = {
   reporteDashboard,
   reporteProyectosVistaBi,
   reporteActividadesPdfCp,
+  reporteActividadesLocadoresCp,
+  listarPendientesAprobacionActividades,
+  aprobarActividadBolsaHoras,
+  rechazarActividadBolsaHoras,
   EMAIL_VERONICA_CP,
   emailsGestionProyectosBolsaHoras,
   etiquetasCatalogo: () => ({
     estados_proyecto: [...ESTADOS_PROYECTO],
     requerido_por: [...REQUERIDO_POR],
+    requerido_por_opciones_nuevas: [...REQUERIDO_POR_OPCIONES_NUEVAS],
+    requerido_por_labels: REQUERIDO_POR_LABELS,
+    estados_aprobacion: ['no_aplica', 'pendiente', 'aprobada', 'rechazada'],
     prioridades: [...PRIORIDADES],
     estados_actividad: [...ESTADOS_ACT],
     situacion_pago: [...SIT_PAGO]

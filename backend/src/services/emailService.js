@@ -1835,6 +1835,76 @@ const enviarRespaldoArchivo = async ({
   }
 };
 
+const notificarAprobacionActividadBolsaHoras = async ({
+  aprobadorEmail,
+  aprobadorNombre,
+  modo = 'creada',
+  actividadId,
+  empresa,
+  proyectoNombre,
+  consultorNombre,
+  descripcionResumen,
+  horasTrabajadas,
+  urlAprobar,
+  urlRechazar
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Bolsa horas aprobación omitida');
+    return false;
+  }
+  if (!aprobadorEmail) return false;
+
+  const modoLabel =
+    modo === 'reenviada'
+      ? 'reenviada tras corrección'
+      : modo === 'actualizada'
+        ? 'actualizada'
+        : 'nueva';
+
+  const desc =
+    descripcionResumen != null ? String(descripcionResumen).trim().slice(0, 280) : '';
+  const horas =
+    horasTrabajadas != null && Number.isFinite(Number(horasTrabajadas))
+      ? Number(horasTrabajadas).toFixed(2)
+      : '—';
+
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(aprobadorNombre || 'Aprobador')}</strong>,</p>
+    <p>Hay una actividad <strong>${escapeHtml(modoLabel)}</strong> pendiente de tu aprobación (bolsa de horas).</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Registro</span><span class="info-value">#${escapeHtml(String(actividadId))}</span></div>
+      <div class="info-row"><span class="info-label">Consultor</span><span class="info-value">${escapeHtml(consultorNombre || '—')}</span></div>
+      <div class="info-row"><span class="info-label">Empresa</span><span class="info-value">${escapeHtml(empresa || '—')}</span></div>
+      <div class="info-row"><span class="info-label">Proyecto</span><span class="info-value">${escapeHtml(proyectoNombre || '—')}</span></div>
+      <div class="info-row"><span class="info-label">Horas</span><span class="info-value">${escapeHtml(horas)}</span></div>
+      <div class="info-row"><span class="info-label">Descripción</span><span class="info-value">${escapeHtml(desc || '—')}</span></div>
+    </div>
+    <p style="text-align:center; margin:24px 0 10px;"><strong>¿Aprobar o rechazar?</strong></p>
+    <center>
+      <table cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr>
+        <td style="padding:0 10px;"><a href="${urlAprobar}" style="display:inline-block;background:#10b981;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">APROBAR</a></td>
+        <td style="padding:0 10px;"><a href="${urlRechazar}" style="display:inline-block;background:#ef4444;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">RECHAZAR</a></td>
+      </tr></table>
+    </center>
+    <p style="font-size:12px;color:#64748b;margin-top:20px;text-align:center;">También puedes gestionar pendientes desde el portal → Bolsa de horas.</p>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('bolsaHoras'),
+      to: aprobadorEmail,
+      subject: `Aprobación de horas #${actividadId} — ${consultorNombre || 'locador'}`,
+      html: plantillaEmail(contenido, 'Aprobación de horas (locadores)', 'bolsaHoras')
+    });
+    console.log(`📧 Bolsa horas: correo de aprobación enviado a ${aprobadorEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email aprobación actividad bolsa horas:', error.message);
+    return false;
+  }
+};
+
 module.exports = {
   verificarConexion,
   notificarNuevaSolicitud,
@@ -1849,6 +1919,7 @@ module.exports = {
   notificarRegistroRechazado,
   notificarPermisoPendienteContadora,
   notificarActividadBolsaHorasEncargado,
+  notificarAprobacionActividadBolsaHoras,
   enviarReporteBolsaHorasEncargado,
   enviarReporteSemanalBolsaHorasEncargado,
   notificarNuevaSolicitudReembolsoAprobador,

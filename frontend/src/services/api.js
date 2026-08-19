@@ -395,6 +395,14 @@ export const controlProyectosService = {
   reporteProyectosVistaBi: () => api.get('/control-proyectos/reporte', { params: { vista: 'proyectos' } }),
   reporteActividadesBi: (params) =>
     api.get('/control-proyectos/reporte', { params: { vista: 'actividades', ...params } }),
+  reporteActividadesLocadoresBi: (params) =>
+    api.get('/control-proyectos/reporte', { params: { vista: 'actividades-locadores', ...params } }),
+  listarPendientesAprobacionActividades: () =>
+    api.get('/control-proyectos/actividades-aprobacion/pendientes'),
+  aprobarActividadBolsaHoras: (id) =>
+    api.post(`/control-proyectos/actividades-aprobacion/${id}/aprobar`),
+  rechazarActividadBolsaHoras: (id, comentario) =>
+    api.post(`/control-proyectos/actividades-aprobacion/${id}/rechazar`, { comentario }),
   reporteActividadesPdf: (params) =>
     api.get('/control-proyectos/reporte/actividades/pdf', { params, responseType: 'blob' }),
   listarCostosHora: () => api.get('/control-proyectos/costo-hora'),
