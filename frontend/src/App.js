@@ -40,6 +40,7 @@ import ControlProyectosReporteProyectos from './pages/ControlProyectosReportePro
 import ControlProyectosReporteActividades from './pages/ControlProyectosReporteActividades';
 import ControlProyectosReporteLocadores from './pages/ControlProyectosReporteLocadores';
 import AdminCostoHoraProyectos from './pages/AdminCostoHoraProyectos';
+import AdminLocadoresBolsaHoras from './pages/AdminLocadoresBolsaHoras';
 import AdministracionUsuarios from './pages/AdministracionUsuarios';
 import Proveedores from './pages/Proveedores';
 import ArchivoRespaldos from './pages/ArchivoRespaldos';
@@ -351,6 +352,12 @@ function AppRoutes() {
       <Route path="/admin/control-proyectos-costo-hora" element={
         <ProtectedRoute roles={['admin']}>
           <PageWrapper><AdminCostoHoraProyectos /></PageWrapper>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/admin/control-proyectos-locadores" element={
+        <ProtectedRoute roles={['admin']}>
+          <PageWrapper><AdminLocadoresBolsaHoras /></PageWrapper>
         </ProtectedRoute>
       } />
 

@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const TokenActividadAprobacion = require('../models/TokenActividadAprobacion');
+const ControlProyecto = require('../models/ControlProyecto');
 const emailService = require('./emailService');
 const {
   REQUERIDO_POR_APROBADOR_EMAIL,
@@ -161,6 +162,27 @@ async function rechazarActividad(actividadId, aprobadorEmpleadoId, comentario) {
     [com || null, actividadId]
   );
   await TokenActividadAprobacion.invalidarPorActividad(actividadId);
+
+  const actFull = await ControlProyecto.obtenerActividad(actividadId);
+  if (actFull) {
+    const aprobadorNombre = [aprobador.nombres, aprobador.apellidos].filter(Boolean).join(' ').trim();
+    void emailService
+      .notificarRechazoActividadBolsaHorasLocador({
+        locadorEmail: actFull.consultor_email,
+        locadorNombre: actFull.consultor_nombre,
+        aprobadorNombre,
+        actividadId,
+        empresa: actFull.empresa_nombre,
+        proyectoNombre: actFull.proyecto_nombre,
+        descripcionActividad: actFull.descripcion_actividad,
+        horasTrabajadas: actFull.horas_trabajadas,
+        fechaHoraInicio: actFull.fecha_hora_inicio,
+        fechaHoraFin: actFull.fecha_hora_fin,
+        comentarioRechazo: com
+      })
+      .catch((err) => console.error('Email rechazo locador bolsa horas:', err.message || err));
+  }
+
   return { ok: true };
 }
 

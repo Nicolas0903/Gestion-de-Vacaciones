@@ -407,7 +407,12 @@ export const controlProyectosService = {
     api.get('/control-proyectos/reporte/actividades/pdf', { params, responseType: 'blob' }),
   listarCostosHora: () => api.get('/control-proyectos/costo-hora'),
   guardarCostoHora: (empleadoId, costoPorHora) =>
-    api.put(`/control-proyectos/costo-hora/${empleadoId}`, { costo_por_hora: costoPorHora })
+    api.put(`/control-proyectos/costo-hora/${empleadoId}`, { costo_por_hora: costoPorHora }),
+  listarLocadoresBolsaHoras: () => api.get('/control-proyectos/locadores'),
+  actualizarLocadorBolsaHoras: (empleadoId, requiereAprobacionHoras) =>
+    api.put(`/control-proyectos/locadores/${empleadoId}`, {
+      requiere_aprobacion_horas: requiereAprobacionHoras
+    })
 };
 
 export default api;

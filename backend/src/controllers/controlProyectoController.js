@@ -1,4 +1,5 @@
 const ControlProyecto = require('../models/ControlProyecto');
+const { pool } = require('../config/database');
 const { ccReporteBolsaHorasEncargado } = require('../config/bolsaHorasEmails');
 const BolsaHorasAvisoPendiente = require('../models/BolsaHorasAvisoPendiente');
 const PDFService = require('../services/pdfService');
@@ -1024,6 +1025,61 @@ const rechazarActividadBolsaHoras = async (req, res) => {
 /** Alias explícito (misma respuesta que /reporte?vista=proyectos). */
 const reporteProyectosVistaBi = async (req, res) => responderReporteCp(req, res, 'proyectos');
 
+const listarLocadoresBolsaHoras = async (req, res) => {
+  try {
+    if (req.usuario.rol_nombre !== 'admin') {
+      return res.status(403).json({ success: false, mensaje: 'Solo administración puede gestionar locadores.' });
+    }
+    const [rows] = await pool.execute(
+      `SELECT e.id,
+              e.nombres,
+              e.apellidos,
+              e.email,
+              IFNULL(e.es_consultor_cp, 0) AS es_consultor_cp,
+              IFNULL(e.requiere_aprobacion_horas, 0) AS requiere_aprobacion_horas
+       FROM empleados e
+       WHERE e.activo = 1
+       ORDER BY e.apellidos ASC, e.nombres ASC`
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al listar locadores.' });
+  }
+};
+
+const actualizarLocadorBolsaHoras = async (req, res) => {
+  try {
+    if (req.usuario.rol_nombre !== 'admin') {
+      return res.status(403).json({ success: false, mensaje: 'Solo administración puede gestionar locadores.' });
+    }
+    const empleadoId = parseInt(req.params.empleadoId, 10);
+    if (!Number.isFinite(empleadoId) || empleadoId <= 0) {
+      return res.status(400).json({ success: false, mensaje: 'Empleado no válido.' });
+    }
+    const raw = req.body?.requiere_aprobacion_horas;
+    const flag = raw === true || raw === 1 || raw === '1' ? 1 : 0;
+    const [r] = await pool.execute(
+      `UPDATE empleados SET requiere_aprobacion_horas = ? WHERE id = ? AND activo = 1`,
+      [flag, empleadoId]
+    );
+    if (!r.affectedRows) {
+      return res.status(404).json({ success: false, mensaje: 'Empleado no encontrado o inactivo.' });
+    }
+    const [rows] = await pool.execute(
+      `SELECT id, nombres, apellidos, email,
+              IFNULL(es_consultor_cp, 0) AS es_consultor_cp,
+              IFNULL(requiere_aprobacion_horas, 0) AS requiere_aprobacion_horas
+       FROM empleados WHERE id = ? LIMIT 1`,
+      [empleadoId]
+    );
+    res.json({ success: true, data: rows[0] });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, mensaje: 'Error al actualizar locador.' });
+  }
+};
+
 module.exports = {
   puedeGestionProyectos,
   consultoresParaProyectos,
@@ -1044,6 +1100,8 @@ module.exports = {
   listarPendientesAprobacionActividades,
   aprobarActividadBolsaHoras,
   rechazarActividadBolsaHoras,
+  listarLocadoresBolsaHoras,
+  actualizarLocadorBolsaHoras,
   EMAIL_VERONICA_CP,
   emailsGestionProyectosBolsaHoras,
   etiquetasCatalogo: () => ({

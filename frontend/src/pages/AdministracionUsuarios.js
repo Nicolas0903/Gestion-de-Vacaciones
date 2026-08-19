@@ -532,7 +532,8 @@ export default function AdministracionUsuarios() {
         fecha_ingreso: (em.fecha_ingreso || '').slice(0, 10),
         codigo_empleado: em.codigo_empleado || '',
         rol_id: em.rol_id != null ? String(em.rol_id) : '',
-        es_consultor_cp: !!em.es_consultor_cp
+        es_consultor_cp: !!em.es_consultor_cp,
+        requiere_aprobacion_horas: !!em.requiere_aprobacion_horas
       });
       setModulosDraft(aplicarModulosEditorADraft(payload.modulos_editor));
       cargarLista();
@@ -769,6 +770,11 @@ export default function AdministracionUsuarios() {
                       </td>
                       <td className="px-3 py-3 text-white font-medium">
                         {row.nombres} {row.apellidos}
+                        {!!row.requiere_aprobacion_horas && (
+                          <span className="ml-2 text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-500/30">
+                            Locador
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-gray-300">{row.email}</td>
                       <td className="px-3 py-3 text-gray-300 max-w-xl">

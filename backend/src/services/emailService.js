@@ -6,6 +6,7 @@ const PDFService = require('./pdfService');
 const TokenAprobacion = require('../models/TokenAprobacion');
 const { calcularFechaEfectivaRegreso } = require('../utils/calcularDiasVacaciones');
 const { plantillaEmail, remitente } = require('./emailPlantillas');
+const { getPortalBaseUrl } = require('../config/frontendPublic');
 
 // URL base para los enlaces de aprobación
 const API_URL = process.env.API_URL || 'http://96.126.124.60:3002/api';
@@ -1905,6 +1906,78 @@ const notificarAprobacionActividadBolsaHoras = async ({
   }
 };
 
+const notificarRechazoActividadBolsaHorasLocador = async ({
+  locadorEmail,
+  locadorNombre,
+  aprobadorNombre,
+  actividadId,
+  empresa,
+  proyectoNombre,
+  descripcionActividad,
+  horasTrabajadas,
+  fechaHoraInicio,
+  fechaHoraFin,
+  comentarioRechazo
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Rechazo locador bolsa horas omitido');
+    return false;
+  }
+  if (!locadorEmail) return false;
+
+  const desc = descripcionActividad != null ? String(descripcionActividad).trim() : '';
+  const horas =
+    horasTrabajadas != null && Number.isFinite(Number(horasTrabajadas))
+      ? Number(horasTrabajadas).toFixed(2)
+      : '—';
+  const fmtDt = (v) => {
+    if (!v) return '—';
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return String(v).slice(0, 16);
+    return d.toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+  };
+  const comentario =
+    comentarioRechazo && String(comentarioRechazo).trim()
+      ? `<div class="info-row"><span class="info-label">Comentario del aprobador</span><span class="info-value">${escapeHtml(String(comentarioRechazo).trim())}</span></div>`
+      : '<p style="color:#64748b;font-size:13px;">No se indicó comentario adicional.</p>';
+
+  const urlActividades = `${getPortalBaseUrl()}/control-proyectos`;
+
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(locadorNombre || 'Locador')}</strong>,</p>
+    <p>Tu registro de horas <strong>#${escapeHtml(String(actividadId))}</strong> fue <span style="color:#dc2626;font-weight:bold;">RECHAZADO</span> por <strong>${escapeHtml(aprobadorNombre || 'el aprobador')}</strong>.</p>
+    <p>Revisa el detalle, corrige la actividad en Bolsa de horas y vuelve a guardar para reenviarla a aprobación.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Empresa</span><span class="info-value">${escapeHtml(empresa || '—')}</span></div>
+      <div class="info-row"><span class="info-label">Proyecto</span><span class="info-value">${escapeHtml(proyectoNombre || '—')}</span></div>
+      <div class="info-row"><span class="info-label">Horas</span><span class="info-value">${escapeHtml(horas)}</span></div>
+      <div class="info-row"><span class="info-label">Inicio</span><span class="info-value">${escapeHtml(fmtDt(fechaHoraInicio))}</span></div>
+      <div class="info-row"><span class="info-label">Fin</span><span class="info-value">${escapeHtml(fmtDt(fechaHoraFin))}</span></div>
+      <div class="info-row"><span class="info-label">Descripción</span><span class="info-value">${escapeHtml(desc || '—')}</span></div>
+      ${comentario}
+    </div>
+    <p style="text-align:center;margin:24px 0 10px;">
+      <a href="${urlActividades}" style="display:inline-block;background:#4f46e5;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;">IR A BOLSA DE HORAS</a>
+    </p>
+    <p style="font-size:12px;color:#64748b;text-align:center;">En Actividades, busca el registro #${escapeHtml(String(actividadId))}, edítalo y guarda los cambios.</p>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('bolsaHoras'),
+      to: locadorEmail,
+      subject: `Horas rechazadas #${actividadId} — ${proyectoNombre || 'Bolsa de horas'}`,
+      html: plantillaEmail(contenido, 'Registro de horas rechazado', 'bolsaHoras')
+    });
+    console.log(`📧 Bolsa horas: rechazo notificado al locador ${locadorEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email rechazo locador bolsa horas:', error.message);
+    return false;
+  }
+};
+
 module.exports = {
   verificarConexion,
   notificarNuevaSolicitud,
@@ -1920,6 +1993,7 @@ module.exports = {
   notificarPermisoPendienteContadora,
   notificarActividadBolsaHorasEncargado,
   notificarAprobacionActividadBolsaHoras,
+  notificarRechazoActividadBolsaHorasLocador,
   enviarReporteBolsaHorasEncargado,
   enviarReporteSemanalBolsaHorasEncargado,
   notificarNuevaSolicitudReembolsoAprobador,

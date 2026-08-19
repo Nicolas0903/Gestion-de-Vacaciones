@@ -33,4 +33,7 @@ router.get('/reporte/proyectos-bi', ctrl.reporteProyectosVistaBi);
 router.get('/costo-hora', verificarRol('admin'), ctrl.listarCostosHora);
 router.put('/costo-hora/:empleadoId', verificarRol('admin'), ctrl.upsertCostoHora);
 
+router.get('/locadores', verificarRol('admin'), ctrl.listarLocadoresBolsaHoras);
+router.put('/locadores/:empleadoId', verificarRol('admin'), ctrl.actualizarLocadorBolsaHoras);
+
 module.exports = router;

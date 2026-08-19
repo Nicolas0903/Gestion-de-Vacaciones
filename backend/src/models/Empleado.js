@@ -177,6 +177,8 @@ class Empleado {
     let query = `
       SELECT e.id, e.codigo_empleado, e.nombres, e.apellidos, e.dni, e.email,
              e.cargo, e.fecha_ingreso, e.activo, e.avatar_url, e.modulos_portal,
+             IFNULL(e.es_consultor_cp, 0) AS es_consultor_cp,
+             IFNULL(e.requiere_aprobacion_horas, 0) AS requiere_aprobacion_horas,
              r.nombre as rol_nombre, r.id as rol_id,
              j.nombres as jefe_nombres, j.apellidos as jefe_apellidos
       FROM empleados e

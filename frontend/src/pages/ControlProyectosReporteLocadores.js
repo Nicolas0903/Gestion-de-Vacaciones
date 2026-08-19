@@ -242,7 +242,9 @@ const ControlProyectosReporteLocadores = () => {
                 <th className="px-3 py-3 text-left font-semibold">Proyecto</th>
                 <th className="px-3 py-3 text-left font-semibold">Consultor</th>
                 <th className="px-3 py-3 text-left font-semibold">Requerido por</th>
+                <th className="px-3 py-3 text-left font-semibold min-w-[220px]">Descripción de actividad</th>
                 <th className="px-3 py-3 text-right font-semibold">Horas</th>
+                <th className="px-3 py-3 text-left font-semibold whitespace-nowrap">Inicio</th>
                 <th className="px-3 py-3 text-left font-semibold">Fin</th>
                 <th className="px-3 py-3 text-left font-semibold">Aprobación</th>
                 <th className="px-3 py-3 text-left font-semibold">Comentario</th>
@@ -251,7 +253,7 @@ const ControlProyectosReporteLocadores = () => {
             <tbody className="divide-y divide-slate-100">
               {loading && !data ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={10} className="px-4 py-8 text-center text-slate-500">
                     Cargando…
                   </td>
                 </tr>
@@ -262,12 +264,26 @@ const ControlProyectosReporteLocadores = () => {
                     <td className="px-3 py-2">{a.proyecto_nombre}</td>
                     <td className="px-3 py-2">{a.consultor_nombre}</td>
                     <td className="px-3 py-2">{labelReq(a)}</td>
+                    <td
+                      className="px-3 py-2 text-slate-700 min-w-[220px] max-w-[360px] whitespace-normal align-top"
+                      title={a.descripcion_actividad || ''}
+                    >
+                      {a.descripcion_actividad || '—'}
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.horas_trabajadas)}</td>
+                    <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">
+                      {formatoDatetimeBolsaHoras(a.fecha_hora_inicio)}
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">
                       {formatoDatetimeBolsaHoras(a.fecha_hora_fin)}
                     </td>
                     <td className="px-3 py-2">{labelEstApr(a.estado_aprobacion)}</td>
-                    <td className="px-3 py-2 text-slate-600 max-w-[220px]">{a.comentario_aprobacion || '—'}</td>
+                    <td
+                      className="px-3 py-2 text-slate-600 min-w-[160px] max-w-[280px] whitespace-normal align-top"
+                      title={a.comentario_aprobacion || ''}
+                    >
+                      {a.comentario_aprobacion || '—'}
+                    </td>
                   </tr>
                 ))
               )}
