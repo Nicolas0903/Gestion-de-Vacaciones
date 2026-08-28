@@ -391,6 +391,7 @@ export const controlProyectosService = {
   listarActividades: (params) => api.get('/control-proyectos/actividades', { params }),
   crearActividad: (body) => api.post('/control-proyectos/actividades', body),
   actualizarActividad: (id, body) => api.put(`/control-proyectos/actividades/${id}`, body),
+  eliminarActividad: (id) => api.delete(`/control-proyectos/actividades/${id}`),
   reporteDashboard: () => api.get('/control-proyectos/reporte'),
   reporteProyectosVistaBi: () => api.get('/control-proyectos/reporte', { params: { vista: 'proyectos' } }),
   reporteActividadesBi: (params) =>

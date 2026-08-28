@@ -21,6 +21,7 @@ router.delete('/proyectos/:id', ctrl.eliminarProyecto);
 router.get('/actividades', ctrl.listarActividades);
 router.post('/actividades', ctrl.crearActividad);
 router.put('/actividades/:id', ctrl.actualizarActividad);
+router.delete('/actividades/:id', ctrl.eliminarActividad);
 
 router.get('/reporte/actividades/pdf', ctrl.reporteActividadesPdfCp);
 

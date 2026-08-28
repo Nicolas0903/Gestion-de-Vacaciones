@@ -534,6 +534,37 @@ const ControlProyectos = () => {
     );
   };
 
+  const puedeEliminarActividad = useCallback(
+    (a) => {
+      if (!a) return false;
+      if (puedeProy) return true;
+      return Number(a.consultor_asignado_id) === Number(usuario?.id);
+    },
+    [puedeProy, usuario?.id]
+  );
+
+  const eliminarActividadFila = async (a) => {
+    if (!a || !puedeEliminarActividad(a)) return;
+    const titulo = a.proyecto_nombre || `actividad #${a.id}`;
+    const okConfirm = window.confirm(
+      `¿Eliminar el registro #${a.id}?\n\n${titulo}\n${Number(a.horas_trabajadas).toFixed(2)} h\n\nEsta acción no se puede deshacer.`
+    );
+    if (!okConfirm) return;
+    try {
+      await controlProyectosService.eliminarActividad(a.id);
+      toast.success('Actividad eliminada.');
+      if (actividadEditId === a.id) {
+        setActividadEditId(null);
+        setActividadEditMeta(null);
+        setActForm(actividadVacia());
+      }
+      await cargarActividades();
+      await cargarPendientesAprobacion();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo eliminar la actividad.');
+    }
+  };
+
   const aprobarPendiente = async (id) => {
     setProcesandoAprobacion(true);
     try {
@@ -1264,7 +1295,7 @@ const ControlProyectos = () => {
                             {esAdmin() && (
                               <td className="px-4 py-2">{SIT_PAGO.find((x) => x.value === a.situacion_pago)?.label}</td>
                             )}
-                            <td className="px-4 py-2">
+                            <td className="px-4 py-2 whitespace-nowrap space-x-2">
                               <button
                                 type="button"
                                 className="text-indigo-600 text-xs font-medium hover:underline"
@@ -1272,6 +1303,15 @@ const ControlProyectos = () => {
                               >
                                 Editar
                               </button>
+                              {puedeEliminarActividad(a) && (
+                                <button
+                                  type="button"
+                                  className="text-red-600 text-xs font-medium hover:underline"
+                                  onClick={() => eliminarActividadFila(a)}
+                                >
+                                  Eliminar
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}

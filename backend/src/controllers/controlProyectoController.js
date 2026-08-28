@@ -758,6 +758,32 @@ const actualizarActividad = async (req, res) => {
   }
 };
 
+const eliminarActividad = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ success: false, mensaje: 'Id no válido.' });
+    }
+
+    const prev = await ControlProyecto.obtenerActividad(id);
+    if (!prev) return res.status(404).json({ success: false, mensaje: 'Actividad no encontrada.' });
+
+    const soyPropietario = prev.consultor_asignado_id === req.usuario.id;
+    const gestor = puedeGestionProyectos(req.usuario);
+    if (!soyPropietario && !gestor) {
+      return res.status(403).json({ success: false, mensaje: 'Sin permiso para eliminar esta actividad.' });
+    }
+
+    const ok = await ControlProyecto.eliminarActividad(id);
+    if (!ok) return res.status(400).json({ success: false, mensaje: 'No se eliminó la actividad.' });
+
+    res.json({ success: true, mensaje: 'Actividad eliminada.' });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al eliminar actividad.' });
+  }
+};
+
 const listarCostosHora = async (req, res) => {
   try {
     const rows = await ControlProyecto.listarCostosHora();
@@ -1091,6 +1117,7 @@ module.exports = {
   listarActividades,
   crearActividad,
   actualizarActividad,
+  eliminarActividad,
   listarCostosHora,
   upsertCostoHora,
   reporteDashboard,

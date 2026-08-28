@@ -466,6 +466,11 @@ class ControlProyecto {
     return r.affectedRows > 0;
   }
 
+  static async eliminarActividad(id) {
+    const [r] = await pool.execute(`DELETE FROM cp_actividades WHERE id = ?`, [id]);
+    return r.affectedRows > 0;
+  }
+
   static async listarCostosHora() {
     const [rows] = await pool.execute(
       `SELECT c.empleado_id, c.costo_por_hora, c.updated_at,
