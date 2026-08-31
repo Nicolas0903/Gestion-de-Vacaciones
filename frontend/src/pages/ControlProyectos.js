@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, FolderIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, FolderIcon, ClockIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { controlProyectosService, empleadoService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatoFechaDMY } from '../utils/dateUtils';
@@ -75,6 +75,16 @@ function normalizaIdsConsultores(arr) {
   return [...new Set(arr.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0))].sort((a, b) => a - b);
 }
 
+function textoCoincideBusqueda(textos, query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return true;
+  const haystack = textos
+    .flatMap((t) => (t == null ? [] : [String(t)]))
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(q);
+}
+
 const proyectoVacio = () => ({
   empresa: '',
   proyecto: '',
@@ -127,6 +137,8 @@ const ControlProyectos = () => {
   const [proyForm, setProyForm] = useState(proyectoVacio);
   const [actForm, setActForm] = useState(actividadVacia);
   const [filtroProyectoAct, setFiltroProyectoAct] = useState('');
+  const [busquedaProyectos, setBusquedaProyectos] = useState('');
+  const [busquedaActividades, setBusquedaActividades] = useState('');
   const [pendientesAprobacion, setPendientesAprobacion] = useState([]);
   const [rechazoId, setRechazoId] = useState(null);
   const [rechazoComentario, setRechazoComentario] = useState('');
@@ -601,6 +613,58 @@ const ControlProyectos = () => {
   };
   const labelEstProy = useCallback((key) => EST_PROY.find((x) => x.value === key)?.label || key, []);
 
+  const proyectosFiltrados = useMemo(() => {
+    const q = busquedaProyectos.trim();
+    if (!q) return proyectos;
+    return proyectos.filter((p) =>
+      textoCoincideBusqueda(
+        [
+          p.empresa,
+          p.proyecto,
+          p.encargado_nombre,
+          p.encargado_email,
+          p.consultores_nombres,
+          labelEstProy(p.estado),
+          p.estado,
+          p.horas_asignadas,
+          formatoFechaDMY(p.fecha_inicio),
+          formatoFechaDMY(p.fecha_fin)
+        ],
+        q
+      )
+    );
+  }, [proyectos, busquedaProyectos, labelEstProy]);
+
+  const actividadesFiltradas = useMemo(() => {
+    const q = busquedaActividades.trim();
+    if (!q) return actividades;
+    return actividades.filter((a) =>
+      textoCoincideBusqueda(
+        [
+          a.id,
+          a.empresa_nombre,
+          a.proyecto_nombre,
+          a.consultor_nombre,
+          labelReqActividad(a),
+          a.requerido_por,
+          a.requerido_por_otros,
+          a.descripcion_actividad,
+          a.comentarios,
+          a.estado,
+          EST_ACT.find((x) => x.value === a.estado)?.label,
+          a.estado_aprobacion,
+          EST_APROB_LABEL[a.estado_aprobacion],
+          a.situacion_pago,
+          SIT_PAGO.find((x) => x.value === a.situacion_pago)?.label,
+          a.horas_trabajadas,
+          formatoDatetimeBolsaHoras(a.fecha_hora_inicio),
+          formatoDatetimeBolsaHoras(a.fecha_hora_fin)
+        ],
+        q
+      )
+    );
+  }, [actividades, busquedaActividades, labelReqActividad]);
+
   return (
     <div className="max-w-6xl mx-auto">
       <Link
@@ -862,9 +926,23 @@ const ControlProyectos = () => {
                   </div>
                 </form>
               <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-x-auto">
-                <h3 className="text-sm font-semibold text-slate-800 px-6 pt-6 pb-2">Listado de proyectos</h3>
+                <div className="px-6 pt-6 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-slate-800">Listado de proyectos</h3>
+                  <div className="relative w-full sm:max-w-xs">
+                    <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="search"
+                      placeholder="Buscar empresa, proyecto, encargado…"
+                      className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-sm"
+                      value={busquedaProyectos}
+                      onChange={(e) => setBusquedaProyectos(e.target.value)}
+                    />
+                  </div>
+                </div>
                 {proyectos.length === 0 ? (
                   <p className="px-6 pb-6 text-sm text-slate-500">Sin proyectos cargados.</p>
+                ) : proyectosFiltrados.length === 0 ? (
+                  <p className="px-6 pb-6 text-sm text-slate-500">Ningún proyecto coincide con la búsqueda.</p>
                 ) : (
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-slate-600">
@@ -880,7 +958,7 @@ const ControlProyectos = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {proyectos.map((p) => (
+                      {proyectosFiltrados.map((p) => (
                         <tr key={p.id}>
                           <td className="px-4 py-2">{p.empresa}</td>
                           <td className="px-4 py-2 font-medium">{p.proyecto}</td>
@@ -1240,25 +1318,39 @@ const ControlProyectos = () => {
               </form>
 
               <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-100">
-                  <h3 className="text-sm font-semibold text-slate-800">
-                    {esAdmin() ? 'Actividades (todas)' : 'Mis actividades'}
-                  </h3>
-                  <select
-                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs"
-                    value={filtroProyectoAct}
-                    onChange={(e) => setFiltroProyectoAct(e.target.value)}
-                  >
-                    <option value="">{puedeProy ? 'Todos los proyectos' : 'Todos mis proyectos'}</option>
-                    {proyectosParaActividad.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.proyecto}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex flex-col gap-3 px-6 py-4 border-b border-slate-100">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-slate-800">
+                      {esAdmin() ? 'Actividades (todas)' : 'Mis actividades'}
+                    </h3>
+                    <select
+                      className="rounded-xl border border-slate-200 px-3 py-2 text-xs"
+                      value={filtroProyectoAct}
+                      onChange={(e) => setFiltroProyectoAct(e.target.value)}
+                    >
+                      <option value="">{puedeProy ? 'Todos los proyectos' : 'Todos mis proyectos'}</option>
+                      {proyectosParaActividad.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.proyecto}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="relative w-full max-w-md">
+                    <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="search"
+                      placeholder="Buscar por proyecto, consultor, ID, estado…"
+                      className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-sm"
+                      value={busquedaActividades}
+                      onChange={(e) => setBusquedaActividades(e.target.value)}
+                    />
+                  </div>
                 </div>
                 {actividades.length === 0 ? (
                   <p className="p-6 text-sm text-slate-500">No hay registros.</p>
+                ) : actividadesFiltradas.length === 0 ? (
+                  <p className="p-6 text-sm text-slate-500">Ninguna actividad coincide con la búsqueda.</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
@@ -1276,7 +1368,7 @@ const ControlProyectos = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {actividades.map((a) => (
+                        {actividadesFiltradas.map((a) => (
                           <tr key={a.id}>
                             <td className="px-4 py-2 text-xs font-mono text-slate-500 whitespace-nowrap">#{a.id}</td>
                             <td className="px-4 py-2 max-w-[200px]" title={`${a.empresa_nombre} · ${a.proyecto_nombre}`}>
