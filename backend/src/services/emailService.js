@@ -1906,6 +1906,89 @@ const notificarAprobacionActividadBolsaHoras = async ({
   }
 };
 
+/**
+ * Reporte semanal (viernes): todas las actividades de locadores pendientes de aprobación.
+ */
+const enviarReporteSemanalAprobacionesBolsaHoras = async ({
+  aprobadorEmail,
+  aprobadorNombre,
+  actividades = [],
+  rangoDesde,
+  rangoHasta
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Reporte aprobaciones bolsa horas omitido');
+    return false;
+  }
+  const to = aprobadorEmail != null ? String(aprobadorEmail).trim().toLowerCase() : '';
+  if (!to || !actividades.length) return false;
+
+  const portalUrl = `${getPortalBaseUrl()}/control-proyectos`;
+
+  const filasHtml = actividades
+    .map((act) => {
+      const horas =
+        act.horas_trabajadas != null && Number.isFinite(Number(act.horas_trabajadas))
+          ? Number(act.horas_trabajadas).toFixed(2)
+          : '—';
+      const desc =
+        act.descripcion_actividad != null ? String(act.descripcion_actividad).trim().slice(0, 120) : '';
+      return `
+        <tr>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-family:monospace;white-space:nowrap;">#${escapeHtml(String(act.id))}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;">${escapeHtml(act.consultor_nombre || '—')}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;">${escapeHtml(act.proyecto_nombre || '—')}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;text-align:right;">${escapeHtml(horas)}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:12px;">${escapeHtml(desc || '—')}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">
+            <a href="${act.urlAprobar}" style="display:inline-block;background:#10b981;color:#fff;padding:6px 12px;text-decoration:none;border-radius:6px;font-size:11px;font-weight:bold;margin-right:6px;">Aprobar</a>
+            <a href="${act.urlRechazar}" style="display:inline-block;background:#ef4444;color:#fff;padding:6px 12px;text-decoration:none;border-radius:6px;font-size:11px;font-weight:bold;">Rechazar</a>
+          </td>
+        </tr>`;
+    })
+    .join('');
+
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(aprobadorNombre || 'Aprobador')}</strong>,</p>
+    <p>Resumen semanal de <strong>horas de locadores pendientes de aprobación</strong>.</p>
+    <p style="color:#64748b;font-size:14px;">Período: ${escapeHtml(rangoDesde || '—')} al ${escapeHtml(rangoHasta || '—')} · ${actividades.length} registro(s) pendiente(s)</p>
+    <div style="overflow-x:auto;margin:16px 0;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f1f5f9;text-align:left;">
+            <th style="padding:8px;">ID</th>
+            <th style="padding:8px;">Consultor</th>
+            <th style="padding:8px;">Proyecto</th>
+            <th style="padding:8px;text-align:right;">Horas</th>
+            <th style="padding:8px;">Descripción</th>
+            <th style="padding:8px;">Acción</th>
+          </tr>
+        </thead>
+        <tbody>${filasHtml}</tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:#64748b;">También puedes gestionar pendientes desde el portal → Bolsa de horas → pestaña Aprobaciones.</p>
+    <center style="margin-top:20px;">
+      <a href="${portalUrl}" class="button">Abrir bolsa de horas</a>
+    </center>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('bolsaHoras'),
+      to,
+      subject: `Aprobaciones pendientes (locadores) · ${actividades.length} registro(s) · reporte semanal`,
+      html: plantillaEmail(contenido, 'Aprobaciones pendientes — reporte semanal', 'bolsaHoras')
+    });
+    console.log(`📧 Bolsa horas: reporte aprobaciones semanal → ${to} (${actividades.length})`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email reporte aprobaciones bolsa horas:', error.message);
+    return false;
+  }
+};
+
 const notificarRechazoActividadBolsaHorasLocador = async ({
   locadorEmail,
   locadorNombre,
@@ -2073,6 +2156,7 @@ module.exports = {
   notificarPermisoPendienteContadora,
   notificarActividadBolsaHorasEncargado,
   notificarAprobacionActividadBolsaHoras,
+  enviarReporteSemanalAprobacionesBolsaHoras,
   notificarRechazoActividadBolsaHorasLocador,
   notificarResumenPendientesSemanal,
   enviarReporteBolsaHorasEncargado,

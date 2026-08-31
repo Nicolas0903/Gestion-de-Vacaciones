@@ -15,37 +15,36 @@ function rangoSemanaReporte() {
 async function ejecutarReporteSemanalBolsaHoras() {
   try {
     const encargados = await BolsaHorasAvisoPendiente.listarEncargadosConPendientes();
-    if (!encargados.length) {
-      console.log('📋 Bolsa horas: reporte semanal — sin cambios pendientes.');
-      return { enviados: 0, omitidos: 0 };
-    }
-
     const rango = rangoSemanaReporte();
     let enviados = 0;
     let omitidos = 0;
 
-    for (const enc of encargados) {
-      const email = enc.encargado_email;
-      const filas = await BolsaHorasAvisoPendiente.listarPorEncargado(email);
-      if (!filas.length) continue;
+    if (!encargados.length) {
+      console.log('📋 Bolsa horas: reporte semanal encargados — sin cambios pendientes en cola.');
+    } else {
+      for (const enc of encargados) {
+        const email = enc.encargado_email;
+        const filas = await BolsaHorasAvisoPendiente.listarPorEncargado(email);
+        if (!filas.length) continue;
 
-      const ok = await emailService.enviarReporteBolsaHorasEncargado({
-        encargadoEmail: email,
-        encargadoNombre: enc.encargado_nombre,
-        cambios: filas,
-        rangoDesde: rango.desde,
-        rangoHasta: rango.hasta,
-        periodo: 'semanal',
-        cc: ccReporteBolsaHorasEncargado(email, filas)
-      });
+        const ok = await emailService.enviarReporteBolsaHorasEncargado({
+          encargadoEmail: email,
+          encargadoNombre: enc.encargado_nombre,
+          cambios: filas,
+          rangoDesde: rango.desde,
+          rangoHasta: rango.hasta,
+          periodo: 'semanal',
+          cc: ccReporteBolsaHorasEncargado(email, filas)
+        });
 
-      if (ok) {
-        await BolsaHorasAvisoPendiente.eliminarPorEncargado(email);
-        enviados += 1;
-        console.log(`📋 Bolsa horas: reporte semanal enviado → ${email} (${filas.length} cambio(s))`);
-      } else {
-        omitidos += 1;
-        console.warn(`📋 Bolsa horas: no se pudo enviar reporte → ${email}`);
+        if (ok) {
+          await BolsaHorasAvisoPendiente.eliminarPorEncargado(email);
+          enviados += 1;
+          console.log(`📋 Bolsa horas: reporte semanal enviado → ${email} (${filas.length} cambio(s))`);
+        } else {
+          omitidos += 1;
+          console.warn(`📋 Bolsa horas: no se pudo enviar reporte → ${email}`);
+        }
       }
     }
 

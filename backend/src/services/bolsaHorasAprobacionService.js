@@ -11,6 +11,10 @@ const {
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api';
 
+function aprobacionEmailEsInmediato() {
+  return process.env.BOLSA_HORAS_APROBACION_EMAIL_INMEDIATO === 'true';
+}
+
 async function empleadoRequiereAprobacionHoras(empleadoId) {
   const id = parseInt(String(empleadoId), 10);
   if (!Number.isFinite(id) || id <= 0) return false;
@@ -85,6 +89,14 @@ async function aplicarEstadoAprobacion(actividadId, estado, { limpiarAprobacion 
 
 async function notificarAprobadorPendiente(actividad, { modo = 'creada' } = {}) {
   if (!actividad || actividad.estado_aprobacion !== 'pendiente') return;
+
+  if (!aprobacionEmailEsInmediato()) {
+    console.log(
+      `📋 Bolsa horas aprobación #${actividad.id}: acumulada para reporte semanal (viernes) — sin correo inmediato.`
+    );
+    return;
+  }
+
   const aprobador = await resolverAprobadorEmpleado(actividad.requerido_por);
   if (!aprobador?.email) {
     console.warn(`Bolsa horas aprobación: sin aprobador para requerido_por=${actividad.requerido_por}`);
@@ -213,7 +225,33 @@ async function listarPendientesParaUsuario(usuario) {
   return rows;
 }
 
+/** Pendientes de aprobación agrupados por correo del aprobador (requerido_por). */
+async function listarPendientesAgrupadosPorAprobador() {
+  const [rows] = await pool.execute(
+    `SELECT a.*,
+            p.empresa AS empresa_nombre,
+            p.proyecto AS proyecto_nombre,
+            CONCAT(TRIM(ec.nombres), ' ', TRIM(ec.apellidos)) AS consultor_nombre
+     FROM cp_actividades a
+     INNER JOIN cp_proyectos p ON p.id = a.proyecto_id
+     INNER JOIN empleados ec ON ec.id = a.consultor_asignado_id
+     WHERE a.estado_aprobacion = 'pendiente'
+     ORDER BY a.updated_at ASC, a.id ASC`
+  );
+
+  const grupos = new Map();
+  for (const row of rows) {
+    if (!requeridoPorTieneFlujo(row.requerido_por)) continue;
+    const email = emailAprobadorPorRequeridoPor(row.requerido_por);
+    if (!email) continue;
+    if (!grupos.has(email)) grupos.set(email, []);
+    grupos.get(email).push(row);
+  }
+  return grupos;
+}
+
 module.exports = {
+  aprobacionEmailEsInmediato,
   empleadoRequiereAprobacionHoras,
   resolverAprobadorEmpleado,
   evaluarFlujoAlCrear,
@@ -222,5 +260,6 @@ module.exports = {
   notificarAprobadorPendiente,
   aprobarActividad,
   rechazarActividad,
-  listarPendientesParaUsuario
+  listarPendientesParaUsuario,
+  listarPendientesAgrupadosPorAprobador
 };

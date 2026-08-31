@@ -4,6 +4,9 @@ const {
   ejecutarReporteMensualBolsaHoras,
   esUltimoDiaDelMes
 } = require('./bolsaHorasReporteService');
+const {
+  ejecutarReporteSemanalAprobacionesLocadores
+} = require('./bolsaHorasAprobacionReporteService');
 
 const TIMEZONE = process.env.BOLSA_HORAS_REPORTE_TIMEZONE || process.env.BACKUP_TIMEZONE || 'America/Lima';
 const CRON_EXPR = process.env.BOLSA_HORAS_REPORTE_CRON || '0 9 * * 5';
@@ -24,7 +27,10 @@ function iniciarBolsaHorasReporteScheduler() {
     CRON_EXPR,
     () => {
       ejecutarReporteSemanalBolsaHoras().catch((err) => {
-        console.error('Error en reporte semanal bolsa de horas:', err);
+        console.error('Error en reporte semanal bolsa de horas (encargados):', err);
+      });
+      ejecutarReporteSemanalAprobacionesLocadores().catch((err) => {
+        console.error('Error en reporte semanal bolsa de horas (aprobaciones locadores):', err);
       });
     },
     { timezone: TIMEZONE }

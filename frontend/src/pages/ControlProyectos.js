@@ -85,6 +85,34 @@ function textoCoincideBusqueda(textos, query) {
   return haystack.includes(q);
 }
 
+const BUSQUEDA_PROYECTO_CAMPOS = [
+  { value: 'todos', label: 'Todos los campos' },
+  { value: 'empresa', label: 'Empresa' },
+  { value: 'proyecto', label: 'Proyecto' },
+  { value: 'encargado', label: 'Encargado' },
+  { value: 'consultores', label: 'Consultores' },
+  { value: 'estado', label: 'Estado' },
+  { value: 'fechas', label: 'Inicio–Fin' }
+];
+
+const BUSQUEDA_ACTIVIDAD_CAMPOS = [
+  { value: 'todos', label: 'Todos los campos' },
+  { value: 'id', label: 'ID' },
+  { value: 'proyecto', label: 'Proyecto / empresa' },
+  { value: 'consultor', label: 'Consultor' },
+  { value: 'requerido_por', label: 'Requerido por' },
+  { value: 'descripcion', label: 'Descripción' },
+  { value: 'estado', label: 'Estado actividad' },
+  { value: 'aprobacion', label: 'Aprobación' },
+  { value: 'fechas', label: 'Inicio–Fin' }
+];
+
+function placeholderBusqueda(campo, opciones, fallback) {
+  if (campo === 'todos') return fallback;
+  const opt = opciones.find((o) => o.value === campo);
+  return opt ? `Buscar en ${opt.label.toLowerCase()}…` : fallback;
+}
+
 const proyectoVacio = () => ({
   empresa: '',
   proyecto: '',
@@ -138,7 +166,9 @@ const ControlProyectos = () => {
   const [actForm, setActForm] = useState(actividadVacia);
   const [filtroProyectoAct, setFiltroProyectoAct] = useState('');
   const [busquedaProyectos, setBusquedaProyectos] = useState('');
+  const [campoBusquedaProyectos, setCampoBusquedaProyectos] = useState('todos');
   const [busquedaActividades, setBusquedaActividades] = useState('');
+  const [campoBusquedaActividades, setCampoBusquedaActividades] = useState('todos');
   const [pendientesAprobacion, setPendientesAprobacion] = useState([]);
   const [rechazoId, setRechazoId] = useState(null);
   const [rechazoComentario, setRechazoComentario] = useState('');
@@ -613,57 +643,102 @@ const ControlProyectos = () => {
   };
   const labelEstProy = useCallback((key) => EST_PROY.find((x) => x.value === key)?.label || key, []);
 
+  const textosProyectoBusqueda = useCallback(
+    (p, campo) => {
+      switch (campo) {
+        case 'empresa':
+          return [p.empresa];
+        case 'proyecto':
+          return [p.proyecto];
+        case 'encargado':
+          return [p.encargado_nombre, p.encargado_email];
+        case 'consultores':
+          return [p.consultores_nombres];
+        case 'estado':
+          return [labelEstProy(p.estado), p.estado];
+        case 'fechas':
+          return [formatoFechaDMY(p.fecha_inicio), formatoFechaDMY(p.fecha_fin)];
+        default:
+          return [
+            p.empresa,
+            p.proyecto,
+            p.encargado_nombre,
+            p.encargado_email,
+            p.consultores_nombres,
+            labelEstProy(p.estado),
+            p.estado,
+            p.horas_asignadas,
+            formatoFechaDMY(p.fecha_inicio),
+            formatoFechaDMY(p.fecha_fin)
+          ];
+      }
+    },
+    [labelEstProy]
+  );
+
+  const textosActividadBusqueda = useCallback(
+    (a, campo) => {
+      switch (campo) {
+        case 'id':
+          return [a.id];
+        case 'proyecto':
+          return [a.empresa_nombre, a.proyecto_nombre];
+        case 'consultor':
+          return [a.consultor_nombre];
+        case 'requerido_por':
+          return [labelReqActividad(a), a.requerido_por, a.requerido_por_otros];
+        case 'descripcion':
+          return [a.descripcion_actividad, a.comentarios];
+        case 'estado':
+          return [a.estado, EST_ACT.find((x) => x.value === a.estado)?.label];
+        case 'aprobacion':
+          return [a.estado_aprobacion, EST_APROB_LABEL[a.estado_aprobacion]];
+        case 'fechas':
+          return [
+            formatoDatetimeBolsaHoras(a.fecha_hora_inicio),
+            formatoDatetimeBolsaHoras(a.fecha_hora_fin)
+          ];
+        default:
+          return [
+            a.id,
+            a.empresa_nombre,
+            a.proyecto_nombre,
+            a.consultor_nombre,
+            labelReqActividad(a),
+            a.requerido_por,
+            a.requerido_por_otros,
+            a.descripcion_actividad,
+            a.comentarios,
+            a.estado,
+            EST_ACT.find((x) => x.value === a.estado)?.label,
+            a.estado_aprobacion,
+            EST_APROB_LABEL[a.estado_aprobacion],
+            a.situacion_pago,
+            SIT_PAGO.find((x) => x.value === a.situacion_pago)?.label,
+            a.horas_trabajadas,
+            formatoDatetimeBolsaHoras(a.fecha_hora_inicio),
+            formatoDatetimeBolsaHoras(a.fecha_hora_fin)
+          ];
+      }
+    },
+    [labelReqActividad]
+  );
+
   const proyectosFiltrados = useMemo(() => {
     const q = busquedaProyectos.trim();
     if (!q) return proyectos;
     return proyectos.filter((p) =>
-      textoCoincideBusqueda(
-        [
-          p.empresa,
-          p.proyecto,
-          p.encargado_nombre,
-          p.encargado_email,
-          p.consultores_nombres,
-          labelEstProy(p.estado),
-          p.estado,
-          p.horas_asignadas,
-          formatoFechaDMY(p.fecha_inicio),
-          formatoFechaDMY(p.fecha_fin)
-        ],
-        q
-      )
+      textoCoincideBusqueda(textosProyectoBusqueda(p, campoBusquedaProyectos), q)
     );
-  }, [proyectos, busquedaProyectos, labelEstProy]);
+  }, [proyectos, busquedaProyectos, campoBusquedaProyectos, textosProyectoBusqueda]);
 
   const actividadesFiltradas = useMemo(() => {
     const q = busquedaActividades.trim();
     if (!q) return actividades;
     return actividades.filter((a) =>
-      textoCoincideBusqueda(
-        [
-          a.id,
-          a.empresa_nombre,
-          a.proyecto_nombre,
-          a.consultor_nombre,
-          labelReqActividad(a),
-          a.requerido_por,
-          a.requerido_por_otros,
-          a.descripcion_actividad,
-          a.comentarios,
-          a.estado,
-          EST_ACT.find((x) => x.value === a.estado)?.label,
-          a.estado_aprobacion,
-          EST_APROB_LABEL[a.estado_aprobacion],
-          a.situacion_pago,
-          SIT_PAGO.find((x) => x.value === a.situacion_pago)?.label,
-          a.horas_trabajadas,
-          formatoDatetimeBolsaHoras(a.fecha_hora_inicio),
-          formatoDatetimeBolsaHoras(a.fecha_hora_fin)
-        ],
-        q
-      )
+      textoCoincideBusqueda(textosActividadBusqueda(a, campoBusquedaActividades), q)
     );
-  }, [actividades, busquedaActividades, labelReqActividad]);
+  }, [actividades, busquedaActividades, campoBusquedaActividades, textosActividadBusqueda]);
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -928,16 +1003,34 @@ const ControlProyectos = () => {
               <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-x-auto">
                 <div className="px-6 pt-6 pb-4">
                   <h3 className="text-sm font-semibold text-slate-800 mb-3">Listado de proyectos</h3>
-                  <div className="relative max-w-md">
-                    <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="search"
-                      placeholder="Buscar empresa, proyecto, encargado, consultor…"
-                      aria-label="Buscar proyectos"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
-                      value={busquedaProyectos}
-                      onChange={(e) => setBusquedaProyectos(e.target.value)}
-                    />
+                  <div className="flex flex-col sm:flex-row gap-2 max-w-2xl">
+                    <select
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm sm:w-44 shrink-0"
+                      value={campoBusquedaProyectos}
+                      onChange={(e) => setCampoBusquedaProyectos(e.target.value)}
+                      aria-label="Campo de búsqueda de proyectos"
+                    >
+                      {BUSQUEDA_PROYECTO_CAMPOS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="relative flex-1">
+                      <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="search"
+                        placeholder={placeholderBusqueda(
+                          campoBusquedaProyectos,
+                          BUSQUEDA_PROYECTO_CAMPOS,
+                          'Buscar en todos los campos…'
+                        )}
+                        aria-label="Buscar proyectos"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
+                        value={busquedaProyectos}
+                        onChange={(e) => setBusquedaProyectos(e.target.value)}
+                      />
+                    </div>
                   </div>
                   {busquedaProyectos.trim() ? (
                     <p className="mt-2 text-xs text-slate-500">
@@ -1342,16 +1435,34 @@ const ControlProyectos = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="relative w-full max-w-md">
-                    <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="search"
-                      placeholder="Buscar por proyecto, consultor, ID, estado…"
-                      aria-label="Buscar actividades"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
-                      value={busquedaActividades}
-                      onChange={(e) => setBusquedaActividades(e.target.value)}
-                    />
+                  <div className="flex flex-col sm:flex-row gap-2 max-w-2xl">
+                    <select
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm sm:w-44 shrink-0"
+                      value={campoBusquedaActividades}
+                      onChange={(e) => setCampoBusquedaActividades(e.target.value)}
+                      aria-label="Campo de búsqueda de actividades"
+                    >
+                      {BUSQUEDA_ACTIVIDAD_CAMPOS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="relative flex-1">
+                      <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="search"
+                        placeholder={placeholderBusqueda(
+                          campoBusquedaActividades,
+                          BUSQUEDA_ACTIVIDAD_CAMPOS,
+                          'Buscar en todos los campos…'
+                        )}
+                        aria-label="Buscar actividades"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
+                        value={busquedaActividades}
+                        onChange={(e) => setBusquedaActividades(e.target.value)}
+                      />
+                    </div>
                   </div>
                   {busquedaActividades.trim() ? (
                     <p className="text-xs text-slate-500">
