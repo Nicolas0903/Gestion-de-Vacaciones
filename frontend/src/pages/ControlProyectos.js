@@ -926,18 +926,24 @@ const ControlProyectos = () => {
                   </div>
                 </form>
               <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-x-auto">
-                <div className="px-6 pt-6 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-slate-800">Listado de proyectos</h3>
-                  <div className="relative w-full sm:max-w-xs">
+                <div className="px-6 pt-6 pb-4">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-3">Listado de proyectos</h3>
+                  <div className="relative max-w-md">
                     <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="search"
-                      placeholder="Buscar empresa, proyecto, encargado…"
-                      className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-sm"
+                      placeholder="Buscar empresa, proyecto, encargado, consultor…"
+                      aria-label="Buscar proyectos"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
                       value={busquedaProyectos}
                       onChange={(e) => setBusquedaProyectos(e.target.value)}
                     />
                   </div>
+                  {busquedaProyectos.trim() ? (
+                    <p className="mt-2 text-xs text-slate-500">
+                      {proyectosFiltrados.length} de {proyectos.length} proyecto(s)
+                    </p>
+                  ) : null}
                 </div>
                 {proyectos.length === 0 ? (
                   <p className="px-6 pb-6 text-sm text-slate-500">Sin proyectos cargados.</p>
@@ -1341,11 +1347,17 @@ const ControlProyectos = () => {
                     <input
                       type="search"
                       placeholder="Buscar por proyecto, consultor, ID, estado…"
-                      className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-sm"
+                      aria-label="Buscar actividades"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
                       value={busquedaActividades}
                       onChange={(e) => setBusquedaActividades(e.target.value)}
                     />
                   </div>
+                  {busquedaActividades.trim() ? (
+                    <p className="text-xs text-slate-500">
+                      {actividadesFiltradas.length} de {actividades.length} actividad(es)
+                    </p>
+                  ) : null}
                 </div>
                 {actividades.length === 0 ? (
                   <p className="p-6 text-sm text-slate-500">No hay registros.</p>
