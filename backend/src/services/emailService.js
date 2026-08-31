@@ -1978,6 +1978,86 @@ const notificarRechazoActividadBolsaHorasLocador = async ({
   }
 };
 
+/**
+ * Resumen semanal de pendientes (lunes al inicio del día).
+ */
+const notificarResumenPendientesSemanal = async ({
+  destinatarioEmail,
+  destinatarioNombre,
+  primerNombre,
+  fechaHumana,
+  categorias = [],
+  total = 0
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Resumen pendientes semanal omitido');
+    return false;
+  }
+  const to = destinatarioEmail != null ? String(destinatarioEmail).trim() : '';
+  if (!to) return false;
+
+  const portalUrl = getPortalBaseUrl();
+  const nombre = primerNombre || destinatarioNombre || 'Equipo';
+
+  let bloquesCategorias = '';
+  if (total > 0 && categorias.length) {
+    bloquesCategorias = categorias
+      .map((cat) => {
+        const lineas = (cat.items || [])
+          .map((item) => `<li style="margin:4px 0;color:#334155;">${escapeHtml(item)}</li>`)
+          .join('');
+        const resto =
+          cat.resto > 0
+            ? `<li style="margin:4px 0;color:#64748b;font-style:italic;">… y ${cat.resto} más</li>`
+            : '';
+        return `
+          <div style="margin:20px 0;padding:16px;background:#f8fafc;border-radius:8px;border-left:4px solid #0d9488;">
+            <p style="margin:0 0 8px;font-weight:600;color:#0f172a;">${escapeHtml(cat.etiqueta)} (${cat.cantidad})</p>
+            <ul style="margin:0 0 12px;padding-left:20px;font-size:14px;">${lineas}${resto}</ul>
+            <a href="${escapeHtml(cat.url)}" style="color:#0d9488;font-size:13px;font-weight:600;text-decoration:none;">Ver en el portal →</a>
+          </div>`;
+      })
+      .join('');
+  } else {
+    bloquesCategorias =
+      '<p style="color:#64748b;">No tenés pendientes en este momento. Buen trabajo.</p>';
+  }
+
+  const contenido = `
+    <p>Buenos días, <strong>${escapeHtml(nombre)}</strong>.</p>
+    <p>Resumen de pendientes — <strong>${escapeHtml(fechaHumana)}</strong></p>
+    ${
+      total > 0
+        ? `<p>Tenés <strong>${total}</strong> ítem(s) por atender en el portal:</p>`
+        : ''
+    }
+    ${bloquesCategorias}
+    <center style="margin-top:24px;">
+      <a href="${portalUrl}" class="button">Abrir Portal Prayaga</a>
+    </center>
+  `;
+
+  const subject =
+    total > 0
+      ? `Pendientes del portal · ${total} ítem(s) · ${fechaHumana}`
+      : `Resumen semanal · sin pendientes · ${fechaHumana}`;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('portal'),
+      to,
+      subject,
+      html: plantillaEmail(contenido, 'Resumen semanal de pendientes', 'portal')
+    });
+    console.log(`📧 Resumen pendientes semanal enviado → ${to} (${total} ítem(s))`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email resumen pendientes semanal:', error.message);
+    return false;
+  }
+};
+
 module.exports = {
   verificarConexion,
   notificarNuevaSolicitud,
@@ -1994,6 +2074,7 @@ module.exports = {
   notificarActividadBolsaHorasEncargado,
   notificarAprobacionActividadBolsaHoras,
   notificarRechazoActividadBolsaHorasLocador,
+  notificarResumenPendientesSemanal,
   enviarReporteBolsaHorasEncargado,
   enviarReporteSemanalBolsaHorasEncargado,
   notificarNuevaSolicitudReembolsoAprobador,

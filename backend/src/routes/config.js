@@ -12,4 +12,16 @@ router.get('/email/estado', verificarRol(['admin', 'contadora']), configControll
 // Probar envío de email
 router.post('/email/probar', verificarRol(['admin', 'contadora']), configController.probarEmail);
 
+// Resumen semanal de pendientes (solo admin)
+router.get(
+  '/pendientes-semanal/preview',
+  verificarRol(['admin']),
+  configController.previewPendientesSemanal
+);
+router.post(
+  '/pendientes-semanal/ejecutar',
+  verificarRol(['admin']),
+  configController.ejecutarPendientesSemanal
+);
+
 module.exports = router;

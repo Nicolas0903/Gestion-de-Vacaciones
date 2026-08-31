@@ -11,6 +11,7 @@ const routes = require('./routes');
 const emailService = require('./services/emailService');
 const { iniciarBackupScheduler } = require('./services/backupScheduler');
 const { iniciarBolsaHorasReporteScheduler } = require('./services/bolsaHorasReporteScheduler');
+const { iniciarPendientesSemanalScheduler } = require('./services/pendientesSemanalScheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -104,6 +105,7 @@ const startServer = async () => {
 
   iniciarBackupScheduler();
   iniciarBolsaHorasReporteScheduler();
+  iniciarPendientesSemanalScheduler();
 
   app.listen(PORT, () => {
     console.log(`
