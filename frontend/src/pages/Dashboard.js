@@ -126,7 +126,7 @@ const Dashboard = () => {
       {/* Grid de contenido */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Solicitudes Recientes */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <div className={`bg-white rounded-2xl p-6 shadow-sm border border-slate-100${!puedeAprobar() ? ' lg:col-span-2' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <DocumentTextIcon className="w-5 h-5 text-teal-500" />
@@ -222,35 +222,6 @@ const Dashboard = () => {
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Si no es aprobador, mostrar acceso rápido */}
-        {!puedeAprobar() && (
-          <div className="bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-6 text-white">
-            <h2 className="text-lg font-semibold mb-4">Acciones Rápidas</h2>
-            <div className="space-y-3">
-              <Link
-                to="/nueva-solicitud"
-                className="flex items-center gap-3 p-4 rounded-xl bg-white/20 hover:bg-white/30 transition-colors"
-              >
-                <PlusIcon className="w-6 h-6" />
-                <div>
-                  <p className="font-medium">Nueva Solicitud</p>
-                  <p className="text-sm text-teal-100">Solicita tus vacaciones</p>
-                </div>
-              </Link>
-              <Link
-                to="/calendario"
-                className="flex items-center gap-3 p-4 rounded-xl bg-white/20 hover:bg-white/30 transition-colors"
-              >
-                <CalendarDaysIcon className="w-6 h-6" />
-                <div>
-                  <p className="font-medium">Ver Calendario</p>
-                  <p className="text-sm text-teal-100">Consulta las vacaciones del equipo</p>
-                </div>
-              </Link>
-            </div>
           </div>
         )}
       </div>
