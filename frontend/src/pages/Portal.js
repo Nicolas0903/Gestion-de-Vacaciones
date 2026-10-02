@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { notificacionService } from '../services/api';
 import LogoTransparente from '../components/LogoTransparente';
 import NotificacionesDropdown from '../components/NotificacionesDropdown';
+import PortalResumenDashboard from '../components/PortalResumenDashboard';
 import CambiarPasswordModal from '../components/CambiarPasswordModal';
 import {
   CalendarDaysIcon,
@@ -837,33 +838,47 @@ const Portal = () => {
         </nav>
 
         <main className="flex-1 px-4 sm:px-6 xl:px-8 py-5 lg:py-6 w-full mx-auto">
-          {/* Encabezado — mockup Concepto B */}
-          <section ref={refInicio} className="mb-5 scroll-mt-24">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-              <div>
-                <h1 className="text-2xl sm:text-[1.75rem] font-bold text-slate-900 tracking-tight">
-                  Hola, {usuario?.nombres}
-                </h1>
-                <p className="text-slate-500 mt-1 text-[15px]">
-                  {navActiva === 'inicio'
-                    ? 'Tu portal organizado por áreas de trabajo.'
-                    : `Módulos de ${tituloVista}.`}
-                </p>
+          {/* Encabezado secciones (no inicio con dashboard) */}
+          {!(navActiva === 'inicio' && !q) && (
+            <section ref={refInicio} className="mb-5 scroll-mt-24">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div>
+                  <h1 className="text-2xl sm:text-[1.75rem] font-bold text-slate-900 tracking-tight">
+                    Hola, {usuario?.nombres}
+                  </h1>
+                  <p className="text-slate-500 mt-1 text-[15px]">Módulos de {tituloVista}.</p>
+                </div>
+                {notifCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setNotifAbierto(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-900 text-sm font-medium shrink-0 hover:bg-amber-100 transition-colors text-left"
+                  >
+                    <span>
+                      {notifCount} {notifCount === 1 ? 'notificación necesita' : 'notificaciones necesitan'} revisión
+                    </span>
+                    <ChevronRightIcon className="w-4 h-4 opacity-70" />
+                  </button>
+                )}
               </div>
-              {notifCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setNotifAbierto(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-900 text-sm font-medium shrink-0 hover:bg-amber-100 transition-colors text-left"
-                >
-                  <span>
-                    {notifCount} {notifCount === 1 ? 'notificación necesita' : 'notificaciones necesitan'} revisión
-                  </span>
-                  <ChevronRightIcon className="w-4 h-4 opacity-70" />
-                </button>
-              )}
-            </div>
-          </section>
+            </section>
+          )}
+
+          {navActiva === 'inicio' && !q && (
+            <PortalResumenDashboard
+              notifCount={notifCount}
+              onAbrirNotificaciones={() => setNotifAbierto(true)}
+              modulosVisibles={modulosVisibles}
+              onBuscarModulo={(texto) => {
+                setBusqueda(texto);
+                if (texto.trim()) {
+                  window.requestAnimationFrame(() => {
+                    refModulosGrid.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  });
+                }
+              }}
+            />
+          )}
 
           {/* Módulos por área */}
           {modulosParaVista.length === 0 ? (
@@ -883,6 +898,15 @@ const Portal = () => {
               )}
             </div>
           ) : navActiva === 'inicio' ? (
+            <>
+              {!q && (
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Módulos por área</h2>
+                    <p className="text-sm text-slate-500">Accede a todas las herramientas del portal.</p>
+                  </div>
+                </div>
+              )}
             <div
               ref={refModulosGrid}
               className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 xl:gap-5 scroll-mt-24 items-start"
@@ -923,6 +947,7 @@ const Portal = () => {
                 );
               })}
             </div>
+            </>
           ) : (
             <div ref={refModulosGrid} className="scroll-mt-24">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
