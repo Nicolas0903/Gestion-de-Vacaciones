@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { differenceInDays } from 'date-fns';
 import {
@@ -9,12 +8,12 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   NoSymbolIcon,
-  ArrowLeftIcon,
   ChevronUpIcon,
   CalendarDaysIcon,
   EyeIcon,
   DocumentTextIcon
 } from '@heroicons/react/24/outline';
+import PortalAdminShell from '../components/PortalAdminShell';
 import { adminPortalUsuariosService, solicitudService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { parseFechaSegura, formatoFechaDMY } from '../utils/dateUtils';
@@ -41,15 +40,22 @@ const AREAS_EMPLEADO = [
 function badgeClaseVacacion(estado) {
   switch (estado) {
     case 'gozadas':
-      return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     case 'parcial':
-      return 'bg-amber-500/15 text-amber-200 border-amber-500/30';
+      return 'bg-amber-50 text-amber-700 border-amber-200';
     case 'pendiente':
-      return 'bg-sky-500/15 text-sky-200 border-sky-500/35';
+      return 'bg-sky-50 text-sky-700 border-sky-200';
     default:
-      return 'bg-white/10 text-gray-300 border-white/15';
+      return 'bg-slate-50 text-slate-600 border-slate-200';
   }
 }
+
+const INPUT =
+  'w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400';
+const BTN_SEC =
+  'inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm text-slate-700 shadow-sm transition-colors';
+const BTN_PRI =
+  'py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium disabled:opacity-50 transition-colors';
 
 function etiquetaVacacionEstado(estado) {
   switch (estado) {
@@ -666,66 +672,48 @@ export default function AdministracionUsuarios() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1c1b1a] text-gray-100">
-      <header className="border-b border-white/10 bg-[#252423]">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Link
-            to="/portal"
-            className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-            Portal
-          </Link>
-          <h1 className="text-xl font-semibold text-white">Administración de Usuarios</h1>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        <h2 className="text-2xl font-semibold text-white mb-6">Usuarios activos</h2>
+    <>
+      <PortalAdminShell
+        titulo="Administración de Usuarios"
+        subtitulo="Activa cuentas, contraseñas y acceso a módulos"
+      >
+        <h2 className="text-xl font-semibold text-slate-900 mb-6">Usuarios activos</h2>
 
         <div className="flex flex-wrap items-center gap-3 mb-6">
-          <button
-            type="button"
-            onClick={abrirModalAlta}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded border border-white/20 bg-white/5 hover:bg-white/10 text-sm"
-          >
-            <UserPlusIcon className="w-4 h-4" />
+          <button type="button" onClick={abrirModalAlta} className={BTN_SEC}>
+            <UserPlusIcon className="w-4 h-4 text-teal-600" />
             Agregar usuario
           </button>
           <button
             type="button"
             onClick={eliminarSeleccionados}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded border border-white/20 bg-white/5 hover:bg-white/10 text-sm text-red-300"
+            className={`${BTN_SEC} text-rose-600 hover:bg-rose-50 border-rose-200`}
           >
             <TrashIcon className="w-4 h-4" />
             Eliminar usuario
           </button>
-          <button
-            type="button"
-            onClick={restablecerSeleccionados}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded border border-white/20 bg-white/5 hover:bg-white/10 text-sm"
-          >
-            <KeyIcon className="w-4 h-4" />
+          <button type="button" onClick={restablecerSeleccionados} className={BTN_SEC}>
+            <KeyIcon className="w-4 h-4 text-teal-600" />
             Restablecer contraseña
           </button>
 
           <div className="ml-auto relative min-w-[240px] max-w-md flex-1">
-            <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
               placeholder="Buscar por nombre, correo, DNI o código…"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded bg-[#2d2c2b] border border-white/15 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={`${INPUT} pl-9 text-sm`}
             />
           </div>
         </div>
 
-        <div className="rounded-lg border border-white/10 overflow-hidden bg-[#252423]">
+        <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/10 text-left text-gray-400">
+                <tr className="border-b border-slate-200 text-left text-slate-500 bg-slate-50">
                   <th className="w-10 px-3 py-3">
                     <input
                       type="checkbox"
@@ -743,13 +731,13 @@ export default function AdministracionUsuarios() {
               <tbody>
                 {cargandoLista ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-10 text-center text-gray-500">
+                    <td colSpan={5} className="px-3 py-10 text-center text-slate-500">
                       Cargando…
                     </td>
                   </tr>
                 ) : empleados.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-10 text-center text-gray-500">
+                    <td colSpan={5} className="px-3 py-10 text-center text-slate-500">
                       No hay resultados
                     </td>
                   </tr>
@@ -757,7 +745,7 @@ export default function AdministracionUsuarios() {
                   empleados.map((row) => (
                     <tr
                       key={row.id}
-                      className="border-b border-white/5 hover:bg-white/[0.04] cursor-pointer"
+                      className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
                       onClick={() => abrirDetalle(row.id)}
                     >
                       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -768,16 +756,16 @@ export default function AdministracionUsuarios() {
                           className="rounded border-gray-500"
                         />
                       </td>
-                      <td className="px-3 py-3 text-white font-medium">
+                      <td className="px-3 py-3 text-slate-900 font-medium">
                         {row.nombres} {row.apellidos}
                         {!!row.requiere_aprobacion_horas && (
-                          <span className="ml-2 text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-500/30">
+                          <span className="ml-2 text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
                             Locador
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-gray-300">{row.email}</td>
-                      <td className="px-3 py-3 text-gray-300 max-w-xl">
+                      <td className="px-3 py-3 text-slate-600">{row.email}</td>
+                      <td className="px-3 py-3 text-slate-600 max-w-xl">
                         <div className="flex flex-wrap gap-1">
                           {(row.acceso_portal_detalle || []).map((x) => {
                             const busy = moduloTagBusy === `${row.id}-${x.id}`;
@@ -791,10 +779,10 @@ export default function AdministracionUsuarios() {
                                 className={cx(
                                   'text-xs px-2 py-0.5 rounded border text-left transition-opacity',
                                   busy && 'opacity-50 cursor-wait',
-                                  !busy && 'hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-violet-500/60',
+                                  !busy && 'hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-teal-500/60',
                                   x.activo
-                                    ? 'bg-violet-500/20 text-violet-200 border-violet-500/35'
-                                    : 'bg-white/[0.04] text-gray-500 border-white/5'
+                                    ? 'bg-teal-50 text-teal-700 border-teal-200'
+                                    : 'bg-slate-50 text-slate-500 border-slate-200'
                                 )}
                               >
                                 {x.etiqueta}
@@ -807,7 +795,7 @@ export default function AdministracionUsuarios() {
                         <span
                           className={cx(
                             'text-xs px-2 py-0.5 rounded-full',
-                            row.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                            row.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                           )}
                         >
                           {row.activo ? 'Activo' : 'Bloqueado'}
@@ -820,7 +808,7 @@ export default function AdministracionUsuarios() {
             </table>
           </div>
         </div>
-      </main>
+      </PortalAdminShell>
 
       {/* Drawer */}
       {drawerId != null && (
@@ -833,30 +821,30 @@ export default function AdministracionUsuarios() {
           />
           <aside
             className={cx(
-              'relative z-50 w-full h-full bg-[#252423] border-l border-white/10 shadow-2xl flex flex-col overflow-hidden',
+              'relative z-50 w-full h-full bg-white border-l border-slate-200 shadow-2xl flex flex-col overflow-hidden',
               tabDetalle === 'vacaciones' ? 'max-w-2xl' : 'max-w-lg'
             )}
           >
-            <div className="flex items-start justify-between gap-3 p-5 border-b border-white/10">
+            <div className="flex items-start justify-between gap-3 p-5 border-b border-slate-200 bg-slate-50">
               <div className="flex gap-4 min-w-0">
-                <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-semibold shrink-0">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white flex items-center justify-center text-xl font-semibold shrink-0">
                   {detalle?.empleado
                     ? iniciales(detalle.empleado.nombres, detalle.empleado.apellidos)
                     : '…'}
                 </div>
                 <div className="min-w-0">
                   {cargandoDetalle ? (
-                    <p className="text-gray-400">Cargando…</p>
+                    <p className="text-slate-500">Cargando…</p>
                   ) : (
                     <>
-                      <h3 className="text-xl font-semibold text-white truncate">
+                      <h3 className="text-xl font-semibold text-slate-900 truncate">
                         {detalle?.empleado?.nombres} {detalle?.empleado?.apellidos}
                       </h3>
                       <div className="flex flex-wrap gap-2 mt-3">
                         <button
                           type="button"
                           onClick={restablecerEnPanel}
-                          className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline"
+                          className="inline-flex items-center gap-1 text-xs text-teal-600 hover:underline"
                         >
                           <KeyIcon className="w-3.5 h-3.5" />
                           Restablecer contraseña
@@ -864,7 +852,7 @@ export default function AdministracionUsuarios() {
                         <button
                           type="button"
                           onClick={bloquearEnPanel}
-                          className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline"
+                          className="inline-flex items-center gap-1 text-xs text-teal-600 hover:underline"
                         >
                           <NoSymbolIcon className="w-3.5 h-3.5" />
                           Bloquear inicio de sesión
@@ -872,7 +860,7 @@ export default function AdministracionUsuarios() {
                         <button
                           type="button"
                           onClick={eliminarEnPanel}
-                          className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline"
+                          className="inline-flex items-center gap-1 text-xs text-teal-600 hover:underline"
                         >
                           <TrashIcon className="w-3.5 h-3.5" />
                           Eliminar usuario
@@ -885,13 +873,13 @@ export default function AdministracionUsuarios() {
               <button
                 type="button"
                 onClick={cerrarDrawer}
-                className="p-1 rounded hover:bg-white/10 text-gray-400"
+                className="p-1 rounded hover:bg-slate-100 text-slate-500"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex border-b border-white/10 px-5 gap-4 sm:gap-6 text-sm overflow-x-auto">
+            <div className="flex border-b border-slate-200 px-5 gap-4 sm:gap-6 text-sm overflow-x-auto bg-white">
               {DETALLE_TABS.map(({ id, label }) => (
                 <button
                   key={id}
@@ -900,8 +888,8 @@ export default function AdministracionUsuarios() {
                   className={cx(
                     'py-3 border-b-2 -mb-px whitespace-nowrap shrink-0',
                     tabDetalle === id
-                      ? 'border-blue-500 text-white'
-                      : 'border-transparent text-gray-400 hover:text-gray-200'
+                      ? 'border-teal-600 text-teal-700 font-medium'
+                      : 'border-transparent text-slate-500 hover:text-slate-700'
                   )}
                 >
                   {label}
@@ -913,46 +901,46 @@ export default function AdministracionUsuarios() {
               {!detalle?.empleado ? null : tabDetalle === 'cuenta' ? (
                 <form onSubmit={guardarCuenta} className="grid grid-cols-1 gap-4 text-sm">
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                       Nombres
                     </label>
                     <input
                       required
-                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      className={INPUT}
                       value={formCuenta.nombres}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, nombres: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                       Apellidos
                     </label>
                     <input
                       required
-                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      className={INPUT}
                       value={formCuenta.apellidos}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, apellidos: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                       Correo
                     </label>
                     <input
                       required
                       type="email"
-                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      className={INPUT}
                       value={formCuenta.email}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, email: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                       Rol
                     </label>
                     <select
                       required
-                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      className={INPUT}
                       value={formCuenta.rol_id}
                       onChange={(e) => {
                         const rol_id = e.target.value;
@@ -982,33 +970,33 @@ export default function AdministracionUsuarios() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                       Código empleado
                     </label>
                     <input
                       required
-                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      className={INPUT}
                       value={formCuenta.codigo_empleado}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, codigo_empleado: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                       DNI
                     </label>
                     <input
                       required
-                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      className={INPUT}
                       value={formCuenta.dni}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, dni: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                       Cargo
                     </label>
                     <input
-                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      className={INPUT}
                       placeholder="Opcional"
                       value={formCuenta.cargo}
                       onChange={(e) => {
@@ -1020,11 +1008,11 @@ export default function AdministracionUsuarios() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                       Área
                     </label>
                     <select
-                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      className={INPUT}
                       value={formCuenta.area}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, area: e.target.value }))}
                     >
@@ -1035,60 +1023,60 @@ export default function AdministracionUsuarios() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                       Fecha de ingreso
                     </label>
                     <input
                       required
                       type="date"
-                      className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                      className={INPUT}
                       value={formCuenta.fecha_ingreso}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, fecha_ingreso: e.target.value }))}
                     />
                   </div>
-                  <label className="flex gap-3 items-start p-3 rounded-lg border border-white/10 bg-[#1c1b1a] cursor-pointer">
+                  <label className="flex gap-3 items-start p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formCuenta.es_consultor_cp}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, es_consultor_cp: e.target.checked }))}
-                      className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500"
+                      className="mt-1 w-4 h-4 rounded border-slate-300 accent-teal-600"
                     />
                     <span>
-                      <span className="font-medium text-gray-200 block">Consultor en control de proyectos</span>
-                      <span className="text-xs text-gray-400 block mt-0.5">
+                      <span className="font-medium text-slate-800 block">Consultor en control de proyectos</span>
+                      <span className="text-xs text-slate-500 block mt-0.5">
                         Si está activo, esta persona aparece en el listado para asignar a proyectos (formulario reducido).
                         Se activa automáticamente si el cargo es Consultor o el rol es consultor.
                       </span>
                     </span>
                   </label>
-                  <label className="flex gap-3 items-start p-3 rounded-lg border border-white/10 bg-[#1c1b1a] cursor-pointer">
+                  <label className="flex gap-3 items-start p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formCuenta.requiere_aprobacion_horas}
                       onChange={(e) =>
                         setFormCuenta((f) => ({ ...f, requiere_aprobacion_horas: e.target.checked }))
                       }
-                      className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500"
+                      className="mt-1 w-4 h-4 rounded border-slate-300 accent-teal-600"
                     />
                     <span>
-                      <span className="font-medium text-gray-200 block">Locador — requiere aprobación de horas</span>
-                      <span className="text-xs text-gray-400 block mt-0.5">
+                      <span className="font-medium text-slate-800 block">Locador — requiere aprobación de horas</span>
+                      <span className="text-xs text-slate-500 block mt-0.5">
                         Si está activo, sus actividades nuevas entran al flujo de aprobación según «Requerido por».
                       </span>
                     </span>
                   </label>
                   <div>
-                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
                       Estado
                     </div>
-                    <div className="text-white">
+                    <div className="text-slate-900">
                       {detalle.empleado.activo ? 'Activo' : 'Bloqueado'}
                     </div>
                   </div>
                   <button
                     type="submit"
                     disabled={guardandoCuenta}
-                    className="mt-2 py-2.5 rounded bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium disabled:opacity-50"
+                    className={`mt-2 w-full ${BTN_PRI}`}
                   >
                     {guardandoCuenta ? 'Guardando…' : 'Guardar cambios de cuenta'}
                   </button>
@@ -1098,7 +1086,7 @@ export default function AdministracionUsuarios() {
                   <button
                     type="button"
                     onClick={() => setAccesoExpandido((v) => !v)}
-                    className="w-full flex items-center justify-between py-2 text-left font-semibold text-white"
+                    className="w-full flex items-center justify-between py-2 text-left font-semibold text-slate-900"
                   >
                     <span>
                       Acceso a la plataforma ({cuentaActivos})
@@ -1116,8 +1104,8 @@ export default function AdministracionUsuarios() {
                             key={m.id}
                             className={cx(
                               'flex gap-3 items-start p-3 rounded-lg border transition-colors',
-                              on && 'bg-violet-500/15 border-violet-500/40',
-                              !on && 'border-white/10 bg-[#1c1b1a]'
+                              on && 'bg-teal-50 border-teal-200',
+                              !on && 'border-slate-200 bg-slate-50'
                             )}
                           >
                             <input
@@ -1127,18 +1115,18 @@ export default function AdministracionUsuarios() {
                               onChange={(e) =>
                                 setModulosDraft((d) => ({ ...d, [m.id]: e.target.checked }))
                               }
-                              className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500 text-violet-600 focus:ring-violet-500"
+                              className="mt-1 w-4 h-4 rounded border-slate-300 accent-teal-600 text-teal-600 focus:ring-teal-500"
                             />
                             <label htmlFor={`mod-${m.id}`} className="flex-1 cursor-pointer">
                               <span
                                 className={cx(
                                   'font-medium block',
-                                  on ? 'text-violet-100' : 'text-gray-200'
+                                  on ? 'text-teal-800' : 'text-slate-700'
                                 )}
                               >
                                 {m.etiqueta}
                               </span>
-                              <span className="text-xs text-gray-400 block mt-0.5">
+                              <span className="text-xs text-slate-500 block mt-0.5">
                                 {m.descripcion}
                               </span>
                             </label>
@@ -1151,57 +1139,57 @@ export default function AdministracionUsuarios() {
                     type="button"
                     onClick={guardarModulos}
                     disabled={guardandoModulos}
-                    className="mt-6 w-full py-2.5 rounded bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium disabled:opacity-50"
+                    className={`mt-6 w-full ${BTN_PRI}`}
                   >
                     {guardandoModulos ? 'Guardando…' : 'Guardar cambios'}
                   </button>
                 </div>
               ) : (
                 <div className="space-y-4 text-sm">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500">
                     Períodos y totales alineados con el portal del colaborador (hasta el tope vigente acordado, sin bloques posteriores solo por renovación automática).
                   </p>
                   {vacError ? <p className="text-sm text-red-400">{vacError}</p> : null}
                   {vacCargando ? (
                     <div className="flex justify-center py-16">
-                      <div className="h-9 w-9 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
+                      <div className="h-9 w-9 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
                     </div>
                   ) : (
                     <>
                       {vacResumen ? (
                         <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded-lg border border-white/10 bg-[#1c1b1a] p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                               Ganados
                             </p>
-                            <p className="mt-1 text-xl font-bold text-sky-300">{vacResumen.total_ganados ?? 0}</p>
+                            <p className="mt-1 text-xl font-bold text-sky-600">{vacResumen.total_ganados ?? 0}</p>
                           </div>
-                          <div className="rounded-lg border border-white/10 bg-[#1c1b1a] p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                               Gozados
                             </p>
-                            <p className="mt-1 text-xl font-bold text-emerald-300">{vacResumen.total_gozados ?? 0}</p>
+                            <p className="mt-1 text-xl font-bold text-emerald-600">{vacResumen.total_gozados ?? 0}</p>
                           </div>
-                          <div className="rounded-lg border border-white/10 bg-[#1c1b1a] p-3">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                               Pendientes
                             </p>
-                            <p className="mt-1 text-xl font-bold text-violet-300">{vacResumen.total_pendientes ?? 0}</p>
+                            <p className="mt-1 text-xl font-bold text-teal-600">{vacResumen.total_pendientes ?? 0}</p>
                           </div>
                         </div>
                       ) : null}
 
                       {!vacPeriodos.length && !vacError ? (
-                        <div className="flex flex-col items-center py-10 text-gray-500">
-                          <CalendarDaysIcon className="mb-2 h-10 w-10 text-gray-600" />
+                        <div className="flex flex-col items-center py-10 text-slate-500">
+                          <CalendarDaysIcon className="mb-2 h-10 w-10 text-slate-300" />
                           <p>No hay períodos registrados para este usuario.</p>
                         </div>
                       ) : vacPeriodos.length > 0 ? (
-                        <div className="overflow-hidden rounded-lg border border-white/10 bg-[#1c1b1a]">
+                        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                           <div className="max-h-[min(52vh,520px)] overflow-x-auto overflow-y-auto">
-                            <table className="w-full min-w-[640px] text-left text-xs text-gray-300">
-                              <thead className="sticky top-0 z-[1] border-b border-white/10 bg-[#252423]">
-                                <tr className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                            <table className="w-full min-w-[640px] text-left text-xs text-slate-600">
+                              <thead className="sticky top-0 z-[1] border-b border-slate-200 bg-slate-50">
+                                <tr className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                                   <th className="px-2 py-2">Estado</th>
                                   <th className="px-2 py-2 text-center">Inicio</th>
                                   <th className="px-2 py-2 text-center">Fin</th>
@@ -1211,7 +1199,7 @@ export default function AdministracionUsuarios() {
                                   <th className="px-2 py-2 text-center">Salidas</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-white/[0.06]">
+                              <tbody className="divide-y divide-slate-100">
                                 {vacPeriodos.map((periodo) => {
                                   let diasCal = '—';
                                   if (periodo.fecha_inicio_periodo && periodo.fecha_fin_periodo) {
@@ -1226,7 +1214,7 @@ export default function AdministracionUsuarios() {
                                     }
                                   }
                                   return (
-                                    <tr key={periodo.id} className="hover:bg-white/[0.03]">
+                                    <tr key={periodo.id} className="hover:bg-slate-50">
                                       <td className="px-2 py-2">
                                         <span
                                           className={cx(
@@ -1237,16 +1225,16 @@ export default function AdministracionUsuarios() {
                                           {etiquetaVacacionEstado(periodo.estado)}
                                         </span>
                                       </td>
-                                      <td className="px-2 py-2 text-center text-gray-200">
+                                      <td className="px-2 py-2 text-center text-slate-700">
                                         {periodo.fecha_inicio_periodo
                                           ? formatoFechaDMY(periodo.fecha_inicio_periodo)
                                           : '—'}
                                       </td>
-                                      <td className="px-2 py-2 text-center text-gray-200">
+                                      <td className="px-2 py-2 text-center text-slate-700">
                                         {periodo.fecha_fin_periodo ? formatoFechaDMY(periodo.fecha_fin_periodo) : '—'}
                                       </td>
                                       <td className="px-2 py-2 text-center">{diasCal}</td>
-                                      <td className="px-2 py-2 text-center font-semibold text-teal-300">
+                                      <td className="px-2 py-2 text-center font-semibold text-teal-600">
                                         {periodo.dias_correspondientes ?? '—'}
                                       </td>
                                       <td className="px-2 py-2 text-center">{periodo.dias_gozados ?? '—'}</td>
@@ -1255,7 +1243,7 @@ export default function AdministracionUsuarios() {
                                           type="button"
                                           onClick={() => abrirSalidasVacacion(periodo)}
                                           title="Ver salidas aprobadas"
-                                          className="inline-flex rounded p-1.5 text-gray-400 hover:bg-white/10 hover:text-teal-300"
+                                          className="inline-flex rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-teal-600"
                                         >
                                           <EyeIcon className="h-5 w-5" />
                                         </button>
@@ -1285,11 +1273,11 @@ export default function AdministracionUsuarios() {
             aria-label="Cerrar"
             onClick={cerrarSalidasVacacion}
           />
-          <div className="relative z-[71] flex max-h-[min(560px,90vh)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-white/15 bg-[#252423] shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
+          <div className="relative z-[71] flex max-h-[min(560px,90vh)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 p-5 bg-slate-50">
               <div>
-                <h3 className="text-lg font-semibold text-white">Salidas del período</h3>
-                <p className="mt-1 text-xs text-gray-400">
+                <h3 className="text-lg font-semibold text-slate-900">Salidas del período</h3>
+                <p className="mt-1 text-xs text-slate-500">
                   {periodoSalidas.fecha_inicio_periodo ? formatoFechaDMY(periodoSalidas.fecha_inicio_periodo) : '—'}{' '}
                   –{' '}
                   {periodoSalidas.fecha_fin_periodo ? formatoFechaDMY(periodoSalidas.fecha_fin_periodo) : '—'}
@@ -1300,7 +1288,7 @@ export default function AdministracionUsuarios() {
               <button
                 type="button"
                 onClick={cerrarSalidasVacacion}
-                className="rounded p-1 text-gray-400 hover:bg-white/10"
+                className="rounded p-1 text-slate-400 hover:bg-slate-100"
               >
                 <XMarkIcon className="h-5 w-5" />
               </button>
@@ -1308,23 +1296,23 @@ export default function AdministracionUsuarios() {
             <div className="flex-1 overflow-y-auto p-4">
               {salidasCargando ? (
                 <div className="flex justify-center py-14">
-                  <div className="h-9 w-9 animate-spin rounded-full border-2 border-teal-400 border-t-transparent" />
+                  <div className="h-9 w-9 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
                 </div>
               ) : listaSalidas.length === 0 ? (
-                <div className="py-12 text-center text-gray-400">
-                  <DocumentTextIcon className="mx-auto mb-2 h-10 w-10 text-gray-600" />
+                <div className="py-12 text-center text-slate-500">
+                  <DocumentTextIcon className="mx-auto mb-2 h-10 w-10 text-slate-300" />
                   <p>No hay salidas registradas para este período.</p>
                 </div>
               ) : (
-                <table className="w-full text-left text-xs text-gray-300">
+                <table className="w-full text-left text-xs text-slate-600">
                   <thead>
-                    <tr className="border-b border-white/10 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    <tr className="border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                       <th className="py-2 pr-2">Salida</th>
                       <th className="py-2 pr-2">Retorno</th>
                       <th className="py-2 text-center">Días</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/[0.06]">
+                  <tbody className="divide-y divide-slate-100">
                     {listaSalidas.map((s) => (
                       <tr key={s.id}>
                         <td className="py-2 pr-2">
@@ -1340,11 +1328,11 @@ export default function AdministracionUsuarios() {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t border-white/10 font-semibold text-white">
+                    <tr className="border-t border-slate-200 font-semibold text-slate-900">
                       <td colSpan={2} className="py-2 text-right text-xs">
                         Total días gozados
                       </td>
-                      <td className="py-2 text-center text-teal-300">
+                      <td className="py-2 text-center text-teal-600">
                         {listaSalidas.reduce((acc, s) => acc + (Number(s.dias_solicitados) || 0), 0)}
                       </td>
                     </tr>
@@ -1358,32 +1346,32 @@ export default function AdministracionUsuarios() {
 
       {modalAlta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="bg-[#252423] border border-white/10 rounded-xl max-w-lg w-full p-6 shadow-2xl">
-            <h3 className="text-lg font-semibold text-white mb-4">Agregar usuario</h3>
+          <div className="bg-white border border-slate-200 rounded-xl max-w-lg w-full p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Agregar usuario</h3>
             <form onSubmit={crearUsuario} className="space-y-3 text-sm">
               <div>
                 <input
                   required
                   placeholder="Código empleado"
-                  className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                  className={INPUT}
                   value={formAlta.codigo_empleado}
                   onChange={(e) => setFormAlta((f) => ({ ...f, codigo_empleado: e.target.value }))}
                 />
-                <p className="text-[11px] text-gray-500 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1">
                   Al elegir el rol se propone un código con prefijo según el rol y el siguiente número libre
                   (p. ej. EMP001, CON004). Puedes cambiarlo.
                 </p>
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
                   {formAlta.rol_id ? (
-                    <span className="text-[11px] text-gray-400">
+                    <span className="text-[11px] text-slate-500">
                       Sugerido ahora:{' '}
-                      <span className="text-violet-300 font-mono">{codigoSugeridoAltaVista}</span>
+                      <span className="text-teal-600 font-mono">{codigoSugeridoAltaVista}</span>
                     </span>
                   ) : null}
                   <button
                     type="button"
                     onClick={aplicarSugerenciaCodigoAlta}
-                    className="text-[11px] text-blue-400 hover:underline"
+                    className="text-[11px] text-teal-600 hover:underline"
                   >
                     Aplicar sugerencia
                   </button>
@@ -1393,14 +1381,14 @@ export default function AdministracionUsuarios() {
                 <input
                   required
                   placeholder="Nombres"
-                  className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                  className={INPUT}
                   value={formAlta.nombres}
                   onChange={(e) => setFormAlta((f) => ({ ...f, nombres: e.target.value }))}
                 />
                 <input
                   required
                   placeholder="Apellidos"
-                  className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                  className={INPUT}
                   value={formAlta.apellidos}
                   onChange={(e) => setFormAlta((f) => ({ ...f, apellidos: e.target.value }))}
                 />
@@ -1408,7 +1396,7 @@ export default function AdministracionUsuarios() {
               <input
                 required
                 placeholder="DNI"
-                className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                className={INPUT}
                 value={formAlta.dni}
                 onChange={(e) => setFormAlta((f) => ({ ...f, dni: e.target.value }))}
               />
@@ -1416,26 +1404,26 @@ export default function AdministracionUsuarios() {
                 required
                 type="email"
                 placeholder="Correo"
-                className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                className={INPUT}
                 value={formAlta.email}
                 onChange={(e) => setFormAlta((f) => ({ ...f, email: e.target.value }))}
               />
               <div>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                   Contraseña inicial
                 </label>
                 <div className="flex gap-2">
                   <input
                     readOnly
                     type={mostrarPasswordAlta ? 'text' : 'password'}
-                    className="flex-1 px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white font-mono text-xs"
+                    className={`${INPUT} font-mono text-xs`}
                     value={formAlta.password}
                     aria-label="Contraseña generada automáticamente"
                   />
                   <button
                     type="button"
                     onClick={() => setMostrarPasswordAlta((v) => !v)}
-                    className="px-3 py-2 rounded border border-white/15 text-gray-300 text-xs hover:bg-white/5 shrink-0"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs hover:bg-slate-50 shrink-0"
                     title={mostrarPasswordAlta ? 'Ocultar' : 'Mostrar'}
                   >
                     {mostrarPasswordAlta ? 'Ocultar' : 'Ver'}
@@ -1443,27 +1431,27 @@ export default function AdministracionUsuarios() {
                   <button
                     type="button"
                     onClick={copiarPasswordAlta}
-                    className="px-3 py-2 rounded border border-white/15 text-blue-400 text-xs hover:bg-white/5 shrink-0"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-teal-600 text-xs hover:bg-slate-50 shrink-0"
                   >
                     Copiar
                   </button>
                   <button
                     type="button"
                     onClick={regenerarPasswordAlta}
-                    className="px-3 py-2 rounded border border-white/15 text-violet-300 text-xs hover:bg-white/5 shrink-0"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-teal-600 text-xs hover:bg-slate-50 shrink-0"
                     title="Generar otra contraseña"
                   >
                     Nueva
                   </button>
                 </div>
-                <p className="text-[11px] text-gray-500 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1">
                   Se genera al azar (12+ caracteres: mayúsculas, minúsculas, números y símbolos). Compártela
                   con el usuario por un canal seguro.
                 </p>
               </div>
               <input
                 placeholder="Cargo (opcional)"
-                className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                className={INPUT}
                 value={formAlta.cargo}
                 onChange={(e) => {
                   const cargo = e.target.value;
@@ -1472,38 +1460,38 @@ export default function AdministracionUsuarios() {
                   );
                 }}
               />
-              <label className="flex gap-3 items-start p-3 rounded-lg border border-white/10 bg-[#1c1b1a] cursor-pointer">
+              <label className="flex gap-3 items-start p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={formAlta.es_consultor_cp}
                   onChange={(e) => setFormAlta((f) => ({ ...f, es_consultor_cp: e.target.checked }))}
-                  className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500"
+                  className="mt-1 w-4 h-4 rounded border-slate-300 accent-teal-600"
                 />
                 <span>
-                  <span className="font-medium text-gray-200 block">Consultor en control de proyectos</span>
-                  <span className="text-xs text-gray-400 block mt-0.5">
+                  <span className="font-medium text-slate-800 block">Consultor en control de proyectos</span>
+                  <span className="text-xs text-slate-500 block mt-0.5">
                     Se activa automáticamente si el cargo es Consultor o el rol es consultor.
                   </span>
                 </span>
               </label>
-              <label className="flex gap-3 items-start p-3 rounded-lg border border-white/10 bg-[#1c1b1a] cursor-pointer">
+              <label className="flex gap-3 items-start p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={formAlta.requiere_aprobacion_horas}
                   onChange={(e) =>
                     setFormAlta((f) => ({ ...f, requiere_aprobacion_horas: e.target.checked }))
                   }
-                  className="mt-1 w-4 h-4 rounded border-gray-500 accent-violet-500"
+                  className="mt-1 w-4 h-4 rounded border-slate-300 accent-teal-600"
                 />
                 <span>
-                  <span className="font-medium text-gray-200 block">Locador — requiere aprobación de horas</span>
-                  <span className="text-xs text-gray-400 block mt-0.5">
+                  <span className="font-medium text-slate-800 block">Locador — requiere aprobación de horas</span>
+                  <span className="text-xs text-slate-500 block mt-0.5">
                     Actividades nuevas con aprobador activo en «Requerido por» quedarán pendientes.
                   </span>
                 </span>
               </label>
               <select
-                className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                className={INPUT}
                 value={formAlta.area}
                 onChange={(e) => setFormAlta((f) => ({ ...f, area: e.target.value }))}
                 title="Área organizacional (opcional)"
@@ -1514,23 +1502,23 @@ export default function AdministracionUsuarios() {
                 ))}
               </select>
               <div>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
                   Fecha de ingreso a la organización
                 </label>
                 <input
                   required
                   type="date"
-                  className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                  className={INPUT}
                   value={formAlta.fecha_ingreso}
                   onChange={(e) => setFormAlta((f) => ({ ...f, fecha_ingreso: e.target.value }))}
                 />
-                <p className="text-[11px] text-gray-500 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1">
                   Día en que la persona se incorporó a Prayaga (base para vacaciones y antigüedad).
                 </p>
               </div>
               <select
                 required
-                className="w-full px-3 py-2 rounded bg-[#1c1b1a] border border-white/15 text-white"
+                className={INPUT}
                 value={formAlta.rol_id}
                 onChange={(e) => {
                   const rol_id = e.target.value;
@@ -1565,14 +1553,11 @@ export default function AdministracionUsuarios() {
                     prevRolAltaRef.current = '';
                     ultimoCodigoSugeridoAltaRef.current = '';
                   }}
-                  className="px-4 py-2 rounded border border-white/20 text-gray-300"
+                  className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded bg-blue-600 text-white font-medium"
-                >
+                <button type="submit" className={`px-4 py-2 ${BTN_PRI}`}>
                   Crear
                 </button>
               </div>
@@ -1580,6 +1565,6 @@ export default function AdministracionUsuarios() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -111,6 +111,9 @@ const Portal = () => {
   const refOperaciones = useRef(null);
   const refProveedores = useRef(null);
   const refProyectos = useRef(null);
+  const refModulosGrid = useRef(null);
+  const refMenuPanel = useRef(null);
+  const refSidebarConfig = useRef(null);
 
   useEffect(() => {
     refrescarUsuario();
@@ -135,7 +138,10 @@ const Portal = () => {
   useEffect(() => {
     if (!menuUsuarioAbierto) return undefined;
     const onClickOutside = (e) => {
-      if (menuUsuarioRef.current && !menuUsuarioRef.current.contains(e.target)) {
+      const inTrigger = menuUsuarioRef.current?.contains(e.target);
+      const inPanel = refMenuPanel.current?.contains(e.target);
+      const inSidebarConfig = refSidebarConfig.current?.contains(e.target);
+      if (!inTrigger && !inPanel && !inSidebarConfig) {
         setMenuUsuarioAbierto(false);
       }
     };
@@ -207,6 +213,7 @@ const Portal = () => {
     });
   }
 
+  if (puedeAccederModuloPortal('boletas')) {
   modulos.push({
     id: 'boletas',
     area: 'mi-espacio',
@@ -224,6 +231,7 @@ const Portal = () => {
     activo: true,
     adminLink: '/boletas/gestion'
   });
+  }
 
   if (subAccesoReembolsos || subAccesoRendicion) {
     modulos.push({
@@ -466,6 +474,96 @@ const Portal = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const navVisible = (itemId) => {
+    if (itemId === 'inicio') return true;
+    if (itemId === 'proveedores') return !!modulosPorArea.operaciones?.some((m) => m.id === 'proveedores');
+    if (itemId === 'analitica') {
+      return !!modulosPorArea.proyectos?.some((m) =>
+        ['consumo-fabric', 'comisiones-por-pagar'].includes(m.id)
+      );
+    }
+    const areaMap = { 'mi-espacio': 'mi-espacio', operaciones: 'operaciones', proyectos: 'proyectos' };
+    const areaId = areaMap[itemId];
+    return areaId ? (modulosPorArea[areaId]?.length || 0) > 0 : false;
+  };
+
+  const renderMenuCuenta = () => (
+    <div
+      ref={refMenuPanel}
+      role="menu"
+      className="fixed right-4 top-[4.25rem] w-72 sm:w-80 rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden z-50"
+    >
+      <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-semibold flex items-center justify-center">
+            {inicialUsuario}
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-800 truncate">
+              {usuario?.nombres} {usuario?.apellidos}
+            </div>
+            <div className="text-xs text-slate-500 capitalize truncate">
+              {usuario?.rol_nombre?.replace(/_/g, ' ')}
+            </div>
+            {usuario?.email && <div className="text-[11px] text-slate-400 truncate">{usuario.email}</div>}
+          </div>
+        </div>
+      </div>
+
+      {opcionesUsuario.length > 0 && (
+        <div className="py-1.5">
+          {opcionesUsuario.map((opc) => {
+            const Ic = opc.icono;
+            return (
+              <Link
+                key={opc.id}
+                to={opc.to}
+                role="menuitem"
+                onClick={() => setMenuUsuarioAbierto(false)}
+                className="flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors"
+              >
+                <div className={`w-9 h-9 rounded-lg ${opc.bgLight} flex items-center justify-center shrink-0`}>
+                  <Ic className={`w-5 h-5 ${opc.textColor}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-800">{opc.label}</p>
+                  <p className="text-xs text-slate-500 leading-snug">{opc.descripcion}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      <div className={`${opcionesUsuario.length > 0 ? 'border-t border-slate-100' : ''} py-1.5`}>
+        <button
+          type="button"
+          onClick={() => {
+            setMenuUsuarioAbierto(false);
+            setModalPasswordAbierto(true);
+          }}
+          role="menuitem"
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          <KeyIcon className="w-5 h-5 text-teal-600" />
+          Cambiar contraseña
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMenuUsuarioAbierto(false);
+            handleLogout();
+          }}
+          role="menuitem"
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
+        >
+          <ArrowRightOnRectangleIcon className="w-5 h-5" />
+          Cerrar sesión
+        </button>
+      </div>
+    </div>
+  );
+
   const renderModuloFila = (modulo) => {
     const Icono = modulo.icono;
     const abrir = () => destinoModulo(modulo, navigate, setModuloSelector);
@@ -476,10 +574,17 @@ const Portal = () => {
         id={modulo.id === 'proveedores' ? 'modulo-proveedores' : undefined}
         className="group"
       >
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           onClick={abrir}
-          className="w-full flex items-center gap-4 p-4 rounded-xl bg-white border border-slate-100/80 shadow-sm hover:shadow-md hover:border-slate-200 transition-all text-left"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              abrir();
+            }
+          }}
+          className="w-full flex items-center gap-4 p-4 rounded-xl bg-white border border-slate-100/80 shadow-sm hover:shadow-md hover:border-slate-200 transition-all text-left cursor-pointer"
         >
           <div
             className={`w-11 h-11 rounded-lg bg-gradient-to-br ${modulo.color} flex items-center justify-center shadow-sm ${modulo.shadowColor} shrink-0`}
@@ -497,13 +602,23 @@ const Portal = () => {
               )}
             </div>
             <p className="text-sm text-slate-500 mt-0.5 leading-snug">{modulo.metricHint || modulo.descripcion}</p>
-            <span className={`inline-block mt-2 text-sm font-semibold ${modulo.textColor}`}>
-              {modulo.accionLabel || 'Acceder'}
-            </span>
+            {modulo.accionTo ? (
+              <Link
+                to={modulo.accionTo}
+                onClick={(e) => e.stopPropagation()}
+                className={`inline-block mt-2 text-sm font-semibold ${modulo.textColor} hover:underline`}
+              >
+                {modulo.accionLabel || 'Acceder'}
+              </Link>
+            ) : (
+              <span className={`inline-block mt-2 text-sm font-semibold ${modulo.textColor}`}>
+                {modulo.accionLabel || 'Acceder'}
+              </span>
+            )}
           </div>
 
           <ChevronRightIcon className="w-5 h-5 text-slate-300 shrink-0 group-hover:text-slate-500 transition-colors" />
-        </button>
+        </div>
 
         {(modulo.extraLinks?.length > 0 || puedeVerAdminLink(modulo, ctxAdmin)) && (
           <div className="flex flex-wrap gap-3 px-4 pb-1 -mt-1">
@@ -548,12 +663,7 @@ const Portal = () => {
           {SIDEBAR_NAV.map((item) => {
             const NavIcon = item.icono;
             const activo = navActiva === item.id;
-            const oculto =
-              (item.id === 'proveedores' && !puedeAccederModuloPortal('proveedores')) ||
-              (item.id === 'analitica' &&
-                !puedeAccederModuloPortal('consumo-fabric') &&
-                !puedeAccederModuloPortal('comisiones-por-pagar'));
-            if (oculto) return null;
+            if (!navVisible(item.id)) return null;
             return (
               <button
                 key={item.id}
@@ -574,14 +684,25 @@ const Portal = () => {
 
         <div className="px-2 py-5 mt-auto border-t border-slate-100">
           <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Cuenta</p>
-          <button
-            type="button"
-            onClick={() => setMenuUsuarioAbierto(true)}
-            className="w-full flex items-center gap-3 py-2.5 pl-3 pr-3 rounded-r-lg text-sm font-medium text-slate-600 hover:bg-slate-50 border-l-[3px] border-transparent"
-          >
-            <Cog6ToothIcon className="w-[18px] h-[18px]" />
-            Configuración
-          </button>
+          {esAdminPortalUsuarios() ? (
+            <Link
+              to="/admin-portal/usuarios"
+              className="w-full flex items-center gap-3 py-2.5 pl-3 pr-3 rounded-r-lg text-sm font-medium text-slate-600 hover:bg-slate-50 border-l-[3px] border-transparent"
+            >
+              <Cog6ToothIcon className="w-[18px] h-[18px]" />
+              Configuración
+            </Link>
+          ) : (
+            <button
+              ref={refSidebarConfig}
+              type="button"
+              onClick={() => setMenuUsuarioAbierto(true)}
+              className="w-full flex items-center gap-3 py-2.5 pl-3 pr-3 rounded-r-lg text-sm font-medium text-slate-600 hover:bg-slate-50 border-l-[3px] border-transparent"
+            >
+              <Cog6ToothIcon className="w-[18px] h-[18px]" />
+              Configuración
+            </button>
+          )}
         </div>
       </aside>
 
@@ -611,7 +732,7 @@ const Portal = () => {
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <NotificacionesDropdown />
 
-              <div className="relative hidden sm:block" ref={menuUsuarioRef}>
+              <div className="relative" ref={menuUsuarioRef}>
                 <button
                   type="button"
                   onClick={() => setMenuUsuarioAbierto((v) => !v)}
@@ -634,84 +755,6 @@ const Portal = () => {
                     className={`w-4 h-4 text-slate-400 transition-transform hidden md:block ${menuUsuarioAbierto ? 'rotate-180' : ''}`}
                   />
                 </button>
-
-                {menuUsuarioAbierto && (
-                  <div
-                    role="menu"
-                    className="absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden z-40"
-                  >
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-semibold flex items-center justify-center">
-                          {inicialUsuario}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-800 truncate">
-                            {usuario?.nombres} {usuario?.apellidos}
-                          </div>
-                          <div className="text-xs text-slate-500 capitalize truncate">
-                            {usuario?.rol_nombre?.replace(/_/g, ' ')}
-                          </div>
-                          {usuario?.email && (
-                            <div className="text-[11px] text-slate-400 truncate">{usuario.email}</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {opcionesUsuario.length > 0 && (
-                      <div className="py-1.5">
-                        {opcionesUsuario.map((opc) => {
-                          const Ic = opc.icono;
-                          return (
-                            <Link
-                              key={opc.id}
-                              to={opc.to}
-                              role="menuitem"
-                              onClick={() => setMenuUsuarioAbierto(false)}
-                              className="flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors"
-                            >
-                              <div className={`w-9 h-9 rounded-lg ${opc.bgLight} flex items-center justify-center shrink-0`}>
-                                <Ic className={`w-5 h-5 ${opc.textColor}`} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-slate-800">{opc.label}</p>
-                                <p className="text-xs text-slate-500 leading-snug">{opc.descripcion}</p>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <div className={`${opcionesUsuario.length > 0 ? 'border-t border-slate-100' : ''} py-1.5`}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMenuUsuarioAbierto(false);
-                          setModalPasswordAbierto(true);
-                        }}
-                        role="menuitem"
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        <KeyIcon className="w-5 h-5 text-teal-600" />
-                        Cambiar contraseña
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMenuUsuarioAbierto(false);
-                          handleLogout();
-                        }}
-                        role="menuitem"
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
-                      >
-                        <ArrowRightOnRectangleIcon className="w-5 h-5" />
-                        Cerrar sesión
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <button
@@ -754,7 +797,7 @@ const Portal = () => {
               <p className="text-slate-600 font-medium">No hay módulos que coincidan con tu búsqueda.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 lg:gap-6">
+            <div ref={refModulosGrid} className="grid grid-cols-1 xl:grid-cols-3 gap-5 lg:gap-6 scroll-mt-24">
               {AREAS_PORTAL.map((area) => {
                 const items = modulosPorArea[area.id] || [];
                 if (!items.length) return null;
@@ -799,7 +842,7 @@ const Portal = () => {
                 type="button"
                 onClick={() => {
                   setBusqueda('');
-                  scrollToNav('inicio');
+                  refModulosGrid.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-slate-200 bg-white text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
               >
@@ -811,6 +854,8 @@ const Portal = () => {
           <p className="text-center text-slate-400 text-xs mt-10 pb-4">© 2026 PRAYAGA · Portal Prayaga Interno</p>
         </main>
       </div>
+
+      {menuUsuarioAbierto && renderMenuCuenta()}
 
       {/* Modal selector de sub-opciones */}
       {moduloSelector && (() => {
