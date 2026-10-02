@@ -19,10 +19,18 @@ const tipoEstilo = {
   warning: 'bg-amber-50 border-amber-100 text-amber-800'
 };
 
-const NotificacionesDropdown = ({ className = '' }) => {
+const NotificacionesDropdown = ({
+  className = '',
+  abierto: abiertoControlado,
+  onAbiertoChange,
+  anclaRef
+}) => {
   const navigate = useNavigate();
-  const ref = useRef(null);
-  const [abierto, setAbierto] = useState(false);
+  const refInterno = useRef(null);
+  const ref = anclaRef || refInterno;
+  const [abiertoInterno, setAbiertoInterno] = useState(false);
+  const abierto = abiertoControlado ?? abiertoInterno;
+  const setAbierto = onAbiertoChange ?? setAbiertoInterno;
   const [lista, setLista] = useState([]);
   const [totalNoLeidas, setTotalNoLeidas] = useState(0);
   const [cargando, setCargando] = useState(false);
@@ -71,7 +79,7 @@ const NotificacionesDropdown = ({ className = '' }) => {
     };
   }, [abierto, cargarLista]);
 
-  const abrir = () => setAbierto((v) => !v);
+  const abrir = () => setAbierto(!abierto);
 
   const marcarTodas = async () => {
     try {
@@ -135,7 +143,8 @@ const NotificacionesDropdown = ({ className = '' }) => {
       {abierto && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-80 sm:w-96 max-h-[min(70vh,420px)] flex flex-col rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden z-50"
+          data-notificaciones-panel
+          className="fixed right-4 top-[4.25rem] w-[min(calc(100vw-2rem),24rem)] max-h-[min(70vh,420px)] flex flex-col rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden z-[60]"
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
             <div>
