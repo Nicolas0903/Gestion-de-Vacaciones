@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { ArrowLeftIcon, ArrowPathIcon, DocumentArrowDownIcon, TableCellsIcon } from '@heroicons/react/24/outline';
 import { formatoDatetimeBolsaHoras } from '../utils/bolsaHorasDateUtils';
 import { controlProyectosService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -47,6 +50,8 @@ const ControlProyectosReporteLocadores = () => {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
+  const [exportandoExcel, setExportandoExcel] = useState(false);
   const [finDesde, setFinDesde] = useState(defs.desde);
   const [finHasta, setFinHasta] = useState(defs.hasta);
   const [proyectoId, setProyectoId] = useState('');
@@ -113,6 +118,158 @@ const ControlProyectosReporteLocadores = () => {
   };
 
   const labelEstApr = (v) => EST_APROB.find((x) => x.value === v)?.label || v;
+
+  const filasExport = useMemo(
+    () =>
+      actividades.map((a) => ({
+        id: a.id,
+        proyecto: a.proyecto_nombre || '',
+        consultor: a.consultor_nombre || '',
+        requeridoPor: labelReq(a) || '',
+        descripcion: a.descripcion_actividad || '',
+        horas: Number(a.horas_trabajadas) || 0,
+        inicio: formatoDatetimeBolsaHoras(a.fecha_hora_inicio),
+        fin: formatoDatetimeBolsaHoras(a.fecha_hora_fin),
+        aprobacion: labelEstApr(a.estado_aprobacion),
+        comentario: a.comentario_aprobacion || ''
+      })),
+    [actividades]
+  );
+
+  const totalHorasExport = useMemo(
+    () => Math.round(filasExport.reduce((s, r) => s + r.horas, 0) * 100) / 100,
+    [filasExport]
+  );
+
+  const exportarExcel = useCallback(() => {
+    if (filasExport.length === 0) {
+      toast.error('No hay registros para exportar.');
+      return;
+    }
+    setExportandoExcel(true);
+    try {
+      const rows = filasExport.map((r) => ({
+        ID: r.id,
+        Proyecto: r.proyecto,
+        Consultor: r.consultor,
+        'Requerido por': r.requeridoPor,
+        'Descripción de actividad': r.descripcion,
+        Horas: r.horas,
+        Inicio: r.inicio,
+        Fin: r.fin,
+        Aprobación: r.aprobacion,
+        Comentario: r.comentario
+      }));
+      rows.push({
+        ID: '',
+        Proyecto: '',
+        Consultor: '',
+        'Requerido por': '',
+        'Descripción de actividad': 'Total horas',
+        Horas: totalHorasExport,
+        Inicio: '',
+        Fin: '',
+        Aprobación: '',
+        Comentario: ''
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 8 },
+        { wch: 28 },
+        { wch: 24 },
+        { wch: 20 },
+        { wch: 48 },
+        { wch: 10 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 12 },
+        { wch: 24 }
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Flujo locadores');
+      XLSX.writeFile(wb, `flujo-locadores_${finDesde}_${finHasta}.xlsx`);
+      toast.success('Excel descargado.');
+    } catch {
+      toast.error('No se pudo generar el Excel.');
+    } finally {
+      setExportandoExcel(false);
+    }
+  }, [filasExport, finDesde, finHasta, totalHorasExport]);
+
+  const exportarPdf = useCallback(() => {
+    if (filasExport.length === 0) {
+      toast.error('No hay registros para exportar.');
+      return;
+    }
+    setExportandoPdf(true);
+    try {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const margin = 36;
+
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Flujo locadores — aprobación de horas', margin, 28);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+      const filtros = [
+        `Empresa: ${empresaSel || 'Todas'}`,
+        `Proyecto: ${proyectoId ? proyectosFiltEmpresa.find((p) => String(p.id) === proyectoId)?.proyecto || proyectoId : 'Todos'}`,
+        `Fin: ${finDesde} → ${finHasta}`,
+        estadoAprobacion ? `Aprobación: ${labelEstApr(estadoAprobacion)}` : 'Aprobación: Todas'
+      ].join(' · ');
+      doc.text(filtros, margin, 44, { maxWidth: pageW - margin * 2 });
+      doc.text(`Generado: ${new Date().toLocaleString('es-PE')}`, margin, 58);
+
+      autoTable(doc, {
+        startY: 68,
+        head: [
+          ['ID', 'Proyecto', 'Consultor', 'Requerido por', 'Descripción', 'Horas', 'Inicio', 'Fin', 'Aprobación', 'Comentario']
+        ],
+        body: filasExport.map((r) => [
+          String(r.id),
+          r.proyecto,
+          r.consultor,
+          r.requeridoPor,
+          r.descripcion,
+          r.horas.toFixed(2),
+          r.inicio,
+          r.fin,
+          r.aprobacion,
+          r.comentario
+        ]),
+        foot: [['', '', '', '', 'Total horas', totalHorasExport.toFixed(2), '', '', '', '']],
+        styles: { fontSize: 7, cellPadding: 3, overflow: 'linebreak' },
+        headStyles: { fillColor: [124, 58, 237], textColor: 255, fontStyle: 'bold' },
+        footStyles: { fillColor: [245, 243, 255], textColor: [76, 29, 149], fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 28 },
+          4: { cellWidth: 120 },
+          5: { halign: 'right', cellWidth: 36 },
+          6: { cellWidth: 62 },
+          7: { cellWidth: 62 }
+        },
+        margin: { left: margin, right: margin }
+      });
+
+      doc.save(`flujo-locadores_${finDesde}_${finHasta}.pdf`);
+      toast.success('PDF descargado.');
+    } catch {
+      toast.error('No se pudo generar el PDF.');
+    } finally {
+      setExportandoPdf(false);
+    }
+  }, [
+    filasExport,
+    finDesde,
+    finHasta,
+    empresaSel,
+    proyectoId,
+    proyectosFiltEmpresa,
+    estadoAprobacion,
+    totalHorasExport
+  ]);
 
   return (
     <div className="w-full max-w-none">
@@ -229,6 +386,24 @@ const ControlProyectosReporteLocadores = () => {
           >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
+          </button>
+          <button
+            type="button"
+            onClick={() => exportarExcel()}
+            disabled={loading || exportandoExcel || actividades.length === 0}
+            className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold text-white border border-slate-500 disabled:opacity-50"
+          >
+            <TableCellsIcon className="w-4 h-4" />
+            {exportandoExcel ? 'Exportando…' : 'Exportar Excel'}
+          </button>
+          <button
+            type="button"
+            onClick={() => exportarPdf()}
+            disabled={loading || exportandoPdf || actividades.length === 0}
+            className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold text-white border border-slate-500 disabled:opacity-50"
+          >
+            <DocumentArrowDownIcon className="w-4 h-4" />
+            {exportandoPdf ? 'Exportando…' : 'Exportar PDF'}
           </button>
         </div>
       </div>
