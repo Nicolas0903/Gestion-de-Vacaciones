@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import {
   ArrowLeftIcon,
   TableCellsIcon,
@@ -72,6 +73,7 @@ const ControlProyectosReporteActividades = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [exportandoPdf, setExportandoPdf] = useState(false);
+  const [exportandoExcel, setExportandoExcel] = useState(false);
   const [finDesde, setFinDesde] = useState(defs.desde);
   const [finHasta, setFinHasta] = useState(defs.hasta);
   const [subidaDesde, setSubidaDesde] = useState('');
@@ -151,6 +153,103 @@ const ControlProyectosReporteActividades = () => {
     }
   }, [finDesde, finHasta, subidaDesde, subidaHasta, proyectoId, empresaSel, gestor, consultorEmpId, estadoAprobacion]);
 
+  const labelEstApr = (v) => EST_APROB.find((x) => x.value === v)?.label || v || 'N/A';
+  const labelReq = (a) => {
+    if (a?.requerido_por === 'otros') {
+      const t = String(a.requerido_por_otros || '').trim();
+      if (t) return t;
+    }
+    return REQUERIDO_POR_OPTS.find((x) => x.value === a?.requerido_por)?.label || a?.requerido_por;
+  };
+  const labelPri = (k) => PRIOR.find((x) => x.value === k)?.label || k;
+  const labelEst = (k) => EST_ACT.find((x) => x.value === k)?.label || k;
+
+  const actividades = data?.actividades || [];
+  const kpis = data?.kpis || {};
+
+  const filasExport = useMemo(
+    () =>
+      actividades.map((a) => ({
+        id: a.id,
+        proyecto: a.proyecto_nombre || '',
+        requeridoPor: labelReq(a),
+        consultor: a.consultor_nombre || '',
+        descripcion: a.descripcion_actividad || '',
+        prioridad: labelPri(a.prioridad),
+        inicio: formatoDatetimeBolsaHoras(a.fecha_hora_inicio),
+        horas: Number(a.horas_trabajadas) || 0,
+        fin: formatoDatetimeBolsaHoras(a.fecha_hora_fin),
+        subida: formatoDatetimeBolsaHoras(a.fecha_subida),
+        estado: labelEst(a.estado_actividad),
+        aprobacion: labelEstApr(a.estado_aprobacion)
+      })),
+    [actividades]
+  );
+
+  const totalTablaHoras =
+    Math.round(actividades.reduce((s, r) => s + (Number(r.horas_trabajadas) || 0), 0) * 100) / 100;
+
+  const exportarExcel = useCallback(() => {
+    if (filasExport.length === 0) {
+      toast.error('No hay registros para exportar.');
+      return;
+    }
+    setExportandoExcel(true);
+    try {
+      const rows = filasExport.map((r) => ({
+        ID: r.id,
+        Proyecto: r.proyecto,
+        'Requerido por': r.requeridoPor,
+        'Consultor asignado': r.consultor,
+        'Descripción de actividad': r.descripcion,
+        Prioridad: r.prioridad,
+        'Fecha y hora de inicio': r.inicio,
+        'Horas trabajadas': r.horas,
+        'Fecha y hora de fin': r.fin,
+        'Fecha de subida': r.subida,
+        Estado: r.estado,
+        Aprobación: r.aprobacion
+      }));
+      rows.push({
+        ID: '',
+        Proyecto: '',
+        'Requerido por': '',
+        'Consultor asignado': '',
+        'Descripción de actividad': 'Total horas',
+        Prioridad: '',
+        'Fecha y hora de inicio': '',
+        'Horas trabajadas': totalTablaHoras,
+        'Fecha y hora de fin': '',
+        'Fecha de subida': '',
+        Estado: '',
+        Aprobación: ''
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 8 },
+        { wch: 28 },
+        { wch: 20 },
+        { wch: 24 },
+        { wch: 48 },
+        { wch: 10 },
+        { wch: 20 },
+        { wch: 12 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 14 },
+        { wch: 12 }
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Actividades');
+      XLSX.writeFile(wb, `reporte-actividades-cp_${finDesde}_${finHasta}.xlsx`);
+      toast.success('Excel descargado.');
+    } catch {
+      toast.error('No se pudo generar el Excel.');
+    } finally {
+      setExportandoExcel(false);
+    }
+  }, [filasExport, finDesde, finHasta, totalTablaHoras]);
+
   useEffect(() => {
     if (!gestor) {
       setConsultorEmpId('');
@@ -187,23 +286,6 @@ const ControlProyectosReporteActividades = () => {
     if (empresaSel === 'Todas') return [...rows];
     return rows.filter((p) => String(p.empresa || '').trim() === empresaSel);
   }, [data, empresaSel]);
-
-  const actividades = data?.actividades || [];
-  const kpis = data?.kpis || {};
-
-  const totalTablaHoras =
-    Math.round(actividades.reduce((s, r) => s + (Number(r.horas_trabajadas) || 0), 0) * 100) / 100;
-
-  const labelEstApr = (v) => EST_APROB.find((x) => x.value === v)?.label || v || 'N/A';
-  const labelReq = (a) => {
-    if (a?.requerido_por === 'otros') {
-      const t = String(a.requerido_por_otros || '').trim();
-      if (t) return t;
-    }
-    return REQUERIDO_POR_OPTS.find((x) => x.value === a?.requerido_por)?.label || a?.requerido_por;
-  };
-  const labelPri = (k) => PRIOR.find((x) => x.value === k)?.label || k;
-  const labelEst = (k) => EST_ACT.find((x) => x.value === k)?.label || k;
 
   return (
     <div className="w-full max-w-none">
@@ -367,12 +449,21 @@ const ControlProyectosReporteActividades = () => {
               </button>
               <button
                 type="button"
+                onClick={() => exportarExcel()}
+                disabled={loading || exportandoExcel || actividades.length === 0}
+                className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold text-white border border-slate-500 disabled:opacity-50"
+              >
+                <TableCellsIcon className="w-4 h-4" />
+                {exportandoExcel ? 'Exportando…' : 'Exportar Excel'}
+              </button>
+              <button
+                type="button"
                 onClick={() => exportarPdf()}
-                disabled={loading || exportandoPdf}
+                disabled={loading || exportandoPdf || actividades.length === 0}
                 className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-4 py-2 text-sm font-semibold text-white border border-slate-500 disabled:opacity-50"
               >
                 <DocumentArrowDownIcon className="w-4 h-4" />
-                Exportar PDF
+                {exportandoPdf ? 'Exportando…' : 'Exportar PDF'}
               </button>
             </div>
           </div>
