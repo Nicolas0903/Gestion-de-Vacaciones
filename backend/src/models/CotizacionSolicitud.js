@@ -150,7 +150,11 @@ class CotizacionSolicitud {
     return this.obtener(id);
   }
 
-  static async listar({ solicitanteId = null, soloPendientesEquipo = false } = {}) {
+  static async listar({
+    solicitanteId = null,
+    soloPendientesEquipo = false,
+    responsableIdEquipo = null
+  } = {}) {
     let sql = `
       SELECT s.*,
              CONCAT(e.nombres, ' ', e.apellidos) AS solicitante_nombre,
@@ -169,6 +173,10 @@ class CotizacionSolicitud {
     }
     if (soloPendientesEquipo) {
       sql += ` AND s.estado IN ('enviada', 'en_elaboracion') AND s.cotizacion_id IS NULL`;
+      if (responsableIdEquipo) {
+        sql += ` AND s.responsable_id = ?`;
+        params.push(responsableIdEquipo);
+      }
     }
     sql += ` ORDER BY s.updated_at DESC, s.id DESC`;
     const [rows] = await pool.query(sql, params);

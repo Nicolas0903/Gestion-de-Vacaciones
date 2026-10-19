@@ -320,7 +320,7 @@ function AppRoutes() {
       } />
 
       <Route path="/cotizaciones" element={
-        <ProtectedRoute roles={['admin']}>
+        <ProtectedRoute>
           <ModuloPortalRoute moduloId="cotizaciones">
             <PageWrapper wide><Cotizaciones /></PageWrapper>
           </ModuloPortalRoute>

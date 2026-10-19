@@ -24,6 +24,16 @@ export const EMAILS_MODULO_CAJA_CHICA = [
 
 export const EMAILS_MODULO_CONSUMO_FABRIC = ['veronica.gonzales@prayaga.biz'];
 
+/** Responsables que elaboran cotizaciones (misma lista que backend). */
+export const EMAILS_MODULO_COTIZACIONES = [
+  'magali.sevillano@prayaga.biz',
+  'enrique.agapito@prayaga.biz',
+  'luis.aguayo@prayaga.biz',
+  'veronica.gonzales@prayaga.biz',
+  'nicolas.valdivia@prayaga.biz',
+  'ricardo.martinez@prayaga.biz'
+];
+
 const EMAILS_REPORTE_ASISTENCIA = [
   'rocio.picon@prayaga.biz',
   'enrique.prayaga@prayaga.biz',
@@ -92,7 +102,11 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
   if (moduloId === 'proveedores' && esAdmin()) return true;
   if (moduloId === 'comisiones-por-pagar' && esAdmin()) return true;
   if (moduloId === 'consumo-fabric' && esAdmin()) return true;
-  if (moduloId === 'cotizaciones' && esAdmin()) return true;
+  if (moduloId === 'cotizaciones') {
+    if (esAdmin()) return true;
+    if (EMAILS_MODULO_COTIZACIONES.includes((usuario?.email || '').toLowerCase().trim())) return true;
+  }
+  if (moduloId === 'cierre-negocio' && esAdmin()) return true;
 
   const m = parseModulosPortal(usuario.modulos_portal);
   const tieneMapa = m && Object.keys(m).length > 0;
@@ -127,7 +141,8 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
     moduloId === 'rendicion-presupuesto' ||
     moduloId === 'comisiones-por-pagar' ||
     moduloId === 'consumo-fabric' ||
-    moduloId === 'cotizaciones'
+    moduloId === 'cotizaciones' ||
+    moduloId === 'cierre-negocio'
   ) {
     return false;
   }

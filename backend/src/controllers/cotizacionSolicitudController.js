@@ -14,9 +14,11 @@ exports.listarResponsables = async (req, res) => {
 exports.listar = async (req, res) => {
   try {
     const equipo = req.query.equipo === '1';
+    const esAdmin = req.usuario.rol_nombre === 'admin';
     const rows = await CotizacionSolicitud.listar({
       solicitanteId: equipo ? null : req.usuario.id,
-      soloPendientesEquipo: equipo
+      soloPendientesEquipo: equipo,
+      responsableIdEquipo: equipo && !esAdmin ? req.usuario.id : null
     });
     res.json({ success: true, data: rows });
   } catch (e) {

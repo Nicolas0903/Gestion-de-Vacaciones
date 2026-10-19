@@ -1,9 +1,5 @@
--- Evolución módulo cotizaciones: campos generales + catálogo tipos proyecto
-
-ALTER TABLE cotizaciones
-  ADD COLUMN IF NOT EXISTS tipo_proyecto VARCHAR(120) NULL AFTER proyecto,
-  ADD COLUMN IF NOT EXISTS tipo_proyecto_codigo VARCHAR(16) NULL AFTER tipo_proyecto,
-  ADD COLUMN IF NOT EXISTS notas_internas TEXT NULL AFTER tipo_proyecto_codigo;
+-- Evolución módulo cotizaciones: catálogo tipos proyecto
+-- (columnas tipo_proyecto / notas en cotizaciones: script run-cotizaciones-v2-migration.js)
 
 CREATE TABLE IF NOT EXISTS cotizacion_tipos_proyecto (
   id INT AUTO_INCREMENT PRIMARY KEY,

@@ -254,7 +254,13 @@ const Cotizaciones = () => {
 
         {solicitudesPendientes.length > 0 && (
           <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/80 p-4">
-            <h2 className="font-semibold text-indigo-900 text-sm">Solicitudes comerciales pendientes</h2>
+            <h2 className="font-semibold text-indigo-900 text-sm">
+              Solicitudes para elaborar (comercial → responsable)
+            </h2>
+            <p className="text-xs text-indigo-800/80 mt-1 mb-2">
+              Revisa la info y pulsa <strong>Crear cotización</strong> para tomar la solicitud. Admin ve todas;
+              el responsable asignado solo ve las suyas.
+            </p>
             <ul className="mt-2 space-y-2">
               {solicitudesPendientes.map((s) => (
                 <li

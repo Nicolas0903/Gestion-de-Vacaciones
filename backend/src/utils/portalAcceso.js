@@ -1,4 +1,9 @@
 const { MODULOS_PORTAL } = require('../constants/portalModulos');
+const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
+
+const EMAILS_MODULO_COTIZACIONES = COTIZACION_RESPONSABLES_EMAILS.map((x) =>
+  String(x).trim().toLowerCase()
+);
 
 const EMAILS_REPORTE_ASISTENCIA = [
   'rocio.picon@prayaga.biz',
@@ -48,6 +53,10 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
     return rolNombre === 'admin';
   }
   if (moduloId === 'cotizaciones') {
+    if (EMAILS_MODULO_COTIZACIONES.includes(e)) return true;
+    return rolNombre === 'admin';
+  }
+  if (moduloId === 'cierre-negocio') {
     return rolNombre === 'admin';
   }
   // Rendición de presupuesto: acceso restringido. Solo admin tiene acceso por defecto;
