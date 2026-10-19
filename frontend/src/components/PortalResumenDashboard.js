@@ -39,7 +39,23 @@ function saludoHorario() {
   return 'Buenas noches';
 }
 
-function KpiCard({ icon: Icon, color, valor, etiqueta, hint }) {
+const RUTA_APROB_POR_CATEGORIA = {
+  vacaciones: '/vacaciones/aprobaciones',
+  permisos: '/permisos/gestion',
+  reembolsos: '/reembolsos/gestion',
+  registros: '/admin/solicitudes-registro'
+};
+
+function destinoAprobacionesPendientes(pendientesIa, pendientesAprob) {
+  const cat = (pendientesIa?.categorias || []).find((c) => Number(c.cantidad) > 0);
+  if (cat?.clave && RUTA_APROB_POR_CATEGORIA[cat.clave]) {
+    return RUTA_APROB_POR_CATEGORIA[cat.clave];
+  }
+  if (pendientesAprob?.length) return '/vacaciones/aprobaciones';
+  return '/vacaciones/aprobaciones';
+}
+
+function KpiCard({ icon: Icon, color, valor, etiqueta, hint, to, onClick }) {
   const colores = {
     teal: 'from-teal-500 to-cyan-500 shadow-teal-500/25',
     blue: 'from-sky-500 to-blue-600 shadow-sky-500/25',
@@ -49,22 +65,42 @@ function KpiCard({ icon: Icon, color, valor, etiqueta, hint }) {
     emerald: 'from-emerald-500 to-teal-600 shadow-emerald-500/25'
   };
 
-  return (
-    <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4 sm:p-5 hover:shadow-md transition-shadow">
-      <div className="flex items-start gap-3">
-        <div
-          className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colores[color] || colores.teal} shadow-lg flex items-center justify-center shrink-0`}
-        >
-          <Icon className="w-5 h-5 text-white" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums leading-none">{valor}</p>
-          <p className="text-sm font-medium text-slate-700 mt-1">{etiqueta}</p>
-          {hint ? <p className="text-xs text-slate-500 mt-0.5 leading-snug">{hint}</p> : null}
-        </div>
+  const shellClass =
+    'rounded-2xl bg-white border border-slate-100 shadow-sm p-4 sm:p-5 hover:shadow-md hover:border-teal-200/80 transition-all block w-full text-left';
+
+  const body = (
+    <div className="flex items-start gap-3">
+      <div
+        className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colores[color] || colores.teal} shadow-lg flex items-center justify-center shrink-0`}
+      >
+        <Icon className="w-5 h-5 text-white" />
       </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums leading-none">{valor}</p>
+        <p className="text-sm font-medium text-slate-700 mt-1">{etiqueta}</p>
+        {hint ? <p className="text-xs text-slate-500 mt-0.5 leading-snug">{hint}</p> : null}
+      </div>
+      {(to || onClick) && (
+        <ChevronRightIcon className="w-5 h-5 text-slate-300 shrink-0 mt-1" aria-hidden />
+      )}
     </div>
   );
+
+  if (to) {
+    return (
+      <Link to={to} className={`${shellClass} group`}>
+        {body}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`${shellClass} group cursor-pointer`}>
+        {body}
+      </button>
+    );
+  }
+  return <div className={shellClass}>{body}</div>;
 }
 
 function tiempoRelativo(fechaStr) {
@@ -292,7 +328,8 @@ export default function PortalResumenDashboard({
         hint:
           datos.pendientesIa.total > 0
             ? `${datos.pendientesIa.categorias.filter((c) => c.cantidad > 0).length} categorías con pendientes`
-            : 'Requieren tu atención'
+            : 'Requieren tu atención',
+        to: destinoAprobacionesPendientes(datos.pendientesIa, datos.pendientesAprob)
       });
     }
     if (puedeAccederModuloPortal('vacaciones') && datos.resumenVac) {
@@ -302,7 +339,8 @@ export default function PortalResumenDashboard({
         color: 'blue',
         valor: datos.resumenVac.total_pendientes ?? 0,
         etiqueta: 'Días de vacaciones',
-        hint: `${datos.solicitudesActivas} solicitud${datos.solicitudesActivas === 1 ? '' : 'es'} activa${datos.solicitudesActivas === 1 ? '' : 's'}`
+        hint: `${datos.solicitudesActivas} solicitud${datos.solicitudesActivas === 1 ? '' : 'es'} activa${datos.solicitudesActivas === 1 ? '' : 's'}`,
+        to: datos.solicitudesActivas > 0 ? '/vacaciones/mis-solicitudes' : '/vacaciones/dashboard'
       });
     }
     items.push({
@@ -311,7 +349,8 @@ export default function PortalResumenDashboard({
       color: 'rose',
       valor: notifCount,
       etiqueta: 'Notificaciones',
-      hint: notifCount > 0 ? 'Sin leer en el portal' : 'Estás al día'
+      hint: notifCount > 0 ? 'Sin leer en el portal' : 'Estás al día',
+      onClick: onAbrirNotificaciones
     });
     if (pctBolsa != null) {
       items.push({
@@ -320,7 +359,8 @@ export default function PortalResumenDashboard({
         color: 'amber',
         valor: `${pctBolsa}%`,
         etiqueta: 'Bolsa de horas',
-        hint: 'Consumo vs. horas asignadas'
+        hint: 'Consumo vs. horas asignadas',
+        to: '/control-proyectos'
       });
     } else if (items.length < 4 && puedeAccederModuloPortal('reembolsos')) {
       items.push({
@@ -329,11 +369,12 @@ export default function PortalResumenDashboard({
         color: 'violet',
         valor: datos.solicitudesActivas,
         etiqueta: 'Solicitudes activas',
-        hint: 'Vacaciones y trámites en curso'
+        hint: 'Vacaciones y trámites en curso',
+        to: '/vacaciones/mis-solicitudes'
       });
     }
     return items.slice(0, 4);
-  }, [datos, notifCount, pctBolsa, puedeAprobar, puedeAccederModuloPortal]);
+  }, [datos, notifCount, pctBolsa, puedeAprobar, puedeAccederModuloPortal, onAbrirNotificaciones]);
 
   const accionesRapidas = useMemo(
     () =>
