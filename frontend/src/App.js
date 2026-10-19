@@ -46,6 +46,8 @@ import Proveedores from './pages/Proveedores';
 import ArchivoRespaldos from './pages/ArchivoRespaldos';
 import ComisionesPorPagar from './pages/ComisionesPorPagar';
 import ConsumoFabric from './pages/ConsumoFabric';
+import Cotizaciones from './pages/Cotizaciones';
+import SolicitudCotizacion from './pages/SolicitudCotizacion';
 
 // Components
 import Layout from './components/Layout';
@@ -305,6 +307,22 @@ function AppRoutes() {
         <ProtectedRoute roles={['admin']}>
           <ModuloPortalRoute moduloId="consumo-fabric">
             <PageWrapper wide><ConsumoFabric /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/solicitud-cotizacion" element={
+        <ProtectedRoute>
+          <ModuloPortalRoute moduloId="solicitud-cotizacion">
+            <PageWrapper wide><SolicitudCotizacion /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/cotizaciones" element={
+        <ProtectedRoute roles={['admin']}>
+          <ModuloPortalRoute moduloId="cotizaciones">
+            <PageWrapper wide><Cotizaciones /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

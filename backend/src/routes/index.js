@@ -24,6 +24,8 @@ const asistenteIaRoutes = require('./asistenteIa');
 const proveedoresRoutes = require('./proveedores');
 const comisionesPorPagarRoutes = require('./comisionesPorPagar');
 const consumoFabricRoutes = require('./consumoFabric');
+const cotizacionesRoutes = require('./cotizaciones');
+const cotizacionSolicitudesRoutes = require('./cotizacionSolicitudes');
 const backupsRoutes = require('./backups');
 
 router.use('/auth', authRoutes);
@@ -51,6 +53,8 @@ router.use('/asistente-ia', asistenteIaRoutes);
 router.use('/proveedores', proveedoresRoutes);
 router.use('/comisiones-por-pagar', comisionesPorPagarRoutes);
 router.use('/consumo-fabric', consumoFabricRoutes);
+router.use('/cotizaciones', cotizacionesRoutes);
+router.use('/cotizacion-solicitudes', cotizacionSolicitudesRoutes);
 router.use('/backups', backupsRoutes);
 
 // Ruta de health check

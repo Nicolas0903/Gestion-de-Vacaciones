@@ -92,6 +92,7 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
   if (moduloId === 'proveedores' && esAdmin()) return true;
   if (moduloId === 'comisiones-por-pagar' && esAdmin()) return true;
   if (moduloId === 'consumo-fabric' && esAdmin()) return true;
+  if (moduloId === 'cotizaciones' && esAdmin()) return true;
 
   const m = parseModulosPortal(usuario.modulos_portal);
   const tieneMapa = m && Object.keys(m).length > 0;
@@ -101,7 +102,14 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
     if (flag === false) return false;
   }
 
-  const baseColaborador = ['vacaciones', 'boletas', 'permisos', 'reembolsos', 'control-proyectos'];
+  const baseColaborador = [
+    'vacaciones',
+    'boletas',
+    'permisos',
+    'reembolsos',
+    'control-proyectos',
+    'solicitud-cotizacion'
+  ];
   if (baseColaborador.includes(moduloId)) return true;
 
   if (moduloId === 'asistencia') return puedeVerReporteAsistencia();
@@ -118,7 +126,8 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
     moduloId === 'proveedores' ||
     moduloId === 'rendicion-presupuesto' ||
     moduloId === 'comisiones-por-pagar' ||
-    moduloId === 'consumo-fabric'
+    moduloId === 'consumo-fabric' ||
+    moduloId === 'cotizaciones'
   ) {
     return false;
   }

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "homepage": "/",
+  "proxy": "http://localhost:3002",
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.1.1",

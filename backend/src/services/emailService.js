@@ -2141,6 +2141,56 @@ const notificarResumenPendientesSemanal = async ({
   }
 };
 
+async function notificarNuevaSolicitudCotizacion(solicitud) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Solicitud cotización omitida');
+    return false;
+  }
+  const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
+  const emailResponsable = String(solicitud.responsable_email || '').trim().toLowerCase();
+  let destinatarios = emailResponsable ? [emailResponsable] : [];
+  if (!destinatarios.length) {
+    destinatarios = [...new Set(COTIZACION_RESPONSABLES_EMAILS.map((e) => e.toLowerCase()))];
+  }
+  if (!destinatarios.length) return false;
+
+  const urlPortal = `${FRONTEND_URL}/cotizaciones`;
+
+  const contenido = `
+    <p>Se registró una <strong>solicitud de cotización</strong> desde el portal comercial.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Código:</span><span class="info-value">${solicitud.codigo}</span></div>
+      <div class="info-row"><span class="info-label">Proyecto:</span><span class="info-value">${solicitud.nombre_proyecto}</span></div>
+      <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value">${solicitud.cliente}</span></div>
+      <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${solicitud.tipo_proyecto || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Comercial (solicitante):</span><span class="info-value">${solicitud.solicitante_nombre || ''}${solicitud.solicitante_email ? ` (${solicitud.solicitante_email})` : ''}</span></div>
+      <div class="info-row"><span class="info-label">Responsable asignado:</span><span class="info-value">${solicitud.responsable_nombre || '—'}${solicitud.responsable_email ? ` (${solicitud.responsable_email})` : ''}</span></div>
+      ${solicitud.fecha_limite ? `<div class="info-row"><span class="info-label">Fecha límite:</span><span class="info-value">${solicitud.fecha_limite}</span></div>` : ''}
+      ${solicitud.contexto_comercial ? `<div class="info-row"><span class="info-label">Contexto:</span><span class="info-value">${solicitud.contexto_comercial}</span></div>` : ''}
+    </div>
+    <p style="text-align: center; margin: 25px 0;">
+      <a href="${urlPortal}" style="display: inline-block; background: #0d9488; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+        Abrir módulo Cotizaciones
+      </a>
+    </p>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('portal'),
+      to: destinatarios.join(', '),
+      subject: `Solicitud de cotización ${solicitud.codigo} — ${solicitud.cliente}`,
+      html: plantillaEmail(contenido, 'Nueva solicitud de cotización', 'portal')
+    });
+    console.log(`📧 Solicitud cotización notificada a ${destinatarios.length} responsable(s)`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email solicitud cotización:', error.message);
+    return false;
+  }
+}
+
 module.exports = {
   verificarConexion,
   notificarNuevaSolicitud,
@@ -2168,5 +2218,6 @@ module.exports = {
   notificarRendicionResueltaEmpleado,
   notificarNuevaBoletaEmpleado,
   enviarCajaChicaResumenRocio,
-  enviarRespaldoArchivo
+  enviarRespaldoArchivo,
+  notificarNuevaSolicitudCotizacion
 };

@@ -2,14 +2,15 @@ import axios from 'axios';
 
 /** Base del API: siempre termina en /api (Apache proxy en producción). */
 function resolveApiBaseUrl() {
-  let url;
   const fromEnv = (process.env.REACT_APP_API_URL || '').trim();
-  if (fromEnv && !/localhost|127\.0\.0\.1/i.test(fromEnv)) {
+  let url;
+  if (fromEnv) {
     url = fromEnv.replace(/\/+$/, '');
   } else if (typeof window !== 'undefined' && window.location?.origin) {
+    /* Mismo origen: Apache/Nginx proxy /api → backend (producción). */
     url = `${window.location.origin}/api`;
   } else {
-    url = (fromEnv || 'http://localhost:3002/api').replace(/\/+$/, '');
+    url = 'http://localhost:3002/api';
   }
   if (!url.endsWith('/api')) {
     url = `${url}/api`;
@@ -359,6 +360,32 @@ export const consumoFabricService = {
   exportarCargaPdf: (id) =>
     api.get(`/consumo-fabric/cargas/${id}/exportar-pdf`, { responseType: 'blob' }),
   eliminarCarga: (id) => api.delete(`/consumo-fabric/cargas/${id}`)
+};
+
+export const cotizacionSolicitudesService = {
+  responsables: () => api.get('/cotizacion-solicitudes/responsables'),
+  listar: (params) => api.get('/cotizacion-solicitudes', { params }),
+  obtener: (id) => api.get(`/cotizacion-solicitudes/${id}`),
+  crear: (body) => api.post('/cotizacion-solicitudes', body),
+  actualizar: (id, body) => api.put(`/cotizacion-solicitudes/${id}`, body),
+  crearCotizacion: (id) => api.post(`/cotizacion-solicitudes/${id}/crear-cotizacion`)
+};
+
+export const cotizacionesService = {
+  plantilla: () => api.get('/cotizaciones/plantilla'),
+  tiposProyecto: () => api.get('/cotizaciones/tipos-proyecto'),
+  crearTipoProyecto: (nombre) => api.post('/cotizaciones/tipos-proyecto', { nombre }),
+  responsables: () => api.get('/cotizaciones/responsables'),
+  tipoCambioSunat: () => api.get('/cotizaciones/tipo-cambio/sunat'),
+  listar: () => api.get('/cotizaciones'),
+  obtener: (id) => api.get(`/cotizaciones/${id}`),
+  crear: (body) => api.post('/cotizaciones', body),
+  guardarBorrador: (id, body) => api.put(`/cotizaciones/${id}/borrador`, body),
+  publicarVersion: (id, body) => api.post(`/cotizaciones/${id}/publicar-version`, body),
+  verVersion: (id, versionNum) => api.get(`/cotizaciones/${id}/versiones/${versionNum}`),
+  restaurarVersion: (id, versionNum, body) =>
+    api.post(`/cotizaciones/${id}/restaurar-version/${versionNum}`, body),
+  eliminar: (id) => api.delete(`/cotizaciones/${id}`)
 };
 
 export const comisionesPorPagarService = {

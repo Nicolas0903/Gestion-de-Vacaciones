@@ -24,7 +24,7 @@ const EMAILS_MODULO_CONSUMO_FABRIC = ['veronica.gonzales@prayaga.biz'];
  */
 function rolPuedeModuloBase(rolNombre, moduloId, email) {
   const e = (email || '').toLowerCase().trim();
-  const base = ['vacaciones', 'boletas', 'permisos', 'reembolsos', 'control-proyectos'];
+  const base = ['vacaciones', 'boletas', 'permisos', 'reembolsos', 'control-proyectos', 'solicitud-cotizacion'];
   if (base.includes(moduloId)) return true;
   if (moduloId === 'asistencia') {
     return rolNombre === 'admin' || EMAILS_REPORTE_ASISTENCIA.includes(e);
@@ -45,6 +45,9 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
   }
   if (moduloId === 'consumo-fabric') {
     if (EMAILS_MODULO_CONSUMO_FABRIC.includes(e)) return true;
+    return rolNombre === 'admin';
+  }
+  if (moduloId === 'cotizaciones') {
     return rolNombre === 'admin';
   }
   // Rendición de presupuesto: acceso restringido. Solo admin tiene acceso por defecto;
@@ -105,6 +108,9 @@ function tieneAccesoEfectivoModulo(empleado, moduloId) {
     return true;
   }
   if (moduloId === 'consumo-fabric' && empleado.rol_nombre === 'admin') {
+    return true;
+  }
+  if (moduloId === 'cotizaciones' && empleado.rol_nombre === 'admin') {
     return true;
   }
   if (tieneMapaPortalExplicito(empleado)) {

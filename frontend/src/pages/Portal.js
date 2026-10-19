@@ -372,6 +372,46 @@ const Portal = () => {
     });
   }
 
+  if (puedeAccederModuloPortal('solicitud-cotizacion')) {
+    modulos.push({
+      id: 'solicitud-cotizacion',
+      area: 'operaciones',
+      titulo: 'Solicitud de cotización',
+      descripcion: 'Pedido comercial con información inicial para el equipo de cotizaciones',
+      metricHint: 'Antes de la cotización formal',
+      accionLabel: 'Nueva solicitud',
+      accionTo: '/solicitud-cotizacion',
+      icono: DocumentTextIcon,
+      color: 'from-indigo-500 to-violet-600',
+      shadowColor: 'shadow-indigo-500/30',
+      bgLight: 'bg-indigo-50',
+      textColor: 'text-indigo-700',
+      link: '/solicitud-cotizacion',
+      activo: true,
+      restringido: false
+    });
+  }
+
+  if (puedeAccederModuloPortal('cotizaciones')) {
+    modulos.push({
+      id: 'cotizaciones',
+      area: 'operaciones',
+      titulo: 'Cotizaciones',
+      descripcion: 'Elaboración y versionado de propuestas comerciales',
+      metricHint: 'Propuestas y versiones',
+      accionLabel: 'Ver cotizaciones',
+      accionTo: '/cotizaciones',
+      icono: DocumentTextIcon,
+      color: 'from-sky-600 to-blue-700',
+      shadowColor: 'shadow-sky-600/30',
+      bgLight: 'bg-sky-50',
+      textColor: 'text-sky-700',
+      link: '/cotizaciones',
+      activo: true,
+      restringido: true
+    });
+  }
+
   if (puedeAccederModuloPortal('comisiones-por-pagar')) {
     modulos.push({
       id: 'comisiones-por-pagar',
