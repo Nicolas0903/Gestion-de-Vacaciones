@@ -172,7 +172,7 @@ class CotizacionSolicitud {
       params.push(solicitanteId);
     }
     if (soloPendientesEquipo) {
-      sql += ` AND s.estado IN ('enviada', 'en_elaboracion') AND s.cotizacion_id IS NULL`;
+      sql += ` AND s.estado = 'enviada' AND s.cotizacion_id IS NULL`;
       if (responsableIdEquipo) {
         sql += ` AND s.responsable_id = ?`;
         params.push(responsableIdEquipo);
@@ -220,6 +220,70 @@ class CotizacionSolicitud {
       `UPDATE cotizacion_solicitudes SET estado = 'atendida', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [id]
     );
+  }
+
+  static assertPuedeAnular(row, actorId, { esAdmin, esEquipoCot }) {
+    if (!row) throw new Error('Solicitud no encontrada');
+    if (row.estado === 'cancelada') return;
+    if (row.estado === 'atendida') {
+      throw new Error('No se puede anular una solicitud ya atendida');
+    }
+    if (row.cotizacion_id) {
+      throw new Error(
+        'Ya existe cotización vinculada. Elimina o archiva la cotización desde el módulo Cotizaciones.'
+      );
+    }
+    const esSolicitante = row.solicitante_id === actorId;
+    const esResponsable = row.responsable_id === actorId;
+    if (row.estado === 'borrador') {
+      if (!esSolicitante && !esAdmin) throw new Error('No puedes anular este borrador');
+      return;
+    }
+    if (row.estado === 'enviada') {
+      if (esSolicitante || esAdmin || (esEquipoCot && esResponsable)) return;
+      if (esEquipoCot && esAdmin) return;
+      throw new Error('No tienes permiso para rechazar esta solicitud');
+    }
+    if (row.estado === 'en_elaboracion') {
+      throw new Error('La solicitud ya está en elaboración');
+    }
+    throw new Error('Estado no permite anular');
+  }
+
+  static async cancelar(id, actorId, { motivo = '', esAdmin = false, esEquipoCot = false } = {}) {
+    const row = await this.buscarPorId(id);
+    this.assertPuedeAnular(row, actorId, { esAdmin, esEquipoCot });
+    if (row.estado === 'cancelada') return this.obtener(id);
+
+    const payload = parseJson(row.payload_json, {});
+    payload.motivo_cancelacion = String(motivo || '').trim() || null;
+    payload.cancelado_por = actorId;
+    payload.cancelado_at = new Date().toISOString();
+
+    await pool.query(
+      `UPDATE cotizacion_solicitudes SET
+        estado = 'cancelada', payload_json = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [JSON.stringify(payload), id]
+    );
+    return this.obtener(id);
+  }
+
+  static async eliminar(id, actorId, { esAdmin = false } = {}) {
+    const row = await this.buscarPorId(id);
+    if (!row) throw new Error('Solicitud no encontrada');
+    if (row.cotizacion_id) {
+      throw new Error('No se puede eliminar: hay una cotización vinculada');
+    }
+    if (!['borrador', 'cancelada'].includes(row.estado)) {
+      throw new Error('Solo se pueden eliminar borradores o solicitudes canceladas');
+    }
+    const esSolicitante = row.solicitante_id === actorId;
+    if (!esSolicitante && !esAdmin) {
+      throw new Error('No tienes permiso para eliminar esta solicitud');
+    }
+    await pool.query(`DELETE FROM cotizacion_solicitudes WHERE id = ?`, [id]);
+    return true;
   }
 }
 

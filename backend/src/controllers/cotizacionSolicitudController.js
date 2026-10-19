@@ -68,6 +68,31 @@ exports.actualizar = async (req, res) => {
   }
 };
 
+exports.cancelar = async (req, res) => {
+  try {
+    const esEquipo = await puedeVerComoEquipo(req);
+    const esAdmin = req.usuario.rol_nombre === 'admin';
+    const row = await CotizacionSolicitud.cancelar(req.params.id, req.usuario.id, {
+      motivo: req.body?.motivo,
+      esAdmin,
+      esEquipoCot: esEquipo
+    });
+    res.json({ success: true, data: row });
+  } catch (e) {
+    res.status(400).json({ success: false, mensaje: e.message });
+  }
+};
+
+exports.eliminar = async (req, res) => {
+  try {
+    const esAdmin = req.usuario.rol_nombre === 'admin';
+    await CotizacionSolicitud.eliminar(req.params.id, req.usuario.id, { esAdmin });
+    res.json({ success: true, mensaje: 'Solicitud eliminada' });
+  } catch (e) {
+    res.status(400).json({ success: false, mensaje: e.message });
+  }
+};
+
 exports.crearCotizacionDesdeSolicitud = async (req, res) => {
   try {
     const esEquipo = await puedeVerComoEquipo(req);

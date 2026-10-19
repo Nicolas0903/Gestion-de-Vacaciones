@@ -187,6 +187,21 @@ const Cotizaciones = () => {
     }
   };
 
+  const rechazarSolicitud = async (solId) => {
+    const motivo = window.prompt('Motivo del rechazo (opcional):') ?? '';
+    if (motivo === null) return;
+    setGuardando(true);
+    try {
+      await cotizacionSolicitudesService.cancelar(solId, { motivo });
+      toast.success('Solicitud rechazada');
+      setSolicitudesPendientes((p) => p.filter((s) => s.id !== solId));
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'No se pudo rechazar');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const iniciarDesdeSolicitud = async (solId) => {
     setGuardando(true);
     try {
@@ -274,14 +289,24 @@ const Cotizaciones = () => {
                       {s.responsable_nombre ? ` → ${s.responsable_nombre}` : ''})
                     </span>
                   </span>
-                  <button
-                    type="button"
-                    disabled={guardando}
-                    onClick={() => iniciarDesdeSolicitud(s.id)}
-                    className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs"
-                  >
-                    Crear cotización
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={guardando}
+                      onClick={() => iniciarDesdeSolicitud(s.id)}
+                      className="px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs"
+                    >
+                      Crear cotización
+                    </button>
+                    <button
+                      type="button"
+                      disabled={guardando}
+                      onClick={() => rechazarSolicitud(s.id)}
+                      className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 bg-white text-xs"
+                    >
+                      Rechazar
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

@@ -101,6 +101,38 @@ const SolicitudCotizacion = () => {
 
   const sel = lista.find((x) => x.id === selId);
   const soloLectura = sel && !['borrador'].includes(sel.estado);
+
+  const anularSolicitud = async () => {
+    if (!selId || !sel) return;
+    const motivo = window.prompt('Motivo de anulación (opcional):') ?? '';
+    if (motivo === null) return;
+    setGuardando(true);
+    try {
+      await cotizacionSolicitudesService.cancelar(selId, { motivo });
+      toast.success('Solicitud anulada');
+      await cargar();
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'No se pudo anular');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const eliminarSolicitud = async () => {
+    if (!selId || !sel) return;
+    if (!window.confirm(`¿Eliminar ${sel.codigo} permanentemente?`)) return;
+    setGuardando(true);
+    try {
+      await cotizacionSolicitudesService.eliminar(selId);
+      toast.success('Solicitud eliminada');
+      setSelId(null);
+      await cargar();
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'No se pudo eliminar');
+    } finally {
+      setGuardando(false);
+    }
+  };
   const nombreSolicitante =
     sel?.solicitante_nombre ||
     [usuario?.nombres, usuario?.apellidos].filter(Boolean).join(' ') ||
@@ -257,6 +289,45 @@ const SolicitudCotizacion = () => {
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm"
                 >
                   <PaperAirplaneIcon className="w-4 h-4" /> Enviar al equipo
+                </button>
+                {sel?.estado === 'borrador' && (
+                  <button
+                    type="button"
+                    disabled={guardando}
+                    onClick={eliminarSolicitud}
+                    className="px-4 py-2 rounded-lg border border-red-200 text-red-700 text-sm"
+                  >
+                    Eliminar borrador
+                  </button>
+                )}
+              </div>
+            )}
+
+            {sel?.estado === 'enviada' && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={anularSolicitud}
+                  className="px-4 py-2 rounded-lg border border-amber-300 text-amber-900 text-sm"
+                >
+                  Anular envío
+                </button>
+                <p className="text-xs text-slate-500 w-full">
+                  Quita la solicitud de la bandeja del responsable (estado cancelada).
+                </p>
+              </div>
+            )}
+
+            {sel?.estado === 'cancelada' && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={eliminarSolicitud}
+                  className="px-4 py-2 rounded-lg border border-red-200 text-red-700 text-sm"
+                >
+                  Eliminar del listado
                 </button>
               </div>
             )}

@@ -362,12 +362,23 @@ export const consumoFabricService = {
   eliminarCarga: (id) => api.delete(`/consumo-fabric/cargas/${id}`)
 };
 
+export const cierresNegocioService = {
+  listar: () => api.get('/cierres-negocio'),
+  cotizacionesDisponibles: () => api.get('/cierres-negocio/cotizaciones-disponibles'),
+  obtener: (id) => api.get(`/cierres-negocio/${id}`),
+  crear: (body) => api.post('/cierres-negocio', body),
+  actualizar: (id, body) => api.put(`/cierres-negocio/${id}`, body),
+  eliminar: (id) => api.delete(`/cierres-negocio/${id}`)
+};
+
 export const cotizacionSolicitudesService = {
   responsables: () => api.get('/cotizacion-solicitudes/responsables'),
   listar: (params) => api.get('/cotizacion-solicitudes', { params }),
   obtener: (id) => api.get(`/cotizacion-solicitudes/${id}`),
   crear: (body) => api.post('/cotizacion-solicitudes', body),
   actualizar: (id, body) => api.put(`/cotizacion-solicitudes/${id}`, body),
+  cancelar: (id, body) => api.post(`/cotizacion-solicitudes/${id}/cancelar`, body),
+  eliminar: (id) => api.delete(`/cotizacion-solicitudes/${id}`),
   crearCotizacion: (id) => api.post(`/cotizacion-solicitudes/${id}/crear-cotizacion`)
 };
 
