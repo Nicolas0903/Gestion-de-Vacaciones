@@ -412,6 +412,26 @@ const Portal = () => {
     });
   }
 
+  if (puedeAccederModuloPortal('cierre-negocio')) {
+    modulos.push({
+      id: 'cierre-negocio',
+      area: 'operaciones',
+      titulo: 'Cierre de Negocio',
+      descripcion: 'Reporte inicial cruzado con la cotización final publicada',
+      metricHint: 'Seguimiento post-venta',
+      accionLabel: 'Ver cierres',
+      accionTo: '/cierre-negocio',
+      icono: ClipboardDocumentCheckIcon,
+      color: 'from-teal-600 to-emerald-700',
+      shadowColor: 'shadow-teal-600/30',
+      bgLight: 'bg-teal-50',
+      textColor: 'text-teal-700',
+      link: '/cierre-negocio',
+      activo: true,
+      restringido: true
+    });
+  }
+
   if (puedeAccederModuloPortal('comisiones-por-pagar')) {
     modulos.push({
       id: 'comisiones-por-pagar',
@@ -532,6 +552,10 @@ const Portal = () => {
     setNavActiva(navId);
     setBusqueda('');
     window.requestAnimationFrame(() => {
+      if (navId === 'inicio') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
       refModulosGrid.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   };
@@ -648,12 +672,16 @@ const Portal = () => {
     const Icono = modulo.icono;
     const abrir = () => destinoModulo(modulo, navigate, setModuloSelector);
 
+    const tieneLinksSecundarios =
+      (modulo.extraLinks?.length > 0) || puedeVerAdminLink(modulo, ctxAdmin);
+
     return (
       <div
         key={modulo.id}
         id={modulo.id === 'proveedores' ? 'modulo-proveedores' : undefined}
         className="group"
       >
+        <div className="rounded-xl bg-white border border-slate-100/80 shadow-sm hover:shadow-md hover:border-slate-200 transition-all overflow-hidden">
         <div
           role="button"
           tabIndex={0}
@@ -664,7 +692,7 @@ const Portal = () => {
               abrir();
             }
           }}
-          className="w-full flex items-center gap-4 p-4 rounded-xl bg-white border border-slate-100/80 shadow-sm hover:shadow-md hover:border-slate-200 transition-all text-left cursor-pointer"
+          className="w-full flex items-center gap-4 p-4 text-left cursor-pointer"
         >
           <div
             className={`w-11 h-11 rounded-lg bg-gradient-to-br ${modulo.color} flex items-center justify-center shadow-sm ${modulo.shadowColor} shrink-0`}
@@ -700,12 +728,13 @@ const Portal = () => {
           <ChevronRightIcon className="w-5 h-5 text-slate-300 shrink-0 group-hover:text-slate-500 transition-colors" />
         </div>
 
-        {(modulo.extraLinks?.length > 0 || puedeVerAdminLink(modulo, ctxAdmin)) && (
-          <div className="flex flex-wrap gap-3 px-4 pb-1 -mt-1">
+        {tieneLinksSecundarios && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2.5 border-t border-slate-100 bg-slate-50/80">
             {(modulo.extraLinks || []).map((el) => (
               <Link
                 key={el.to}
                 to={el.to}
+                onClick={(e) => e.stopPropagation()}
                 className={`text-xs font-medium ${modulo.textColor} hover:underline`}
               >
                 {el.label}
@@ -714,6 +743,7 @@ const Portal = () => {
             {puedeVerAdminLink(modulo, ctxAdmin) && (
               <Link
                 to={modulo.adminLink}
+                onClick={(e) => e.stopPropagation()}
                 className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700"
               >
                 <Cog6ToothIcon className="w-3 h-3" />
@@ -722,6 +752,7 @@ const Portal = () => {
             )}
           </div>
         )}
+        </div>
       </div>
     );
   };
