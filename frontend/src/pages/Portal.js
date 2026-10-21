@@ -5,6 +5,7 @@ import { notificacionService } from '../services/api';
 import LogoTransparente from '../components/LogoTransparente';
 import NotificacionesDropdown from '../components/NotificacionesDropdown';
 import PortalResumenDashboard from '../components/PortalResumenDashboard';
+import GuiaModuloUso from '../components/GuiaModuloUso';
 import CambiarPasswordModal from '../components/CambiarPasswordModal';
 import {
   CalendarDaysIcon,
@@ -936,19 +937,22 @@ const Portal = () => {
           )}
 
           {navActiva === 'inicio' && !q && (
-            <PortalResumenDashboard
-              notifCount={notifCount}
-              onAbrirNotificaciones={() => setNotifAbierto(true)}
-              modulosVisibles={modulosVisibles}
-              onBuscarModulo={(texto) => {
-                setBusqueda(texto);
-                if (texto.trim()) {
-                  window.requestAnimationFrame(() => {
-                    refModulosGrid.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  });
-                }
-              }}
-            />
+            <>
+              <GuiaModuloUso moduloId="portal-inicio" className="mb-5" />
+              <PortalResumenDashboard
+                notifCount={notifCount}
+                onAbrirNotificaciones={() => setNotifAbierto(true)}
+                modulosVisibles={modulosVisibles}
+                onBuscarModulo={(texto) => {
+                  setBusqueda(texto);
+                  if (texto.trim()) {
+                    window.requestAnimationFrame(() => {
+                      refModulosGrid.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    });
+                  }
+                }}
+              />
+            </>
           )}
 
           {/* Módulos por área */}

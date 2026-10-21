@@ -69,6 +69,12 @@ const GestionRendicionPresupuesto = () => {
   const [tab, setTab] = useState('pendientes');
   const [pendientes, setPendientes] = useState([]);
   const [todos, setTodos] = useState([]);
+  const [solPresPendientes, setSolPresPendientes] = useState([]);
+  const [solAprobarId, setSolAprobarId] = useState(null);
+  const [montoAprobadoSol, setMontoAprobadoSol] = useState('');
+  const [comentarioSolAprobar, setComentarioSolAprobar] = useState('');
+  const [solRechazoId, setSolRechazoId] = useState(null);
+  const [motivoSolRechazo, setMotivoSolRechazo] = useState('');
   const [loading, setLoading] = useState(true);
   const [rechazoId, setRechazoId] = useState(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
@@ -91,12 +97,14 @@ const GestionRendicionPresupuesto = () => {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, t] = await Promise.all([
+      const [p, t, sp] = await Promise.all([
         rendicionPresupuestoService.pendientes(),
-        rendicionPresupuestoService.todos()
+        rendicionPresupuestoService.todos(),
+        rendicionPresupuestoService.solicitudesPresupuestoPendientes().catch(() => ({ data: { data: [] } }))
       ]);
       setPendientes(p.data.data || []);
       setTodos(t.data.data || []);
+      setSolPresPendientes(sp.data.data || []);
     } catch {
       toast.error('No se pudieron cargar las rendiciones.');
     } finally {
@@ -211,7 +219,47 @@ const GestionRendicionPresupuesto = () => {
     }
   };
 
-  const filas = tab === 'pendientes' ? pendientes : todos;
+  const filas = tab === 'pendientes' ? pendientes : tab === 'todos' ? todos : [];
+
+  const confirmarAprobarSolicitudPresupuesto = async () => {
+    if (!solAprobarId) return;
+    setProcesando(true);
+    try {
+      const body = { comentarios: comentarioSolAprobar.trim() || undefined };
+      if (montoAprobadoSol.trim()) body.monto_aprobado = parseFloat(montoAprobadoSol.replace(',', '.'));
+      await rendicionPresupuestoService.aprobarSolicitudPresupuesto(solAprobarId, body);
+      toast.success('Presupuesto aprobado.');
+      setSolAprobarId(null);
+      setMontoAprobadoSol('');
+      setComentarioSolAprobar('');
+      cargar();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al aprobar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const confirmarRechazoSolicitudPresupuesto = async () => {
+    if (!solRechazoId || !motivoSolRechazo.trim()) {
+      toast.error('Indique el motivo.');
+      return;
+    }
+    setProcesando(true);
+    try {
+      await rendicionPresupuestoService.rechazarSolicitudPresupuesto(solRechazoId, {
+        comentarios: motivoSolRechazo.trim()
+      });
+      toast.success('Solicitud rechazada.');
+      setSolRechazoId(null);
+      setMotivoSolRechazo('');
+      cargar();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al rechazar.');
+    } finally {
+      setProcesando(false);
+    }
+  };
 
   const opcionesSolicitantes = useMemo(() => {
     const map = new Map();
@@ -349,6 +397,17 @@ const GestionRendicionPresupuesto = () => {
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => setTab('solicitudes-presupuesto')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                tab === 'solicitudes-presupuesto'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Solicitudes presupuesto ({solPresPendientes.length})
+            </button>
+            <button
+              type="button"
               onClick={() => setTab('pendientes')}
               className={`px-4 py-2 rounded-xl text-sm font-medium ${
                 tab === 'pendientes'
@@ -356,7 +415,7 @@ const GestionRendicionPresupuesto = () => {
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              Pendientes ({pendientes.length})
+              Rendiciones pendientes ({pendientes.length})
             </button>
             <button
               type="button"
@@ -383,7 +442,60 @@ const GestionRendicionPresupuesto = () => {
           )}
         </div>
 
-        {!loading && filas.length > 0 && (
+        {tab === 'solicitudes-presupuesto' && (
+          <div className="mb-8">
+            <p className="text-sm text-slate-600 mb-4">
+              Aprobación de <strong>presupuesto previo</strong> (Magali / equipo autorizado). Tras aprobar, el
+              solicitante podrá registrar rendiciones de gasto vinculadas.
+            </p>
+            {loading ? (
+              <p className="text-slate-500 text-sm">Cargando…</p>
+            ) : solPresPendientes.length === 0 ? (
+              <p className="text-slate-500 text-sm">No hay solicitudes de presupuesto pendientes.</p>
+            ) : (
+              <ul className="space-y-3">
+                {solPresPendientes.map((s) => (
+                  <li
+                    key={s.id}
+                    className="rounded-2xl border border-slate-100 p-4 flex flex-col sm:flex-row sm:justify-between gap-3"
+                  >
+                    <div>
+                      <p className="font-mono text-xs text-teal-700">{s.codigo}</p>
+                      <p className="font-semibold text-slate-800">{s.concepto}</p>
+                      <p className="text-sm text-slate-600">
+                        {s.solicitante_nombre} · {s.area_label} · {s.monto_solicitado_formateado}
+                      </p>
+                      {s.justificacion && (
+                        <p className="text-xs text-slate-500 mt-2 whitespace-pre-wrap">{s.justificacion}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm"
+                        onClick={() => {
+                          setSolAprobarId(s.id);
+                          setMontoAprobadoSol(String(s.monto_solicitado));
+                        }}
+                      >
+                        Aprobar
+                      </button>
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded-lg bg-rose-100 text-rose-800 text-sm"
+                        onClick={() => setSolRechazoId(s.id)}
+                      >
+                        Rechazar
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {!loading && tab !== 'solicitudes-presupuesto' && filas.length > 0 && (
           <div className="flex flex-col sm:flex-row flex-wrap gap-4 mb-4 items-start sm:items-end">
             <div>
               <label htmlFor="filtro-mes-reintegro" className="block text-xs font-medium text-slate-600 mb-1">
@@ -911,6 +1023,85 @@ const GestionRendicionPresupuesto = () => {
                 disabled={procesando}
                 className="px-4 py-2 rounded-xl text-sm bg-rose-600 text-white disabled:opacity-50"
                 onClick={confirmarRechazo}
+              >
+                Confirmar rechazo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {solAprobarId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 className="font-bold text-slate-800 mb-2">Aprobar solicitud de presupuesto</h3>
+            <label className="block text-sm text-slate-600 mb-1">Monto aprobado</label>
+            <input
+              type="number"
+              step="0.01"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3"
+              value={montoAprobadoSol}
+              onChange={(e) => setMontoAprobadoSol(e.target.value)}
+            />
+            <textarea
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4"
+              rows={2}
+              value={comentarioSolAprobar}
+              onChange={(e) => setComentarioSolAprobar(e.target.value)}
+              placeholder="Comentarios (opcional)"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm bg-slate-100"
+                onClick={() => {
+                  setSolAprobarId(null);
+                  setMontoAprobadoSol('');
+                  setComentarioSolAprobar('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={procesando}
+                className="px-4 py-2 rounded-xl text-sm bg-emerald-600 text-white disabled:opacity-50"
+                onClick={confirmarAprobarSolicitudPresupuesto}
+              >
+                Aprobar presupuesto
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {solRechazoId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 className="font-bold text-slate-800 mb-2">Rechazar solicitud de presupuesto</h3>
+            <textarea
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-4"
+              rows={3}
+              value={motivoSolRechazo}
+              onChange={(e) => setMotivoSolRechazo(e.target.value)}
+              placeholder="Motivo obligatorio"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm bg-slate-100"
+                onClick={() => {
+                  setSolRechazoId(null);
+                  setMotivoSolRechazo('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={procesando}
+                className="px-4 py-2 rounded-xl text-sm bg-rose-600 text-white disabled:opacity-50"
+                onClick={confirmarRechazoSolicitudPresupuesto}
               >
                 Confirmar rechazo
               </button>

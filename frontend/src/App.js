@@ -48,6 +48,7 @@ import ComisionesPorPagar from './pages/ComisionesPorPagar';
 import ConsumoFabric from './pages/ConsumoFabric';
 import Cotizaciones from './pages/Cotizaciones';
 import SolicitudCotizacion from './pages/SolicitudCotizacion';
+import CierreNegocio from './pages/CierreNegocio';
 
 // Components
 import Layout from './components/Layout';
@@ -138,7 +139,7 @@ function ReembolsosGestionGate() {
     return <Navigate to="/portal" replace />;
   }
   return (
-    <PageWrapper>
+    <PageWrapper guiaModuloId="reembolsos" guiaVariant="gestion">
       <GestionReembolsos />
     </PageWrapper>
   );
@@ -203,7 +204,7 @@ function AppRoutes() {
       <Route path="/boletas" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="boletas">
-            <PageWrapper><MisBoletas /></PageWrapper>
+            <PageWrapper guiaModuloId="boletas"><MisBoletas /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -211,7 +212,7 @@ function AppRoutes() {
       <Route path="/boletas/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
           <ModuloPortalRoute moduloId="boletas">
-            <PageWrapper><GestionBoletas /></PageWrapper>
+            <PageWrapper guiaModuloId="boletas" guiaVariant="gestion"><GestionBoletas /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -220,7 +221,7 @@ function AppRoutes() {
       <Route path="/permisos" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="permisos">
-            <PageWrapper><MisPermisos /></PageWrapper>
+            <PageWrapper guiaModuloId="permisos"><MisPermisos /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -228,7 +229,7 @@ function AppRoutes() {
       <Route path="/permisos/gestion" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
           <ModuloPortalRoute moduloId="permisos">
-            <PageWrapper><GestionPermisos /></PageWrapper>
+            <PageWrapper guiaModuloId="permisos" guiaVariant="gestion"><GestionPermisos /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -237,7 +238,7 @@ function AppRoutes() {
       <Route path="/reembolsos" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="reembolsos">
-            <PageWrapper><Reembolsos /></PageWrapper>
+            <PageWrapper guiaModuloId="reembolsos"><Reembolsos /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -251,14 +252,14 @@ function AppRoutes() {
       <Route path="/rendicion-presupuesto" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="rendicion-presupuesto">
-            <PageWrapper><RendicionPresupuesto /></PageWrapper>
+            <PageWrapper guiaModuloId="rendicion-presupuesto"><RendicionPresupuesto /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
       <Route path="/rendicion-presupuesto/gestion" element={
         <ProtectedRoute roles={['admin']}>
           <ModuloPortalRoute moduloId="rendicion-presupuesto">
-            <PageWrapper><GestionRendicionPresupuesto /></PageWrapper>
+            <PageWrapper guiaModuloId="rendicion-presupuesto" guiaVariant="gestion"><GestionRendicionPresupuesto /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -266,7 +267,7 @@ function AppRoutes() {
       <Route path="/caja-chica" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="caja-chica">
-            <PageWrapper><CajaChica /></PageWrapper>
+            <PageWrapper guiaModuloId="caja-chica"><CajaChica /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -274,7 +275,7 @@ function AppRoutes() {
       <Route path="/caja-rendicion" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="caja-rendicion">
-            <PageWrapper><RendicionCaja /></PageWrapper>
+            <PageWrapper guiaModuloId="caja-rendicion"><RendicionCaja /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -282,7 +283,7 @@ function AppRoutes() {
       <Route path="/proveedores" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="proveedores">
-            <PageWrapper><Proveedores /></PageWrapper>
+            <PageWrapper guiaModuloId="proveedores"><Proveedores /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -290,7 +291,7 @@ function AppRoutes() {
       <Route path="/archivo-respaldos" element={
         <ProtectedRoute roles={['admin', 'contadora']}>
           <ModuloPortalRoute moduloId="archivo-respaldos">
-            <PageWrapper><ArchivoRespaldos /></PageWrapper>
+            <PageWrapper guiaModuloId="archivo-respaldos"><ArchivoRespaldos /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -298,7 +299,7 @@ function AppRoutes() {
       <Route path="/comisiones-por-pagar" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="comisiones-por-pagar">
-            <PageWrapper wide><ComisionesPorPagar /></PageWrapper>
+            <PageWrapper wide guiaModuloId="comisiones-por-pagar"><ComisionesPorPagar /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -306,7 +307,7 @@ function AppRoutes() {
       <Route path="/consumo-fabric" element={
         <ProtectedRoute roles={['admin']}>
           <ModuloPortalRoute moduloId="consumo-fabric">
-            <PageWrapper wide><ConsumoFabric /></PageWrapper>
+            <PageWrapper wide guiaModuloId="consumo-fabric"><ConsumoFabric /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -314,7 +315,7 @@ function AppRoutes() {
       <Route path="/solicitud-cotizacion" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="solicitud-cotizacion">
-            <PageWrapper wide><SolicitudCotizacion /></PageWrapper>
+            <PageWrapper wide guiaModuloId="solicitud-cotizacion"><SolicitudCotizacion /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -322,7 +323,15 @@ function AppRoutes() {
       <Route path="/cotizaciones" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="cotizaciones">
-            <PageWrapper wide><Cotizaciones /></PageWrapper>
+            <PageWrapper wide guiaModuloId="cotizaciones"><Cotizaciones /></PageWrapper>
+          </ModuloPortalRoute>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/cierre-negocio" element={
+        <ProtectedRoute roles={['admin']}>
+          <ModuloPortalRoute moduloId="cierre-negocio">
+            <PageWrapper wide guiaModuloId="cierre-negocio"><CierreNegocio /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -330,7 +339,7 @@ function AppRoutes() {
       <Route path="/control-proyectos" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
-            <PageWrapper><ControlProyectos /></PageWrapper>
+            <PageWrapper guiaModuloId="control-proyectos"><ControlProyectos /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -338,7 +347,7 @@ function AppRoutes() {
       <Route path="/control-proyectos/reporte/actividades" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
-            <PageWrapper wide><ControlProyectosReporteActividades /></PageWrapper>
+            <PageWrapper wide guiaModuloId="control-proyectos" guiaVariant="reportes"><ControlProyectosReporteActividades /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -346,7 +355,7 @@ function AppRoutes() {
       <Route path="/control-proyectos/reporte/locadores" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
-            <PageWrapper wide><ControlProyectosReporteLocadores /></PageWrapper>
+            <PageWrapper wide guiaModuloId="control-proyectos" guiaVariant="reportes"><ControlProyectosReporteLocadores /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -354,7 +363,7 @@ function AppRoutes() {
       <Route path="/control-proyectos/reporte/proyectos" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
-            <PageWrapper wide><ControlProyectosReporteProyectos /></PageWrapper>
+            <PageWrapper wide guiaModuloId="control-proyectos" guiaVariant="reportes"><ControlProyectosReporteProyectos /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
@@ -362,20 +371,20 @@ function AppRoutes() {
       <Route path="/control-proyectos/reporte" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="control-proyectos">
-            <PageWrapper wide><ControlProyectosReporte /></PageWrapper>
+            <PageWrapper wide guiaModuloId="control-proyectos" guiaVariant="reportes"><ControlProyectosReporte /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />
 
       <Route path="/admin/control-proyectos-costo-hora" element={
         <ProtectedRoute roles={['admin']}>
-          <PageWrapper><AdminCostoHoraProyectos /></PageWrapper>
+          <PageWrapper guiaModuloId="control-proyectos" guiaVariant="admin-config"><AdminCostoHoraProyectos /></PageWrapper>
         </ProtectedRoute>
       } />
 
       <Route path="/admin/control-proyectos-locadores" element={
         <ProtectedRoute roles={['admin']}>
-          <PageWrapper><AdminLocadoresBolsaHoras /></PageWrapper>
+          <PageWrapper guiaModuloId="control-proyectos" guiaVariant="admin-config"><AdminLocadoresBolsaHoras /></PageWrapper>
         </ProtectedRoute>
       } />
 
@@ -383,7 +392,7 @@ function AppRoutes() {
       <Route path="/admin/solicitudes-registro" element={
         <ProtectedRoute>
           <ModuloPortalRoute moduloId="solicitudes-registro">
-            <PageWrapper><SolicitudesRegistro /></PageWrapper>
+            <PageWrapper guiaModuloId="solicitudes-registro"><SolicitudesRegistro /></PageWrapper>
           </ModuloPortalRoute>
         </ProtectedRoute>
       } />

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import GuiaModuloUso from './GuiaModuloUso';
+import { variantGuiaVacaciones } from '../content/guiasModuloPortal';
 import { useAuth } from '../context/AuthContext';
 import LogoTransparente from './LogoTransparente';
 import { notificacionService } from '../services/api';
@@ -21,6 +23,8 @@ import {
 const Layout = () => {
   const { usuario, logout, puedeAprobar, esAdmin, esContadora } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const guiaVacacionesVariant = variantGuiaVacaciones(location.pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificacionesCount, setNotificacionesCount] = useState(0);
 
@@ -189,6 +193,11 @@ const Layout = () => {
         {/* Main Content */}
         <main className="flex-1 p-4 lg:p-0 lg:pl-4">
           <div className="glass rounded-2xl lg:rounded-3xl min-h-full p-6 shadow-xl animate-fadeIn">
+            <GuiaModuloUso
+              moduloId="vacaciones"
+              variant={guiaVacacionesVariant}
+              className="mb-5"
+            />
             <Outlet />
           </div>
         </main>

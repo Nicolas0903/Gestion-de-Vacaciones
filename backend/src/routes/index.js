@@ -26,6 +26,7 @@ const comisionesPorPagarRoutes = require('./comisionesPorPagar');
 const consumoFabricRoutes = require('./consumoFabric');
 const cotizacionesRoutes = require('./cotizaciones');
 const cotizacionSolicitudesRoutes = require('./cotizacionSolicitudes');
+const cierresNegocioRoutes = require('./cierresNegocio');
 const backupsRoutes = require('./backups');
 
 router.use('/auth', authRoutes);
@@ -55,6 +56,7 @@ router.use('/comisiones-por-pagar', comisionesPorPagarRoutes);
 router.use('/consumo-fabric', consumoFabricRoutes);
 router.use('/cotizaciones', cotizacionesRoutes);
 router.use('/cotizacion-solicitudes', cotizacionSolicitudesRoutes);
+router.use('/cierres-negocio', cierresNegocioRoutes);
 router.use('/backups', backupsRoutes);
 
 // Ruta de health check

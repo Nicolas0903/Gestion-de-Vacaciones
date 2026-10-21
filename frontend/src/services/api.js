@@ -209,6 +209,22 @@ export const reembolsoService = {
 
 // Rendición de Presupuesto (módulo paralelo a reembolsos con campo "área")
 export const rendicionPresupuestoService = {
+  solicitudesPresupuestoMias: () =>
+    api.get('/rendiciones-presupuesto/solicitudes-presupuesto/mias'),
+  solicitudesPresupuestoAprobadas: () =>
+    api.get('/rendiciones-presupuesto/solicitudes-presupuesto/aprobadas-para-rendicion'),
+  solicitudesPresupuestoPendientes: () =>
+    api.get('/rendiciones-presupuesto/solicitudes-presupuesto/pendientes'),
+  crearSolicitudPresupuesto: (body) =>
+    api.post('/rendiciones-presupuesto/solicitudes-presupuesto', body),
+  actualizarSolicitudPresupuesto: (id, body) =>
+    api.put(`/rendiciones-presupuesto/solicitudes-presupuesto/${id}`, body),
+  cancelarSolicitudPresupuesto: (id) =>
+    api.post(`/rendiciones-presupuesto/solicitudes-presupuesto/${id}/cancelar`),
+  aprobarSolicitudPresupuesto: (id, body) =>
+    api.put(`/rendiciones-presupuesto/solicitudes-presupuesto/${id}/aprobar`, body),
+  rechazarSolicitudPresupuesto: (id, body) =>
+    api.put(`/rendiciones-presupuesto/solicitudes-presupuesto/${id}/rechazar`, body),
   areas: () => api.get('/rendiciones-presupuesto/areas'),
   consultarRuc: (ruc) => api.get(`/rendiciones-presupuesto/consultar-ruc/${encodeURIComponent(ruc)}`),
   crear: (formData) =>

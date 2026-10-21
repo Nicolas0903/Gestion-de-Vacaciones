@@ -676,6 +676,7 @@ export default function AdministracionUsuarios() {
       <PortalAdminShell
         titulo="Administración de Usuarios"
         subtitulo="Activa cuentas, contraseñas y acceso a módulos"
+        guiaModuloId="administracion-usuarios"
       >
         <h2 className="text-xl font-semibold text-slate-900 mb-6">Usuarios activos</h2>
 

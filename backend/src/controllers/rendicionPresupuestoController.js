@@ -1,5 +1,6 @@
 const fs = require('fs');
 const { RendicionPresupuesto, Empleado, Proveedor } = require('../models');
+const SolicitudPresupuesto = require('../models/SolicitudPresupuesto');
 const ProveedorSolicitudPendiente = require('../models/ProveedorSolicitudPendiente');
 const TokenRendicionPresupuesto = require('../models/TokenRendicionPresupuesto');
 const emailService = require('../services/emailService');
@@ -106,13 +107,44 @@ const crear = async (req, res) => {
         mensaje: 'Indique una fecha de gasto válida (YYYY-MM-DD) y el concepto.'
       });
     }
-    if (!area || !RendicionPresupuesto.AREAS_VALIDAS.includes(area)) {
-      return res.status(400).json({ success: false, mensaje: 'Indique un área válida.' });
-    }
 
     const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : NaN;
     if (Number.isNaN(montoNum) || montoNum <= 0) {
       return res.status(400).json({ success: false, mensaje: 'Indique un monto mayor a cero.' });
+    }
+
+    const solicitudId = req.body.solicitud_presupuesto_id
+      ? Number(req.body.solicitud_presupuesto_id)
+      : null;
+    if (!solicitudId) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Seleccione una solicitud de presupuesto aprobada antes de registrar el gasto.'
+      });
+    }
+    const valSp = await SolicitudPresupuesto.validarParaRendicion(
+      solicitudId,
+      req.usuario.id,
+      montoNum
+    );
+    if (!valSp.ok) {
+      return res.status(400).json({ success: false, mensaje: valSp.mensaje });
+    }
+    const areaSp = valSp.solicitud.area;
+    const areaFinal = areaSp || area;
+    if (!areaFinal || !RendicionPresupuesto.AREAS_VALIDAS.includes(areaFinal)) {
+      return res.status(400).json({ success: false, mensaje: 'Indique un área válida.' });
+    }
+    const monedaFinal = RendicionPresupuesto.normalizarMoneda(
+      moneda || valSp.solicitud.moneda
+    );
+    if (
+      RendicionPresupuesto.normalizarMoneda(valSp.solicitud.moneda) !== monedaFinal
+    ) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'La moneda del gasto debe coincidir con la de la solicitud de presupuesto.'
+      });
     }
 
     let archivo_comprobante_nombre = null;
@@ -137,8 +169,9 @@ const crear = async (req, res) => {
 
     const id = await RendicionPresupuesto.crear({
       empleado_id: req.usuario.id,
+      solicitud_presupuesto_id: solicitudId,
       fecha_solicitud_usuario,
-      area,
+      area: areaFinal,
       concepto: concepto.trim(),
       nombre_completo,
       dni,
@@ -147,7 +180,7 @@ const crear = async (req, res) => {
       archivo_comprobante_path,
       archivo_recibo_generado_path: null,
       monto: montoNum,
-      moneda: RendicionPresupuesto.normalizarMoneda(moneda),
+      moneda: monedaFinal,
       ruc_proveedor: rucProveedor,
       proveedor_id: proveedorId,
       proveedor_solicitud_id: null,
@@ -156,8 +189,8 @@ const crear = async (req, res) => {
 
     let proveedorSolicitudId = null;
     if (rucProveedor && !proveedorId) {
-      const areaProv = mapearAreaRendicionAProveedor(area);
-      const monedaLabel = RendicionPresupuesto.MONEDA_LABEL[RendicionPresupuesto.normalizarMoneda(moneda)];
+      const areaProv = mapearAreaRendicionAProveedor(areaFinal);
+      const monedaLabel = RendicionPresupuesto.MONEDA_LABEL[monedaFinal];
       const detalle =
         `Solicitud generada desde Rendición de Presupuesto RDP-${new Date(fecha_solicitud_usuario).getFullYear()}-${String(id).padStart(5, '0')}.\n` +
         `RUC comprobante: ${rucProveedor}\n` +

@@ -1478,6 +1478,69 @@ const codigoTicketRendicion = (row) => {
   return `RDP-${y}-${String(row.id).padStart(5, '0')}`;
 };
 
+const notificarSolicitudPresupuestoPendiente = async ({
+  solicitud,
+  solicitante,
+  destinatario,
+  linkPortal
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return false;
+  if (!destinatario?.email) return false;
+  const empNombre = `${solicitante.nombres || ''} ${solicitante.apellidos || ''}`.trim();
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(destinatario.nombres)} ${escapeHtml(destinatario.apellidos)}</strong>,</p>
+    <p><strong>${escapeHtml(empNombre)}</strong> solicita aprobación de presupuesto antes de rendir gastos.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Código</span><span class="info-value">${escapeHtml(solicitud.codigo)}</span></div>
+      <div class="info-row"><span class="info-label">Área</span><span class="info-value">${escapeHtml(solicitud.area_label || solicitud.area)}</span></div>
+      <div class="info-row"><span class="info-label">Concepto</span><span class="info-value">${escapeHtml(solicitud.concepto)}</span></div>
+      <div class="info-row"><span class="info-label">Monto solicitado</span><span class="info-value">${escapeHtml(solicitud.monto_solicitado_formateado || solicitud.monto_solicitado)}</span></div>
+    </div>
+    <p style="text-align:center;margin:20px 0;"><a href="${escapeHtml(linkPortal)}" style="display:inline-block;background:#0d9488;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;">Revisar en el portal</a></p>
+    <p style="color:#64748b;font-size:13px;">Pestaña <strong>Solicitudes de presupuesto</strong> en Gestión de rendición.</p>
+  `;
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('rendicion'),
+      to: destinatario.email,
+      subject: `Solicitud presupuesto ${solicitud.codigo} — ${empNombre}`,
+      html: plantillaEmail(contenido, 'Solicitud de presupuesto pendiente', 'rendicion')
+    });
+    return true;
+  } catch (error) {
+    console.error('Email solicitud presupuesto:', error.message);
+    return false;
+  }
+};
+
+const notificarSolicitudPresupuestoCopia = async ({
+  solicitud,
+  solicitante,
+  destinatarioEmail,
+  linkPortal
+}) => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return false;
+  if (!destinatarioEmail) return false;
+  const empNombre = `${solicitante.nombres || ''} ${solicitante.apellidos || ''}`.trim();
+  const contenido = `
+    <p>Copia informativa: solicitud de presupuesto <strong>${escapeHtml(solicitud.codigo)}</strong> de ${escapeHtml(empNombre)}.</p>
+    <p><a href="${escapeHtml(linkPortal)}">Abrir gestión en portal</a></p>
+  `;
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('rendicion'),
+      to: destinatarioEmail,
+      subject: `[Copia] Solicitud presupuesto ${solicitud.codigo}`,
+      html: plantillaEmail(contenido, 'Solicitud de presupuesto', 'rendicion')
+    });
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 const notificarNuevaRendicionAdmin = async ({
   rendicion,
   empleado,
@@ -2219,5 +2282,7 @@ module.exports = {
   notificarNuevaBoletaEmpleado,
   enviarCajaChicaResumenRocio,
   enviarRespaldoArchivo,
-  notificarNuevaSolicitudCotizacion
+  notificarNuevaSolicitudCotizacion,
+  notificarSolicitudPresupuestoPendiente,
+  notificarSolicitudPresupuestoCopia
 };

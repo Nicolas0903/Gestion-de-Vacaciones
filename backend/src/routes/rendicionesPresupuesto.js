@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { autenticar, verificarRol } = require('../middleware/auth');
 const rendicionPresupuestoController = require('../controllers/rendicionPresupuestoController');
+const solicitudPresupuestoController = require('../controllers/solicitudPresupuestoController');
 const {
   RENDICION_PRESUPUESTO_MAX_FILE_BYTES,
   RENDICION_PRESUPUESTO_MAX_UPLOAD_MB
@@ -93,6 +94,39 @@ router.get('/ping', async (_req, res) => {
 
 router.get('/areas', autenticar, rendicionPresupuestoController.catalogoAreas);
 router.get('/consultar-ruc/:ruc', autenticar, rendicionPresupuestoController.consultarProveedorPorRuc);
+
+router.get(
+  '/solicitudes-presupuesto/mias',
+  autenticar,
+  solicitudPresupuestoController.listarMias
+);
+router.get(
+  '/solicitudes-presupuesto/aprobadas-para-rendicion',
+  autenticar,
+  solicitudPresupuestoController.listarAprobadasParaRendicion
+);
+router.get(
+  '/solicitudes-presupuesto/pendientes',
+  autenticar,
+  solicitudPresupuestoController.listarPendientes
+);
+router.post('/solicitudes-presupuesto', autenticar, solicitudPresupuestoController.crear);
+router.put('/solicitudes-presupuesto/:id', autenticar, solicitudPresupuestoController.actualizar);
+router.post(
+  '/solicitudes-presupuesto/:id/cancelar',
+  autenticar,
+  solicitudPresupuestoController.cancelar
+);
+router.put(
+  '/solicitudes-presupuesto/:id/aprobar',
+  autenticar,
+  solicitudPresupuestoController.aprobar
+);
+router.put(
+  '/solicitudes-presupuesto/:id/rechazar',
+  autenticar,
+  solicitudPresupuestoController.rechazar
+);
 
 router.post('/', autenticar, uploadComprobante, rendicionPresupuestoController.crear);
 router.get('/mis-solicitudes', autenticar, rendicionPresupuestoController.misSolicitudes);

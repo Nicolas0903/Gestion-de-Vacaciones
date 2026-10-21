@@ -2,11 +2,20 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import LogoTransparente from './LogoTransparente';
+import GuiaModuloUso from './GuiaModuloUso';
 
 /**
  * Shell visual alineado al portal (fondo claro, header blanco, acentos teal).
  */
-export default function PortalAdminShell({ titulo, subtitulo, children, acciones }) {
+
+export default function PortalAdminShell({
+  titulo,
+  subtitulo,
+  children,
+  acciones,
+  guiaModuloId,
+  guiaVariant
+}) {
   return (
     <div className="min-h-screen bg-[#f4f7fa] text-slate-800">
       <header className="sticky top-0 z-30 bg-white border-b border-slate-200/80 shadow-sm">
@@ -28,7 +37,12 @@ export default function PortalAdminShell({ titulo, subtitulo, children, acciones
           {acciones ? <div className="flex flex-wrap items-center gap-2">{acciones}</div> : null}
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">{children}</main>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {guiaModuloId ? (
+          <GuiaModuloUso moduloId={guiaModuloId} variant={guiaVariant} className="mb-6" />
+        ) : null}
+        {children}
+      </main>
     </div>
   );
 }

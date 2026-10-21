@@ -7,6 +7,7 @@ import {
   ShieldCheckIcon,
   ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
+import GuiaModuloUso from '../components/GuiaModuloUso';
 
 const ReporteAsistencia = () => {
   const navigate = useNavigate();
@@ -42,6 +43,10 @@ const ReporteAsistencia = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-rose-50/30 flex flex-col">
+      <div className="max-w-7xl mx-auto px-6 pt-4 w-full">
+        <GuiaModuloUso moduloId="asistencia" className="mb-4" />
+      </div>
+
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">

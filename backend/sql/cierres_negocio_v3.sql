@@ -1,0 +1,26 @@
+-- Formato Excel UARM: cabecera extendida, hojas de costo variables, líneas emparejadas
+
+ALTER TABLE cierres_negocio
+  ADD COLUMN IF NOT EXISTS direccion TEXT NULL,
+  ADD COLUMN IF NOT EXISTS atencion VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS cargo_atencion VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS email_cliente VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS telefono_cliente VARCHAR(80) NULL,
+  ADD COLUMN IF NOT EXISTS solicitante VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS email_solicitante VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS tipo_cambio DECIMAL(10, 4) NULL,
+  ADD COLUMN IF NOT EXISTS hojas_costo_var JSON NULL;
+
+ALTER TABLE cierre_facturacion
+  ADD COLUMN IF NOT EXISTS item_num INT NULL,
+  ADD COLUMN IF NOT EXISTS observaciones TEXT NULL,
+  ADD COLUMN IF NOT EXISTS estado_linea VARCHAR(50) NULL;
+
+ALTER TABLE cierre_costos
+  MODIFY COLUMN fase VARCHAR(30) NOT NULL DEFAULT 'reporte';
+
+ALTER TABLE cierre_costos
+  ADD COLUMN IF NOT EXISTS hoja_nombre VARCHAR(120) NULL,
+  ADD COLUMN IF NOT EXISTS referencia_rhe VARCHAR(80) NULL,
+  ADD COLUMN IF NOT EXISTS monto_adicional DECIMAL(14, 2) NULL,
+  ADD COLUMN IF NOT EXISTS dias DECIMAL(10, 2) NULL;

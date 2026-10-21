@@ -49,6 +49,11 @@ const MODULOS_PORTAL = [
     id: 'cotizaciones',
     etiqueta: 'Cotizaciones',
     descripcion: 'Elaboraci?n y versionado de cotizaciones comerciales'
+  },
+  {
+    id: 'cierre-negocio',
+    etiqueta: 'Cierre de Negocio',
+    descripcion: 'Seguimiento post-venta cruzado con cotizacion final'
   }
 ];
 

@@ -16,6 +16,7 @@ import {
 } from '../config/rendicionPresupuestoUpload';
 import { formatoFechaDMY, formatoFechaHoraDMY } from '../utils/dateUtils';
 import { formatoMontoRendicion, MONEDAS_RENDICION } from '../utils/monedaRendicion';
+import SolicitudPresupuestoPanel from '../components/rendicionPresupuesto/SolicitudPresupuestoPanel';
 
 const estadoBadge = (e) => {
   const map = {
@@ -72,6 +73,9 @@ const RendicionPresupuesto = () => {
   const [consultandoRuc, setConsultandoRuc] = useState(false);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [eliminandoId, setEliminandoId] = useState(null);
+  const [vista, setVista] = useState('presupuesto');
+  const [presupuestosAprobados, setPresupuestosAprobados] = useState([]);
+  const [solicitudPresupuestoId, setSolicitudPresupuestoId] = useState('');
 
   const nombreCompleto = `${usuario?.nombres || ''} ${usuario?.apellidos || ''}`.trim();
 
@@ -119,10 +123,29 @@ const RendicionPresupuesto = () => {
     }
   };
 
+  const cargarPresupuestosAprobados = async () => {
+    try {
+      const { data } = await rendicionPresupuestoService.solicitudesPresupuestoAprobadas();
+      setPresupuestosAprobados(data.data || []);
+    } catch {
+      setPresupuestosAprobados([]);
+    }
+  };
+
   useEffect(() => {
     cargarLista();
     cargarAreas();
+    cargarPresupuestosAprobados();
   }, []);
+
+  const onSelectPresupuesto = (id) => {
+    setSolicitudPresupuestoId(id);
+    const sp = presupuestosAprobados.find((p) => String(p.id) === String(id));
+    if (sp) {
+      setArea(sp.area);
+      setMoneda(sp.moneda || 'PEN');
+    }
+  };
 
   const consultarRucProveedor = async (valor) => {
     const digits = String(valor || '').replace(/\D/g, '');
@@ -174,6 +197,11 @@ const RendicionPresupuesto = () => {
       toast.error('Complete la fecha y el concepto.');
       return;
     }
+    if (!solicitudPresupuestoId) {
+      toast.error('Seleccione una solicitud de presupuesto aprobada (Paso 1).');
+      setVista('rendicion');
+      return;
+    }
     if (!area) {
       toast.error('Seleccione el área que realizó el consumo.');
       return;
@@ -197,6 +225,7 @@ const RendicionPresupuesto = () => {
 
     const fd = new FormData();
     fd.append('fecha_solicitud_usuario', fechaSolicitud);
+    fd.append('solicitud_presupuesto_id', solicitudPresupuestoId);
     fd.append('area', area);
     fd.append('concepto', concepto.trim());
     fd.append('monto', String(montoNum));
@@ -265,12 +294,59 @@ const RendicionPresupuesto = () => {
           <BanknotesIcon className="w-7 h-7 text-white" />
         </div>
         <h1 className="text-2xl font-bold text-slate-800 mb-2">Rendición de Presupuesto</h1>
-        <p className="text-slate-600 mb-6 text-sm">
-          Reembolsos y rendición de gastos por área. Los datos de nombre y DNI se toman de tu cuenta.
-          El ID de ticket y la fecha de registro se generan al enviar.
+        <p className="text-slate-600 mb-4 text-sm">
+          Primero solicite presupuesto (aprobación Magali). Luego registre cada gasto vinculado a esa
+          solicitud.
         </p>
 
+        <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setVista('presupuesto')}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+              vista === 'presupuesto' ? 'bg-white shadow text-teal-800' : 'text-slate-600'
+            }`}
+          >
+            1. Solicitud de presupuesto
+          </button>
+          <button
+            type="button"
+            onClick={() => setVista('rendicion')}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+              vista === 'rendicion' ? 'bg-white shadow text-teal-800' : 'text-slate-600'
+            }`}
+          >
+            2. Rendición de gastos
+          </button>
+        </div>
+
+        {vista === 'presupuesto' ? (
+          <SolicitudPresupuestoPanel areas={areas} onAprobadaChange={cargarPresupuestosAprobados} />
+        ) : (
         <form onSubmit={onSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Presupuesto aprobado *
+            </label>
+            <select
+              required
+              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 bg-white"
+              value={solicitudPresupuestoId}
+              onChange={(e) => onSelectPresupuesto(e.target.value)}
+            >
+              <option value="">Seleccione solicitud aprobada…</option>
+              {presupuestosAprobados.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.codigo} — {p.concepto} (saldo {p.monto_saldo ?? '—'})
+                </option>
+              ))}
+            </select>
+            {!presupuestosAprobados.length && (
+              <p className="text-xs text-amber-700 mt-1">
+                No hay presupuestos aprobados con saldo. Complete el paso 1 y espere aprobación.
+              </p>
+            )}
+          </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Nombre completo</label>
@@ -455,6 +531,7 @@ const RendicionPresupuesto = () => {
             {enviando ? 'Enviando…' : 'Enviar rendición'}
           </button>
         </form>
+        )}
       </div>
 
       <div className="rounded-3xl bg-white border border-slate-100 shadow-lg p-8 md:p-10">

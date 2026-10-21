@@ -130,17 +130,19 @@ class RendicionPresupuesto {
       ruc_proveedor,
       numero_documento,
       proveedor_id,
-      proveedor_solicitud_id
+      proveedor_solicitud_id,
+      solicitud_presupuesto_id
     } = datos;
 
     const [result] = await pool.execute(
       `INSERT INTO rendiciones_presupuesto
-       (empleado_id, fecha_solicitud_usuario, area, concepto, nombre_completo, dni, tiene_comprobante,
+       (empleado_id, solicitud_presupuesto_id, fecha_solicitud_usuario, area, concepto, nombre_completo, dni, tiene_comprobante,
         archivo_comprobante_nombre, archivo_comprobante_path, archivo_recibo_generado_path,
         monto, moneda, ruc_proveedor, proveedor_id, proveedor_solicitud_id, numero_documento, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
       [
         empleado_id,
+        solicitud_presupuesto_id || null,
         fecha_solicitud_usuario,
         area,
         concepto,
