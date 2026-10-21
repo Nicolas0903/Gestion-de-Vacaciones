@@ -1,7 +1,11 @@
-/** @param {*} valor @returns {15 | 30} */
+const MIN_DIAS = 1;
+const MAX_DIAS = 60;
+
+/** @param {*} valor @returns {number} */
 function normalizarDiasVacacionesContrato(valor) {
   const n = parseInt(valor, 10);
-  return n === 15 ? 15 : 30;
+  if (!Number.isFinite(n)) return 30;
+  return Math.min(MAX_DIAS, Math.max(MIN_DIAS, n));
 }
 
-module.exports = { normalizarDiasVacacionesContrato };
+module.exports = { normalizarDiasVacacionesContrato, MIN_DIAS, MAX_DIAS };

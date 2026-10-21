@@ -14,7 +14,12 @@ import {
   DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import PortalAdminShell from '../components/PortalAdminShell';
+import DiasVacacionesContratoFields from '../components/admin/DiasVacacionesContratoFields';
 import { adminPortalUsuariosService, solicitudService } from '../services/api';
+import {
+  parseModoDiasVacacionesContrato,
+  resolverDiasVacacionesContrato
+} from '../utils/diasVacacionesContrato';
 import { useAuth } from '../context/AuthContext';
 import { parseFechaSegura, formatoFechaDMY } from '../utils/dateUtils';
 import { generarPasswordSegura } from '../utils/generarPasswordSegura';
@@ -176,6 +181,7 @@ export default function AdministracionUsuarios() {
   const [modalAlta, setModalAlta] = useState(false);
   const [mostrarPasswordAlta, setMostrarPasswordAlta] = useState(false);
   const [guardandoCuenta, setGuardandoCuenta] = useState(false);
+  const [guardandoRegimenVac, setGuardandoRegimenVac] = useState(false);
   const [formCuenta, setFormCuenta] = useState({
     nombres: '',
     apellidos: '',
@@ -188,7 +194,8 @@ export default function AdministracionUsuarios() {
     rol_id: '',
     es_consultor_cp: false,
     requiere_aprobacion_horas: false,
-    dias_vacaciones_contrato: 30
+    dias_vacaciones_modo: '30',
+    dias_vacaciones_otro: ''
   });
   const [roles, setRoles] = useState([]);
   const [formAlta, setFormAlta] = useState({
@@ -204,7 +211,8 @@ export default function AdministracionUsuarios() {
     rol_id: '',
     es_consultor_cp: false,
     requiere_aprobacion_horas: false,
-    dias_vacaciones_contrato: 30
+    dias_vacaciones_modo: '30',
+    dias_vacaciones_otro: ''
   });
   const [codigosCatalogoAlta, setCodigosCatalogoAlta] = useState([]);
   const ultimoCodigoSugeridoAltaRef = useRef('');
@@ -315,6 +323,7 @@ export default function AdministracionUsuarios() {
       const { empleado, modulos_editor } = res.data.data;
       setDetalle({ empleado, modulos_editor });
       setModulosDraft(aplicarModulosEditorADraft(modulos_editor));
+      const vacContrato = parseModoDiasVacacionesContrato(empleado);
       setFormCuenta({
         nombres: empleado.nombres || '',
         apellidos: empleado.apellidos || '',
@@ -327,8 +336,8 @@ export default function AdministracionUsuarios() {
         rol_id: empleado.rol_id != null ? String(empleado.rol_id) : '',
         es_consultor_cp: !!empleado.es_consultor_cp,
         requiere_aprobacion_horas: !!empleado.requiere_aprobacion_horas,
-        dias_vacaciones_contrato:
-          Number(empleado.dias_vacaciones_contrato) === 15 ? 15 : 30
+        dias_vacaciones_modo: vacContrato.modo,
+        dias_vacaciones_otro: vacContrato.otro
       });
     } catch (e) {
       toast.error(e.response?.data?.mensaje || 'No se pudo cargar el usuario');
@@ -509,9 +518,46 @@ export default function AdministracionUsuarios() {
     }
   };
 
+  const diasContratoPayload = (modo, otro) => ({
+    dias_vacaciones_contrato: resolverDiasVacacionesContrato(modo, otro)
+  });
+
+  const guardarRegimenVacaciones = async () => {
+    if (!detalle?.empleado) return;
+    if (formCuenta.dias_vacaciones_modo === 'otro' && !String(formCuenta.dias_vacaciones_otro).trim()) {
+      toast.error('Indique la cantidad de días personalizada.');
+      return;
+    }
+    setGuardandoRegimenVac(true);
+    try {
+      await adminPortalUsuariosService.actualizarCuenta(
+        detalle.empleado.id,
+        diasContratoPayload(formCuenta.dias_vacaciones_modo, formCuenta.dias_vacaciones_otro)
+      );
+      toast.success('Régimen de vacaciones actualizado');
+      const res = await adminPortalUsuariosService.obtener(detalle.empleado.id);
+      const payload = res.data.data;
+      setDetalle(payload);
+      const vacContrato = parseModoDiasVacacionesContrato(payload.empleado);
+      setFormCuenta((f) => ({
+        ...f,
+        dias_vacaciones_modo: vacContrato.modo,
+        dias_vacaciones_otro: vacContrato.otro
+      }));
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo guardar el régimen');
+    } finally {
+      setGuardandoRegimenVac(false);
+    }
+  };
+
   const guardarCuenta = async (e) => {
     e.preventDefault();
     if (!detalle?.empleado) return;
+    if (formCuenta.dias_vacaciones_modo === 'otro' && !String(formCuenta.dias_vacaciones_otro).trim()) {
+      toast.error('Indique la cantidad de días personalizada.');
+      return;
+    }
     setGuardandoCuenta(true);
     try {
       await adminPortalUsuariosService.actualizarCuenta(detalle.empleado.id, {
@@ -526,8 +572,7 @@ export default function AdministracionUsuarios() {
         rol_id: formCuenta.rol_id ? parseInt(formCuenta.rol_id, 10) : undefined,
         es_consultor_cp: formCuenta.es_consultor_cp,
         requiere_aprobacion_horas: formCuenta.requiere_aprobacion_horas,
-        dias_vacaciones_contrato:
-          Number(formCuenta.dias_vacaciones_contrato) === 15 ? 15 : 30
+        ...diasContratoPayload(formCuenta.dias_vacaciones_modo, formCuenta.dias_vacaciones_otro)
       });
       toast.success('Cuenta actualizada');
       const res = await adminPortalUsuariosService.obtener(detalle.empleado.id);
@@ -546,7 +591,10 @@ export default function AdministracionUsuarios() {
         rol_id: em.rol_id != null ? String(em.rol_id) : '',
         es_consultor_cp: !!em.es_consultor_cp,
         requiere_aprobacion_horas: !!em.requiere_aprobacion_horas,
-        dias_vacaciones_contrato: Number(em.dias_vacaciones_contrato) === 15 ? 15 : 30
+        ...(() => {
+          const v = parseModoDiasVacacionesContrato(em);
+          return { dias_vacaciones_modo: v.modo, dias_vacaciones_otro: v.otro };
+        })()
       });
       setModulosDraft(aplicarModulosEditorADraft(payload.modulos_editor));
       cargarLista();
@@ -564,9 +612,14 @@ export default function AdministracionUsuarios() {
       toast.error('Genera una contraseña válida antes de crear el usuario.');
       return;
     }
+    if (formAlta.dias_vacaciones_modo === 'otro' && !String(formAlta.dias_vacaciones_otro).trim()) {
+      toast.error('Indique la cantidad de días personalizada.');
+      return;
+    }
     try {
+      const { dias_vacaciones_modo, dias_vacaciones_otro, ...restAlta } = formAlta;
       const body = {
-        ...formAlta,
+        ...restAlta,
         password,
         rol_id: parseInt(formAlta.rol_id, 10),
         jefe_id: null,
@@ -575,8 +628,7 @@ export default function AdministracionUsuarios() {
           esTextoCargoConsultor(formAlta.cargo) ||
           esRolConsultor(formAlta.rol_id, roles),
         requiere_aprobacion_horas: formAlta.requiere_aprobacion_horas,
-        dias_vacaciones_contrato:
-          Number(formAlta.dias_vacaciones_contrato) === 15 ? 15 : 30
+        ...diasContratoPayload(dias_vacaciones_modo, dias_vacaciones_otro)
       };
       await adminPortalUsuariosService.crear(body);
       toast.success('Usuario creado. Recuerda copiar y enviar la contraseña inicial al colaborador.');
@@ -596,7 +648,8 @@ export default function AdministracionUsuarios() {
         rol_id: '',
         es_consultor_cp: false,
         requiere_aprobacion_horas: false,
-        dias_vacaciones_contrato: 30
+        dias_vacaciones_modo: '30',
+        dias_vacaciones_otro: ''
       });
       cargarLista();
     } catch (err) {
@@ -1045,27 +1098,12 @@ export default function AdministracionUsuarios() {
                       onChange={(e) => setFormCuenta((f) => ({ ...f, fecha_ingreso: e.target.value }))}
                     />
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
-                      Vacaciones por contrato (días / año)
-                    </label>
-                    <select
-                      className={INPUT}
-                      value={String(formCuenta.dias_vacaciones_contrato)}
-                      onChange={(e) =>
-                        setFormCuenta((f) => ({
-                          ...f,
-                          dias_vacaciones_contrato: Number(e.target.value) === 15 ? 15 : 30
-                        }))
-                      }
-                    >
-                      <option value="30">30 días (estándar)</option>
-                      <option value="15">15 días (PYME / contrato reducido)</option>
-                    </select>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Aplica a períodos nuevos y renovaciones automáticas; no modifica períodos ya cerrados.
-                    </p>
-                  </div>
+                  <DiasVacacionesContratoFields
+                    modo={formCuenta.dias_vacaciones_modo}
+                    otro={formCuenta.dias_vacaciones_otro}
+                    onModoChange={(modo) => setFormCuenta((f) => ({ ...f, dias_vacaciones_modo: modo }))}
+                    onOtroChange={(otro) => setFormCuenta((f) => ({ ...f, dias_vacaciones_otro: otro }))}
+                  />
                   <label className="flex gap-3 items-start p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1178,6 +1216,23 @@ export default function AdministracionUsuarios() {
                 </div>
               ) : (
                 <div className="space-y-4 text-sm">
+                  <div className="rounded-lg border border-teal-200 bg-teal-50/80 p-4 space-y-3">
+                    <DiasVacacionesContratoFields
+                      compact
+                      modo={formCuenta.dias_vacaciones_modo}
+                      otro={formCuenta.dias_vacaciones_otro}
+                      onModoChange={(modo) => setFormCuenta((f) => ({ ...f, dias_vacaciones_modo: modo }))}
+                      onOtroChange={(otro) => setFormCuenta((f) => ({ ...f, dias_vacaciones_otro: otro }))}
+                    />
+                    <button
+                      type="button"
+                      disabled={guardandoRegimenVac}
+                      onClick={guardarRegimenVacaciones}
+                      className={`w-full ${BTN_PRI}`}
+                    >
+                      {guardandoRegimenVac ? 'Guardando…' : 'Guardar días de contrato'}
+                    </button>
+                  </div>
                   <p className="text-xs text-slate-500">
                     Períodos y totales alineados con el portal del colaborador (hasta el tope vigente acordado, sin bloques posteriores solo por renovación automática).
                   </p>
@@ -1548,24 +1603,12 @@ export default function AdministracionUsuarios() {
                   Día en que la persona se incorporó a Prayaga (base para vacaciones y antigüedad).
                 </p>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
-                  Vacaciones por contrato (días / año)
-                </label>
-                <select
-                  className={INPUT}
-                  value={String(formAlta.dias_vacaciones_contrato)}
-                  onChange={(e) =>
-                    setFormAlta((f) => ({
-                      ...f,
-                      dias_vacaciones_contrato: Number(e.target.value) === 15 ? 15 : 30
-                    }))
-                  }
-                >
-                  <option value="30">30 días (estándar)</option>
-                  <option value="15">15 días (PYME / contrato reducido)</option>
-                </select>
-              </div>
+              <DiasVacacionesContratoFields
+                modo={formAlta.dias_vacaciones_modo}
+                otro={formAlta.dias_vacaciones_otro}
+                onModoChange={(modo) => setFormAlta((f) => ({ ...f, dias_vacaciones_modo: modo }))}
+                onOtroChange={(otro) => setFormAlta((f) => ({ ...f, dias_vacaciones_otro: otro }))}
+              />
               <select
                 required
                 className={INPUT}
