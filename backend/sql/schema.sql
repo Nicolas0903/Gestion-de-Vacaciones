@@ -34,6 +34,7 @@ CREATE TABLE empleados (
         'comercial'
     ) NULL DEFAULT NULL COMMENT 'Área organizacional del empleado',
     fecha_ingreso DATE NOT NULL,
+    dias_vacaciones_contrato TINYINT NOT NULL DEFAULT 30 COMMENT 'Días de vacaciones por año: 15 o 30',
     rol_id INT NOT NULL,
     jefe_id INT NULL, -- Referencia al jefe directo
     activo BOOLEAN DEFAULT TRUE,

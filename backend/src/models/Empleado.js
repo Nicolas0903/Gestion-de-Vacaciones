@@ -4,6 +4,7 @@ const {
   APROBACION_EMAILS_DEFAULT,
   aprobacionEmailsConfigurados
 } = require('../constants/rendicionPresupuestoNotificaciones');
+const { normalizarDiasVacacionesContrato } = require('../utils/diasVacacionesContrato');
 
 class Empleado {
   static normalizarModulosPortal(empleado) {
@@ -25,7 +26,15 @@ class Empleado {
   static async crear(datos) {
     const {
       codigo_empleado, nombres, apellidos, dni, email, password,
-      cargo, area, fecha_ingreso, rol_id, jefe_id, modulos_portal, es_consultor_cp, requiere_aprobacion_horas
+      cargo,
+      area,
+      fecha_ingreso,
+      rol_id,
+      jefe_id,
+      modulos_portal,
+      es_consultor_cp,
+      requiere_aprobacion_horas,
+      dias_vacaciones_contrato
     } = datos;
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -35,11 +44,12 @@ class Empleado {
         : null;
     const consultorCp = es_consultor_cp === 1 || es_consultor_cp === true ? 1 : 0;
     const reqApr = requiere_aprobacion_horas === 1 || requiere_aprobacion_horas === true ? 1 : 0;
+    const diasVac = normalizarDiasVacacionesContrato(dias_vacaciones_contrato);
 
     const [result] = await pool.execute(
       `INSERT INTO empleados 
-       (codigo_empleado, nombres, apellidos, dni, email, password, cargo, area, fecha_ingreso, rol_id, jefe_id, modulos_portal, es_consultor_cp, requiere_aprobacion_horas)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (codigo_empleado, nombres, apellidos, dni, email, password, cargo, area, fecha_ingreso, dias_vacaciones_contrato, rol_id, jefe_id, modulos_portal, es_consultor_cp, requiere_aprobacion_horas)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         codigo_empleado,
         nombres,
@@ -50,6 +60,7 @@ class Empleado {
         cargo,
         area || null,
         fecha_ingreso,
+        diasVac,
         rol_id,
         jefe_id || null,
         modulosJson,

@@ -9,6 +9,7 @@ const {
   tieneMapaPortalExplicito,
   leerFlagModuloPortal
 } = require('../utils/portalAcceso');
+const { normalizarDiasVacacionesContrato } = require('../utils/diasVacacionesContrato');
 
 /** Normaliza el valor `area` recibido del body. Acepta '' / null como "sin área". */
 function normalizarArea(valor) {
@@ -141,7 +142,8 @@ const crearEmpleado = async (req, res) => {
       jefe_id,
       modulos_portal,
       es_consultor_cp,
-      requiere_aprobacion_horas
+      requiere_aprobacion_horas,
+      dias_vacaciones_contrato
     } = req.body;
 
     const areaNormalizada = normalizarArea(area);
@@ -211,7 +213,8 @@ const crearEmpleado = async (req, res) => {
       jefe_id,
       modulos_portal: modulosJson,
       es_consultor_cp: esConsultorCp,
-      requiere_aprobacion_horas: reqAprHoras
+      requiere_aprobacion_horas: reqAprHoras,
+      dias_vacaciones_contrato: normalizarDiasVacacionesContrato(dias_vacaciones_contrato)
     });
 
     await PeriodoVacaciones.generarPeriodos(nuevoId, fecha_ingreso);
@@ -322,7 +325,8 @@ const actualizarCuenta = async (req, res) => {
       'codigo_empleado',
       'rol_id',
       'es_consultor_cp',
-      'requiere_aprobacion_horas'
+      'requiere_aprobacion_horas',
+      'dias_vacaciones_contrato'
     ];
     const datos = {};
     for (const k of permitidos) {
@@ -347,6 +351,10 @@ const actualizarCuenta = async (req, res) => {
       if (k === 'requiere_aprobacion_horas') {
         const v = req.body[k];
         datos.requiere_aprobacion_horas = v === true || v === 1 || v === '1' ? 1 : 0;
+        continue;
+      }
+      if (k === 'dias_vacaciones_contrato') {
+        datos.dias_vacaciones_contrato = normalizarDiasVacacionesContrato(req.body[k]);
         continue;
       }
       const v = req.body[k];

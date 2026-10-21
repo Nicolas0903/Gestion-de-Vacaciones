@@ -187,7 +187,8 @@ export default function AdministracionUsuarios() {
     codigo_empleado: '',
     rol_id: '',
     es_consultor_cp: false,
-    requiere_aprobacion_horas: false
+    requiere_aprobacion_horas: false,
+    dias_vacaciones_contrato: 30
   });
   const [roles, setRoles] = useState([]);
   const [formAlta, setFormAlta] = useState({
@@ -202,7 +203,8 @@ export default function AdministracionUsuarios() {
     fecha_ingreso: '',
     rol_id: '',
     es_consultor_cp: false,
-    requiere_aprobacion_horas: false
+    requiere_aprobacion_horas: false,
+    dias_vacaciones_contrato: 30
   });
   const [codigosCatalogoAlta, setCodigosCatalogoAlta] = useState([]);
   const ultimoCodigoSugeridoAltaRef = useRef('');
@@ -324,7 +326,9 @@ export default function AdministracionUsuarios() {
         codigo_empleado: empleado.codigo_empleado || '',
         rol_id: empleado.rol_id != null ? String(empleado.rol_id) : '',
         es_consultor_cp: !!empleado.es_consultor_cp,
-        requiere_aprobacion_horas: !!empleado.requiere_aprobacion_horas
+        requiere_aprobacion_horas: !!empleado.requiere_aprobacion_horas,
+        dias_vacaciones_contrato:
+          Number(empleado.dias_vacaciones_contrato) === 15 ? 15 : 30
       });
     } catch (e) {
       toast.error(e.response?.data?.mensaje || 'No se pudo cargar el usuario');
@@ -521,7 +525,9 @@ export default function AdministracionUsuarios() {
         codigo_empleado: formCuenta.codigo_empleado,
         rol_id: formCuenta.rol_id ? parseInt(formCuenta.rol_id, 10) : undefined,
         es_consultor_cp: formCuenta.es_consultor_cp,
-        requiere_aprobacion_horas: formCuenta.requiere_aprobacion_horas
+        requiere_aprobacion_horas: formCuenta.requiere_aprobacion_horas,
+        dias_vacaciones_contrato:
+          Number(formCuenta.dias_vacaciones_contrato) === 15 ? 15 : 30
       });
       toast.success('Cuenta actualizada');
       const res = await adminPortalUsuariosService.obtener(detalle.empleado.id);
@@ -539,7 +545,8 @@ export default function AdministracionUsuarios() {
         codigo_empleado: em.codigo_empleado || '',
         rol_id: em.rol_id != null ? String(em.rol_id) : '',
         es_consultor_cp: !!em.es_consultor_cp,
-        requiere_aprobacion_horas: !!em.requiere_aprobacion_horas
+        requiere_aprobacion_horas: !!em.requiere_aprobacion_horas,
+        dias_vacaciones_contrato: Number(em.dias_vacaciones_contrato) === 15 ? 15 : 30
       });
       setModulosDraft(aplicarModulosEditorADraft(payload.modulos_editor));
       cargarLista();
@@ -567,7 +574,9 @@ export default function AdministracionUsuarios() {
           formAlta.es_consultor_cp ||
           esTextoCargoConsultor(formAlta.cargo) ||
           esRolConsultor(formAlta.rol_id, roles),
-        requiere_aprobacion_horas: formAlta.requiere_aprobacion_horas
+        requiere_aprobacion_horas: formAlta.requiere_aprobacion_horas,
+        dias_vacaciones_contrato:
+          Number(formAlta.dias_vacaciones_contrato) === 15 ? 15 : 30
       };
       await adminPortalUsuariosService.crear(body);
       toast.success('Usuario creado. Recuerda copiar y enviar la contraseña inicial al colaborador.');
@@ -586,7 +595,8 @@ export default function AdministracionUsuarios() {
         fecha_ingreso: '',
         rol_id: '',
         es_consultor_cp: false,
-        requiere_aprobacion_horas: false
+        requiere_aprobacion_horas: false,
+        dias_vacaciones_contrato: 30
       });
       cargarLista();
     } catch (err) {
@@ -1034,6 +1044,27 @@ export default function AdministracionUsuarios() {
                       value={formCuenta.fecha_ingreso}
                       onChange={(e) => setFormCuenta((f) => ({ ...f, fecha_ingreso: e.target.value }))}
                     />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
+                      Vacaciones por contrato (días / año)
+                    </label>
+                    <select
+                      className={INPUT}
+                      value={String(formCuenta.dias_vacaciones_contrato)}
+                      onChange={(e) =>
+                        setFormCuenta((f) => ({
+                          ...f,
+                          dias_vacaciones_contrato: Number(e.target.value) === 15 ? 15 : 30
+                        }))
+                      }
+                    >
+                      <option value="30">30 días (estándar)</option>
+                      <option value="15">15 días (PYME / contrato reducido)</option>
+                    </select>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Aplica a períodos nuevos y renovaciones automáticas; no modifica períodos ya cerrados.
+                    </p>
                   </div>
                   <label className="flex gap-3 items-start p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer">
                     <input
@@ -1516,6 +1547,24 @@ export default function AdministracionUsuarios() {
                 <p className="text-[11px] text-slate-500 mt-1">
                   Día en que la persona se incorporó a Prayaga (base para vacaciones y antigüedad).
                 </p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">
+                  Vacaciones por contrato (días / año)
+                </label>
+                <select
+                  className={INPUT}
+                  value={String(formAlta.dias_vacaciones_contrato)}
+                  onChange={(e) =>
+                    setFormAlta((f) => ({
+                      ...f,
+                      dias_vacaciones_contrato: Number(e.target.value) === 15 ? 15 : 30
+                    }))
+                  }
+                >
+                  <option value="30">30 días (estándar)</option>
+                  <option value="15">15 días (PYME / contrato reducido)</option>
+                </select>
               </div>
               <select
                 required

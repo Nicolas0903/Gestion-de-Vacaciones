@@ -1,6 +1,7 @@
 const { pool } = require('../config/database');
+const { normalizarDiasVacacionesContrato } = require('../utils/diasVacacionesContrato');
 
-/** Régimen PYME 15 días (renovación automática debe ser 15, no copiar erróneo ni usar 30 por defecto). */
+/** Fallback legacy si la columna aún no existe o está en 30 por defecto sin migrar emails. */
 const EMAILS_VACACIONES_15_DIAS = new Set(
   (process.env.VACACIONES_PYME_15_EMAILS ||
     'soham.carbajal@prayaga.biz,nicolas.valdivia@prayaga.biz')
@@ -10,6 +11,30 @@ const EMAILS_VACACIONES_15_DIAS = new Set(
 );
 
 class PeriodoVacaciones {
+  /** Días anuales del contrato (15 PYME / 30 estándar). */
+  static async diasVacacionesAnualesEmpleado(empleadoId) {
+    try {
+      const [rows] = await pool.execute(
+        `SELECT dias_vacaciones_contrato, LOWER(TRIM(email)) AS email FROM empleados WHERE id = ? LIMIT 1`,
+        [empleadoId]
+      );
+      const row = rows[0];
+      if (!row) return 30;
+      if (row.dias_vacaciones_contrato != null) {
+        return normalizarDiasVacacionesContrato(row.dias_vacaciones_contrato);
+      }
+      if (EMAILS_VACACIONES_15_DIAS.has((row.email || '').trim())) return 15;
+      return 30;
+    } catch (err) {
+      if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
+      const [rows] = await pool.execute(
+        `SELECT LOWER(TRIM(email)) AS email FROM empleados WHERE id = ? LIMIT 1`,
+        [empleadoId]
+      );
+      const email = (rows[0]?.email || '').trim();
+      return EMAILS_VACACIONES_15_DIAS.has(email) ? 15 : 30;
+    }
+  }
   // Crear nuevo período
   static async crear(datos) {
     const {
@@ -70,12 +95,7 @@ class PeriodoVacaciones {
    */
   static async renovarSiVencido(empleadoId) {
     try {
-      const [empRows] = await pool.execute(
-        `SELECT LOWER(TRIM(email)) AS email FROM empleados WHERE id = ? LIMIT 1`,
-        [empleadoId]
-      );
-      const emailEmp = (empRows[0]?.email || '').trim();
-      const esRegimen15 = EMAILS_VACACIONES_15_DIAS.has(emailEmp);
+      const diasContrato = await this.diasVacacionesAnualesEmpleado(empleadoId);
 
       for (let iter = 0; iter < 20; iter++) {
         const [cerrado] = await pool.execute(
@@ -113,10 +133,8 @@ class PeriodoVacaciones {
         );
         if (existe.length > 0) break;
 
-        let diasCorrespondientes = Number(ref.dias_correspondientes);
-        if (esRegimen15) {
-          diasCorrespondientes = 15;
-        } else if (!Number.isFinite(diasCorrespondientes) || diasCorrespondientes <= 0) {
+        let diasCorrespondientes = diasContrato;
+        if (!Number.isFinite(diasCorrespondientes) || diasCorrespondientes <= 0) {
           diasCorrespondientes = 30;
         }
 
@@ -303,6 +321,7 @@ class PeriodoVacaciones {
     const periodos = [];
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
+    const diasAnuales = await this.diasVacacionesAnualesEmpleado(empleadoId);
 
     for (let anio = anioIngreso; anio <= anioHasta; anio++) {
       const fechaInicioPeriodo = new Date(anio, fechaInicio.getMonth(), fechaInicio.getDate());
@@ -322,6 +341,7 @@ class PeriodoVacaciones {
           empleado_id: empleadoId,
           fecha_inicio_periodo: fechaInicioPeriodo.toISOString().split('T')[0],
           fecha_fin_periodo: fechaFinPeriodo.toISOString().split('T')[0],
+          dias_correspondientes: diasAnuales,
           tiempo_trabajado: '12 meses',
           observaciones: `Período ${anio}-${anio + 1}`
         });

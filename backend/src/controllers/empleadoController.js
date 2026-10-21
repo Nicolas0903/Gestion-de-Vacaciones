@@ -1,12 +1,17 @@
 const { Empleado, PeriodoVacaciones } = require('../models');
 const { pool } = require('../config/database');
+const { normalizarDiasVacacionesContrato } = require('../utils/diasVacacionesContrato');
 
 // Crear empleado
 const crear = async (req, res) => {
   try {
     const {
       codigo_empleado, nombres, apellidos, dni, email, password,
-      cargo, fecha_ingreso, rol_id, jefe_id
+      cargo,
+      fecha_ingreso,
+      rol_id,
+      jefe_id,
+      dias_vacaciones_contrato
     } = req.body;
 
     // Validaciones básicas
@@ -36,7 +41,11 @@ const crear = async (req, res) => {
 
     const id = await Empleado.crear({
       codigo_empleado, nombres, apellidos, dni, email, password,
-      cargo, fecha_ingreso, rol_id, jefe_id
+      cargo,
+      fecha_ingreso,
+      rol_id,
+      jefe_id,
+      dias_vacaciones_contrato: normalizarDiasVacacionesContrato(dias_vacaciones_contrato)
     });
 
     // Generar períodos de vacaciones automáticamente
