@@ -574,6 +574,14 @@ class Cotizacion {
   }
 
   static async eliminar(id) {
+    await pool.query(
+      `UPDATE cotizacion_solicitudes SET
+        cotizacion_id = NULL,
+        estado = CASE WHEN estado = 'atendida' THEN estado ELSE 'enviada' END,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE cotizacion_id = ?`,
+      [id]
+    );
     const [result] = await pool.query(`DELETE FROM cotizaciones WHERE id = ?`, [id]);
     return result.affectedRows > 0;
   }

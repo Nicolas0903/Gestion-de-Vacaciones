@@ -101,6 +101,8 @@ const SolicitudCotizacion = () => {
 
   const sel = lista.find((x) => x.id === selId);
   const soloLectura = sel && !['borrador'].includes(sel.estado);
+  /** Sin fila en cotizaciones (estado huérfano "en elaboración"). */
+  const sinCotizacionReal = sel && !sel.cotizacion_codigo;
 
   const anularSolicitud = async () => {
     if (!selId || !sel) return;
@@ -303,8 +305,16 @@ const SolicitudCotizacion = () => {
               </div>
             )}
 
-            {sel?.estado === 'enviada' && (
+            {(sel?.estado === 'enviada' || (sel?.estado === 'en_elaboracion' && sinCotizacionReal)) && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={eliminarSolicitud}
+                  className="px-4 py-2 rounded-lg border border-red-200 text-red-700 text-sm font-medium"
+                >
+                  Eliminar solicitud
+                </button>
                 <button
                   type="button"
                   disabled={guardando}
@@ -314,7 +324,24 @@ const SolicitudCotizacion = () => {
                   Anular envío
                 </button>
                 <p className="text-xs text-slate-500 w-full">
-                  Quita la solicitud de la bandeja del responsable (estado cancelada).
+                  {sinCotizacionReal
+                    ? 'No hay cotización en el módulo Cotizaciones. Puede eliminar esta solicitud del listado.'
+                    : 'Anular deja la solicitud como cancelada; eliminar la borra permanentemente.'}
+                </p>
+              </div>
+            )}
+
+            {sel?.estado === 'en_elaboracion' && sel.cotizacion_codigo && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                <Link
+                  to="/cotizaciones"
+                  className="inline-flex items-center px-4 py-2 rounded-lg bg-teal-600 text-white text-sm"
+                >
+                  Ir al módulo Cotizaciones
+                </Link>
+                <p className="text-xs text-slate-600 w-full">
+                  Cotización vinculada: <strong>{sel.cotizacion_codigo}</strong>. Elimínela allí para poder borrar
+                  esta solicitud.
                 </p>
               </div>
             )}

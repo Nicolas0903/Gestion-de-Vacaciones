@@ -180,6 +180,26 @@ class CotizacionSolicitud {
     }
     sql += ` ORDER BY s.updated_at DESC, s.id DESC`;
     const [rows] = await pool.query(sql, params);
+    for (const r of rows) {
+      await this.reconciliarEstadoHuerfana(r.id);
+    }
+    if (rows.length) {
+      const [fresh] = await pool.query(
+        `SELECT s.*,
+                CONCAT(e.nombres, ' ', e.apellidos) AS solicitante_nombre,
+                e.email AS solicitante_email,
+                ${SELECT_RESPONSABLE},
+                c.codigo AS cotizacion_codigo
+         FROM cotizacion_solicitudes s
+         JOIN empleados e ON e.id = s.solicitante_id
+         LEFT JOIN empleados er ON er.id = s.responsable_id
+         LEFT JOIN cotizaciones c ON c.id = s.cotizacion_id
+         WHERE s.id IN (${rows.map(() => '?').join(',')})
+         ORDER BY s.updated_at DESC, s.id DESC`,
+        rows.map((r) => r.id)
+      );
+      return fresh;
+    }
     return rows;
   }
 
@@ -189,6 +209,7 @@ class CotizacionSolicitud {
   }
 
   static async obtener(id) {
+    await this.reconciliarEstadoHuerfana(id);
     const [rows] = await pool.query(
       `SELECT s.*,
               CONCAT(e.nombres, ' ', e.apellidos) AS solicitante_nombre,
@@ -222,15 +243,43 @@ class CotizacionSolicitud {
     );
   }
 
-  static assertPuedeAnular(row, actorId, { esAdmin, esEquipoCot }) {
+  /** Cotización que aún existe en BD (el FK puede quedar huérfano si se borró la fila sin SET NULL). */
+  static async cotizacionActivaPorId(cotizacionId) {
+    if (!cotizacionId) return null;
+    const [rows] = await pool.query(`SELECT id, codigo FROM cotizaciones WHERE id = ? LIMIT 1`, [
+      cotizacionId
+    ]);
+    return rows[0] || null;
+  }
+
+  /** Si estaba en elaboración pero no hay cotización, vuelve a enviada y limpia el vínculo. */
+  static async reconciliarEstadoHuerfana(id) {
+    const row = await this.buscarPorId(id);
+    if (!row) return null;
+    const activa = row.cotizacion_id ? await this.cotizacionActivaPorId(row.cotizacion_id) : null;
+    if (!activa && (row.cotizacion_id || row.estado === 'en_elaboracion')) {
+      await pool.query(
+        `UPDATE cotizacion_solicitudes SET
+          cotizacion_id = NULL,
+          estado = CASE WHEN estado = 'atendida' THEN estado ELSE 'enviada' END,
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [id]
+      );
+    }
+    return this.buscarPorId(id);
+  }
+
+  static async assertPuedeAnular(row, actorId, { esAdmin, esEquipoCot }) {
     if (!row) throw new Error('Solicitud no encontrada');
     if (row.estado === 'cancelada') return;
     if (row.estado === 'atendida') {
       throw new Error('No se puede anular una solicitud ya atendida');
     }
-    if (row.cotizacion_id) {
+    const cotActiva = row.cotizacion_id ? await this.cotizacionActivaPorId(row.cotizacion_id) : null;
+    if (cotActiva) {
       throw new Error(
-        'Ya existe cotización vinculada. Elimina o archiva la cotización desde el módulo Cotizaciones.'
+        `Hay cotización activa (${cotActiva.codigo}). Elimínela primero en el módulo Cotizaciones.`
       );
     }
     const esSolicitante = row.solicitante_id === actorId;
@@ -245,14 +294,15 @@ class CotizacionSolicitud {
       throw new Error('No tienes permiso para rechazar esta solicitud');
     }
     if (row.estado === 'en_elaboracion') {
-      throw new Error('La solicitud ya está en elaboración');
+      if (esSolicitante || esAdmin || (esEquipoCot && esResponsable)) return;
+      throw new Error('No tienes permiso para cancelar esta solicitud');
     }
     throw new Error('Estado no permite anular');
   }
 
   static async cancelar(id, actorId, { motivo = '', esAdmin = false, esEquipoCot = false } = {}) {
-    const row = await this.buscarPorId(id);
-    this.assertPuedeAnular(row, actorId, { esAdmin, esEquipoCot });
+    const row = await this.reconciliarEstadoHuerfana(id);
+    await this.assertPuedeAnular(row, actorId, { esAdmin, esEquipoCot });
     if (row.estado === 'cancelada') return this.obtener(id);
 
     const payload = parseJson(row.payload_json, {});
@@ -270,18 +320,25 @@ class CotizacionSolicitud {
   }
 
   static async eliminar(id, actorId, { esAdmin = false } = {}) {
-    const row = await this.buscarPorId(id);
+    let row = await this.reconciliarEstadoHuerfana(id);
     if (!row) throw new Error('Solicitud no encontrada');
-    if (row.cotizacion_id) {
-      throw new Error('No se puede eliminar: hay una cotización vinculada');
+
+    const cotActiva = row.cotizacion_id ? await this.cotizacionActivaPorId(row.cotizacion_id) : null;
+    if (cotActiva) {
+      throw new Error(
+        `No se puede eliminar: existe la cotización ${cotActiva.codigo}. Elimínela en el módulo Cotizaciones.`
+      );
     }
-    if (!['borrador', 'cancelada'].includes(row.estado)) {
-      throw new Error('Solo se pueden eliminar borradores o solicitudes canceladas');
+
+    if (row.estado === 'atendida') {
+      throw new Error('No se puede eliminar una solicitud ya atendida');
     }
+
     const esSolicitante = row.solicitante_id === actorId;
     if (!esSolicitante && !esAdmin) {
       throw new Error('No tienes permiso para eliminar esta solicitud');
     }
+
     await pool.query(`DELETE FROM cotizacion_solicitudes WHERE id = ?`, [id]);
     return true;
   }

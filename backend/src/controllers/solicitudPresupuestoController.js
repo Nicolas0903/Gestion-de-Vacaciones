@@ -2,7 +2,7 @@ const SolicitudPresupuesto = require('../models/SolicitudPresupuesto');
 const { Empleado } = require('../models');
 const RendicionPresupuesto = require('../models/RendicionPresupuesto');
 const emailService = require('../services/emailService');
-const { notificacionRegistroEmailsConfigurados } = require('../constants/rendicionPresupuestoNotificaciones');
+const { emailAprobadorSolicitudPresupuesto } = require('../constants/solicitudPresupuestoNotificaciones');
 
 function esStaffAprobacion(usuario) {
   if (!usuario) return false;
@@ -229,30 +229,23 @@ const rechazar = async (req, res) => {
 async function notificarEnvio(solicitud, solicitante) {
   try {
     const data = SolicitudPresupuesto.enriquecer(solicitud);
-    const aprobadores = await Empleado.obtenerAprobadoresRendicion();
     const portalUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const linkGestion = `${portalUrl}/rendicion-presupuesto/gestion`;
 
-    for (const a of aprobadores) {
-      if (a.email) {
-        await emailService.notificarSolicitudPresupuestoPendiente({
-          solicitud: data,
-          solicitante,
-          destinatario: a,
-          linkPortal: linkGestion
-        });
-      }
+    let aprobador = await Empleado.obtenerAprobadorSolicitudPresupuesto();
+    if (!aprobador?.email) {
+      console.warn(
+        'Solicitud presupuesto: no hay empleado activo para',
+        emailAprobadorSolicitudPresupuesto()
+      );
+      return;
     }
-    for (const email of notificacionRegistroEmailsConfigurados()) {
-      const ya = aprobadores.some((x) => (x.email || '').toLowerCase() === email);
-      if (ya) continue;
-      await emailService.notificarSolicitudPresupuestoCopia({
-        solicitud: data,
-        solicitante,
-        destinatarioEmail: email,
-        linkPortal: linkGestion
-      });
-    }
+    await emailService.notificarSolicitudPresupuestoPendiente({
+      solicitud: data,
+      solicitante,
+      destinatario: aprobador,
+      linkPortal: linkGestion
+    });
   } catch (err) {
     console.error('notificarEnvio solicitud presupuesto:', err);
   }

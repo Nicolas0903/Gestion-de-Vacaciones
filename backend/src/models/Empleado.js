@@ -166,6 +166,21 @@ class Empleado {
     return aprobacionEmailsConfigurados();
   }
 
+  /** Destinatario del correo de aprobación de solicitud de presupuesto (solo Magali por defecto). */
+  static async obtenerAprobadorSolicitudPresupuesto() {
+    const { emailAprobadorSolicitudPresupuesto } = require('../constants/solicitudPresupuestoNotificaciones');
+    const email = emailAprobadorSolicitudPresupuesto();
+    const [rows] = await pool.execute(
+      `SELECT e.*, r.nombre as rol_nombre, r.nivel_aprobacion
+       FROM empleados e
+       LEFT JOIN roles r ON e.rol_id = r.id
+       WHERE e.activo = 1 AND LOWER(TRIM(e.email)) = ?
+       LIMIT 1`,
+      [email]
+    );
+    return rows[0] || null;
+  }
+
   /** Empleados activos habilitados para aprobar rendiciones de presupuesto (solo ese módulo) */
   static async obtenerAprobadoresRendicion() {
     const emails = aprobacionEmailsConfigurados();
