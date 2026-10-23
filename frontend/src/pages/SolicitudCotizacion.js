@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { ArrowLeftIcon, PaperAirplaneIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { cotizacionSolicitudesService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { parcheGeneralTipoProyectoDesdeNombre, tiposProyectoOpciones } from '../utils/cotizacionTiposProyecto';
+import { tiposProyectoOpciones } from '../utils/cotizacionTiposProyecto';
 
 const ESTADO_LABEL = {
   borrador: 'Borrador',
@@ -17,12 +17,27 @@ const ESTADO_LABEL = {
 const emptyForm = () => ({
   nombre_proyecto: '',
   cliente: '',
-  tipo_proyecto: '',
-  tipo_proyecto_codigo: '',
+  tipos_codigos: [],
   fecha_limite: '',
   contexto_comercial: '',
-  responsable_id: ''
+  responsables_ids: []
 });
+
+function tiposCodigosDesdeRow(row) {
+  if (Array.isArray(row?.tipos_proyecto) && row.tipos_proyecto.length) {
+    return row.tipos_proyecto.map((t) => t.codigo).filter(Boolean);
+  }
+  if (row?.tipo_proyecto_codigo) return [row.tipo_proyecto_codigo];
+  return [];
+}
+
+function responsablesIdsDesdeRow(row) {
+  if (Array.isArray(row?.responsables_ids) && row.responsables_ids.length) {
+    return row.responsables_ids.map(String);
+  }
+  if (row?.responsable_id) return [String(row.responsable_id)];
+  return [];
+}
 
 const SolicitudCotizacion = () => {
   const { usuario } = useAuth();
@@ -57,19 +72,63 @@ const SolicitudCotizacion = () => {
     setForm({
       nombre_proyecto: row.nombre_proyecto || '',
       cliente: row.cliente || '',
-      tipo_proyecto: row.tipo_proyecto || '',
-      tipo_proyecto_codigo: row.tipo_proyecto_codigo || '',
+      tipos_codigos: tiposCodigosDesdeRow(row),
       fecha_limite: row.fecha_limite ? String(row.fecha_limite).slice(0, 10) : '',
       contexto_comercial: row.contexto_comercial || '',
-      responsable_id: row.responsable_id ? String(row.responsable_id) : ''
+      responsables_ids: responsablesIdsDesdeRow(row)
     });
   }, [selId, lista]);
 
-  const payload = () => ({ ...form });
+  const sel = lista.find((x) => x.id === selId);
+  const soloLectura = sel && !['borrador'].includes(sel.estado);
+
+  const toggleTipo = (codigo) => {
+    if (soloLectura) return;
+    setForm((f) => {
+      const set = new Set(f.tipos_codigos);
+      if (set.has(codigo)) set.delete(codigo);
+      else set.add(codigo);
+      return { ...f, tipos_codigos: [...set] };
+    });
+  };
+
+  const toggleResponsable = (id) => {
+    if (soloLectura) return;
+    const sid = String(id);
+    setForm((f) => {
+      const set = new Set(f.responsables_ids);
+      if (set.has(sid)) set.delete(sid);
+      else set.add(sid);
+      return { ...f, responsables_ids: [...set] };
+    });
+  };
+
+  const payload = () => {
+    const tipos_proyecto = form.tipos_codigos.map((codigo) => {
+      const t = tipos.find((x) => x.codigo === codigo);
+      return { codigo, nombre: t?.nombre || '' };
+    });
+    const first = tipos_proyecto[0];
+    return {
+      nombre_proyecto: form.nombre_proyecto,
+      cliente: form.cliente,
+      fecha_limite: form.fecha_limite,
+      contexto_comercial: form.contexto_comercial,
+      tipos_proyecto,
+      responsables_ids: form.responsables_ids.map(Number).filter(Boolean),
+      tipo_proyecto: first?.nombre || '',
+      tipo_proyecto_codigo: first?.codigo || '',
+      responsable_id: form.responsables_ids[0] ? Number(form.responsables_ids[0]) : ''
+    };
+  };
 
   const guardar = async (enviar = false) => {
-    if (enviar && !form.responsable_id) {
-      toast.error('Selecciona al responsable que debe elaborar la cotización');
+    if (enviar && !form.tipos_codigos.length) {
+      toast.error('Selecciona al menos un tipo de proyecto');
+      return;
+    }
+    if (enviar && !form.responsables_ids.length) {
+      toast.error('Selecciona al menos un responsable para elaborar la cotización');
       return;
     }
     setGuardando(true);
@@ -80,14 +139,14 @@ const SolicitudCotizacion = () => {
           enviar
         });
         toast.success(
-          enviar ? 'Solicitud enviada. El responsable recibirá un correo.' : 'Borrador guardado'
+          enviar ? 'Solicitud enviada. Los responsables seleccionados recibirán un correo.' : 'Borrador guardado'
         );
         await cargar();
         setSelId(data.data.id);
       } else {
         const { data } = await cotizacionSolicitudesService.crear({ ...payload(), enviar });
         toast.success(
-          enviar ? 'Solicitud enviada. El responsable recibirá un correo.' : 'Borrador creado'
+          enviar ? 'Solicitud enviada. Los responsables seleccionados recibirán un correo.' : 'Borrador creado'
         );
         await cargar();
         setSelId(data.data.id);
@@ -99,8 +158,6 @@ const SolicitudCotizacion = () => {
     }
   };
 
-  const sel = lista.find((x) => x.id === selId);
-  const soloLectura = sel && !['borrador'].includes(sel.estado);
   /** Sin fila en cotizaciones (estado huérfano "en elaboración"). */
   const sinCotizacionReal = sel && !sel.cotizacion_codigo;
 
@@ -150,8 +207,8 @@ const SolicitudCotizacion = () => {
 
         <h1 className="text-2xl font-bold text-slate-800">Solicitud de cotización</h1>
         <p className="text-sm text-slate-500 mt-1 mb-6">
-          Completa la información comercial y elige quién debe elaborar la cotización. Al enviar,{' '}
-          <strong>solo ese responsable</strong> recibe el correo con el detalle.
+          Completa la información comercial. Puedes marcar <strong>uno o varios</strong> tipos de proyecto y{' '}
+          <strong>uno o varios</strong> responsables; al enviar, cada responsable seleccionado recibe el correo.
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -174,8 +231,10 @@ const SolicitudCotizacion = () => {
                   <div className="font-medium text-sm">{s.codigo}</div>
                   <div className="text-xs text-slate-500 truncate">{s.nombre_proyecto}</div>
                   <div className="text-xs mt-1 text-teal-700">{ESTADO_LABEL[s.estado] || s.estado}</div>
-                  {s.responsable_nombre && (
-                    <div className="text-xs text-slate-400 truncate">→ {s.responsable_nombre}</div>
+                  {(s.responsables_texto || s.responsable_nombre) && (
+                    <div className="text-xs text-slate-400 truncate">
+                      → {s.responsables_texto || s.responsable_nombre}
+                    </div>
                   )}
                 </button>
               ))}
@@ -210,22 +269,26 @@ const SolicitudCotizacion = () => {
                 className="mt-1 w-full rounded-lg border px-3 py-2"
               />
             </label>
-            <label className="block text-sm">
-              <span className="text-slate-600">Tipo de proyecto *</span>
-              <select
-                value={form.tipo_proyecto || ''}
-                disabled={soloLectura}
-                onChange={(e) => setForm((f) => ({ ...f, ...parcheGeneralTipoProyectoDesdeNombre(e.target.value) }))}
-                className="mt-1 w-full rounded-lg border px-3 py-2"
-              >
-                <option value="">Seleccionar…</option>
+            <fieldset className="block text-sm" disabled={soloLectura}>
+              <legend className="text-slate-600 mb-2">Tipo(s) de proyecto *</legend>
+              <div className="mt-1 rounded-lg border divide-y max-h-48 overflow-y-auto">
                 {tipos.map((t) => (
-                  <option key={t.codigo} value={t.nombre}>
-                    {t.nombre}
-                  </option>
+                  <label
+                    key={t.codigo}
+                    className="flex items-start gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1 rounded border-slate-300"
+                      checked={form.tipos_codigos.includes(t.codigo)}
+                      onChange={() => toggleTipo(t.codigo)}
+                    />
+                    <span className="text-slate-800">{t.nombre}</span>
+                  </label>
                 ))}
-              </select>
-            </label>
+              </div>
+              <span className="text-xs text-slate-500 mt-1 block">Marca uno o varios según el alcance.</span>
+            </fieldset>
             <label className="block text-sm">
               <span className="text-slate-600">Fecha límite (opcional)</span>
               <input
@@ -247,26 +310,31 @@ const SolicitudCotizacion = () => {
                 className="mt-1 w-full rounded-lg border px-3 py-2"
               />
             </label>
-            <label className="block text-sm">
-              <span className="text-slate-600">Responsable requerido *</span>
-              <select
-                value={form.responsable_id}
-                disabled={soloLectura}
-                onChange={(e) => setForm((f) => ({ ...f, responsable_id: e.target.value }))}
-                className="mt-1 w-full rounded-lg border px-3 py-2"
-              >
-                <option value="">Seleccionar responsable…</option>
+            <fieldset className="block text-sm" disabled={soloLectura}>
+              <legend className="text-slate-600 mb-2">Responsable(s) requerido(s) *</legend>
+              <div className="mt-1 rounded-lg border divide-y max-h-48 overflow-y-auto">
                 {responsables.map((r) => (
-                  <option key={r.id} value={String(r.id)}>
-                    {[r.nombres, r.apellidos].filter(Boolean).join(' ')}
-                    {r.email ? ` · ${r.email}` : ''}
-                  </option>
+                  <label
+                    key={r.id}
+                    className="flex items-start gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1 rounded border-slate-300"
+                      checked={form.responsables_ids.includes(String(r.id))}
+                      onChange={() => toggleResponsable(r.id)}
+                    />
+                    <span className="text-slate-800">
+                      {[r.nombres, r.apellidos].filter(Boolean).join(' ')}
+                      {r.email ? <span className="text-slate-500 text-xs block">{r.email}</span> : null}
+                    </span>
+                  </label>
                 ))}
-              </select>
+              </div>
               <span className="text-xs text-slate-500 mt-1 block">
-                Esta persona recibe el correo al enviar la solicitud y elabora la cotización en el módulo correspondiente.
+                Cada persona marcada recibe el correo al enviar y puede elaborar la cotización en su módulo.
               </span>
-            </label>
+            </fieldset>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
               <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-1">Comercial que solicita</p>

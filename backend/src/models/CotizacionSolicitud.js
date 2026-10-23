@@ -41,38 +41,154 @@ class CotizacionSolicitud {
   }
 
   static async validarResponsableId(responsableId, { obligatorio = false } = {}) {
-    const id = responsableId != null && responsableId !== '' ? Number(responsableId) : null;
-    if (!id) {
-      if (obligatorio) throw new Error('Seleccione al responsable que debe elaborar la cotización');
-      return null;
-    }
-    const validos = await this.idsResponsablesValidos();
-    if (!validos.has(id)) throw new Error('El responsable seleccionado no es válido');
-    return id;
+    const ids = await this.resolverResponsablesIds(
+      responsableId != null && responsableId !== '' ? { responsables_ids: [responsableId] } : {},
+      {},
+      { obligatorio }
+    );
+    return ids[0] ?? null;
   }
 
-  static validarPayload(body, { parcial = false } = {}) {
-    const g = normalizarGeneralTipoProyecto(body || {});
+  static resolverTiposProyecto(body, row = {}) {
+    if (Array.isArray(body?.tipos_proyecto) && body.tipos_proyecto.length) {
+      return body.tipos_proyecto
+        .map((t) => ({
+          codigo: t.codigo || null,
+          nombre: String(t.nombre || '').trim()
+        }))
+        .filter((t) => t.nombre || t.codigo);
+    }
+    const g = normalizarGeneralTipoProyecto({ ...row, ...body });
+    if (tipoProyectoValido(g)) {
+      return [{ codigo: g.tipo_proyecto_codigo, nombre: g.tipo_proyecto }];
+    }
+    const payload = parseJson(row.payload_json, {});
+    if (Array.isArray(payload.tipos_proyecto) && payload.tipos_proyecto.length) {
+      return payload.tipos_proyecto;
+    }
+    if (row.tipo_proyecto) {
+      return [{ codigo: row.tipo_proyecto_codigo, nombre: row.tipo_proyecto }];
+    }
+    return [];
+  }
+
+  static async resolverResponsablesIds(body, row = {}, { obligatorio = false } = {}) {
+    let ids = [];
+    const raw =
+      body?.responsables_ids ??
+      body?.responsable_ids ??
+      (body?.responsable_id != null && body?.responsable_id !== ''
+        ? [body.responsable_id]
+        : undefined);
+    if (Array.isArray(raw)) {
+      ids = raw.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0);
+    } else if (row.responsable_id) {
+      ids = [Number(row.responsable_id)];
+    } else {
+      const payload = parseJson(row.payload_json, {});
+      if (Array.isArray(payload.responsables_ids)) {
+        ids = payload.responsables_ids.map(Number).filter(Boolean);
+      }
+    }
+    ids = [...new Set(ids)];
+    const validos = await this.idsResponsablesValidos();
+    ids = ids.filter((id) => validos.has(id));
+    if (obligatorio && !ids.length) {
+      throw new Error('Seleccione al menos un responsable para elaborar la cotización');
+    }
+    for (const id of ids) {
+      if (!validos.has(id)) throw new Error('Uno de los responsables seleccionados no es válido');
+    }
+    return ids;
+  }
+
+  static enriquecer(row) {
+    if (!row) return row;
+    const payload = parseJson(row.payload_json, {});
+    const tipos =
+      Array.isArray(payload.tipos_proyecto) && payload.tipos_proyecto.length
+        ? payload.tipos_proyecto
+        : row.tipo_proyecto
+          ? [{ codigo: row.tipo_proyecto_codigo, nombre: row.tipo_proyecto }]
+          : [];
+    const responsables_ids =
+      Array.isArray(payload.responsables_ids) && payload.responsables_ids.length
+        ? payload.responsables_ids.map(Number)
+        : row.responsable_id
+          ? [Number(row.responsable_id)]
+          : [];
+    return {
+      ...row,
+      tipos_proyecto: tipos,
+      responsables_ids,
+      tipos_proyecto_texto: tipos
+        .map((t) => t.nombre)
+        .filter(Boolean)
+        .join(', ')
+    };
+  }
+
+  static async enriquecerConResponsables(row) {
+    const base = this.enriquecer(row);
+    const ids = base.responsables_ids || [];
+    if (!ids.length) return base;
+    const placeholders = ids.map(() => '?').join(',');
+    const [emps] = await pool.query(
+      `SELECT id, nombres, apellidos, email FROM empleados WHERE id IN (${placeholders})`,
+      ids
+    );
+    base.responsables = emps;
+    base.responsables_texto = emps
+      .map((e) => [e.nombres, e.apellidos].filter(Boolean).join(' '))
+      .filter(Boolean)
+      .join(', ');
+    return base;
+  }
+
+  static mergePayloadJson(body, row, tipos, responsablesIds) {
+    const prev = parseJson(row?.payload_json, {});
+    const extra = body?.payload && typeof body.payload === 'object' ? body.payload : {};
+    return {
+      ...prev,
+      ...extra,
+      tipos_proyecto: tipos,
+      responsables_ids: responsablesIds
+    };
+  }
+
+  static validarPayload(body, row = {}, { parcial = false } = {}) {
+    const tipos = this.resolverTiposProyecto(body, row);
+    const g =
+      tipos[0] != null
+        ? normalizarGeneralTipoProyecto({
+            tipo_proyecto: tipos[0].nombre,
+            tipo_proyecto_codigo: tipos[0].codigo
+          })
+        : normalizarGeneralTipoProyecto(body || {});
     const nombre = String(g.nombre_proyecto || body?.nombre_proyecto || '').trim();
     const cliente = String(g.cliente || body?.cliente || '').trim();
     if (!parcial) {
       if (!nombre) throw new Error('El nombre del proyecto es obligatorio');
       if (!cliente) throw new Error('El cliente es obligatorio');
-      if (!tipoProyectoValido(g)) throw new Error('Seleccione un tipo de proyecto válido');
+      if (!tipos.length || !tipoProyectoValido(g)) {
+        throw new Error('Seleccione al menos un tipo de proyecto válido');
+      }
       const ctx = String(body?.contexto_comercial || '').trim();
       if (!ctx) throw new Error('Describe el contexto comercial para el equipo de cotización');
     }
-    return g;
+    return { g, tipos };
   }
 
   static async crear(solicitanteId, body) {
-    const g = this.validarPayload(body, { parcial: true });
+    const { g, tipos } = this.validarPayload(body, {}, { parcial: true });
     const codigo = await this.generarCodigo();
     const estado = body?.enviar ? 'enviada' : 'borrador';
-    if (estado === 'enviada') this.validarPayload(body);
-    const responsableId = await this.validarResponsableId(body?.responsable_id, {
+    if (estado === 'enviada') this.validarPayload(body, {}, { parcial: false });
+    const responsablesIds = await this.resolverResponsablesIds(body, {}, {
       obligatorio: estado === 'enviada'
     });
+    const responsableId = responsablesIds[0] ?? null;
+    const payloadJson = this.mergePayloadJson(body, null, tipos, responsablesIds);
 
     if (estado === 'enviada') {
       g.nombre_proyecto = String(body?.nombre_proyecto || '').trim();
@@ -91,13 +207,13 @@ class CotizacionSolicitud {
         responsableId,
         String(body?.nombre_proyecto || g.nombre_proyecto || '').trim(),
         String(body?.cliente || g.cliente || '').trim(),
-        g.tipo_proyecto || '',
-        g.tipo_proyecto_codigo || null,
+        g.tipo_proyecto || tipos[0]?.nombre || '',
+        g.tipo_proyecto_codigo || tipos[0]?.codigo || null,
         body?.fecha_limite || null,
         String(body?.contexto_comercial || '').trim() || null,
         String(body?.contacto_cliente || '').trim() || null,
         String(body?.email_cliente || '').trim() || null,
-        JSON.stringify(body?.payload || {})
+        JSON.stringify(payloadJson)
       ]
     );
     return this.obtener(result.insertId);
@@ -114,17 +230,15 @@ class CotizacionSolicitud {
     }
 
     const enviar = Boolean(body?.enviar);
-    if (enviar) this.validarPayload({ ...row, ...body });
+    const { g, tipos } = enviar
+      ? this.validarPayload(body, row, { parcial: false })
+      : this.validarPayload(body, row, { parcial: true });
 
-    const g = normalizarGeneralTipoProyecto({ ...row, ...body });
     const nextEstado = enviar ? 'enviada' : row.estado === 'borrador' ? 'borrador' : row.estado;
 
-    let responsableId = row.responsable_id;
-    if (body?.responsable_id !== undefined) {
-      responsableId = await this.validarResponsableId(body.responsable_id, { obligatorio: enviar });
-    } else if (enviar) {
-      responsableId = await this.validarResponsableId(row.responsable_id, { obligatorio: true });
-    }
+    const responsablesIds = await this.resolverResponsablesIds(body, row, { obligatorio: enviar });
+    const responsableId = responsablesIds[0] ?? row.responsable_id ?? null;
+    const payloadJson = this.mergePayloadJson(body, row, tipos, responsablesIds);
 
     await pool.query(
       `UPDATE cotizacion_solicitudes SET
@@ -137,13 +251,13 @@ class CotizacionSolicitud {
         responsableId,
         String(body?.nombre_proyecto ?? row.nombre_proyecto).trim(),
         String(body?.cliente ?? row.cliente).trim(),
-        g.tipo_proyecto,
-        g.tipo_proyecto_codigo,
+        g.tipo_proyecto || tipos[0]?.nombre || '',
+        g.tipo_proyecto_codigo || tipos[0]?.codigo || null,
         body?.fecha_limite !== undefined ? body.fecha_limite || null : row.fecha_limite,
         String(body?.contexto_comercial ?? row.contexto_comercial ?? '').trim() || null,
         String(body?.contacto_cliente ?? row.contacto_cliente ?? '').trim() || null,
         String(body?.email_cliente ?? row.email_cliente ?? '').trim() || null,
-        JSON.stringify(body?.payload != null ? body.payload : parseJson(row.payload_json, {})),
+        JSON.stringify(payloadJson),
         id
       ]
     );
@@ -174,8 +288,14 @@ class CotizacionSolicitud {
     if (soloPendientesEquipo) {
       sql += ` AND s.estado = 'enviada' AND s.cotizacion_id IS NULL`;
       if (responsableIdEquipo) {
-        sql += ` AND s.responsable_id = ?`;
-        params.push(responsableIdEquipo);
+        sql += ` AND (
+          s.responsable_id = ?
+          OR JSON_CONTAINS(
+            COALESCE(JSON_EXTRACT(s.payload_json, '$.responsables_ids'), JSON_ARRAY()),
+            CAST(? AS JSON)
+          )
+        )`;
+        params.push(responsableIdEquipo, responsableIdEquipo);
       }
     }
     sql += ` ORDER BY s.updated_at DESC, s.id DESC`;
@@ -198,9 +318,9 @@ class CotizacionSolicitud {
          ORDER BY s.updated_at DESC, s.id DESC`,
         rows.map((r) => r.id)
       );
-      return fresh;
+      return Promise.all(fresh.map((r) => this.enriquecerConResponsables(r)));
     }
-    return rows;
+    return Promise.all(rows.map((r) => this.enriquecerConResponsables(r)));
   }
 
   static async buscarPorId(id) {
@@ -223,7 +343,9 @@ class CotizacionSolicitud {
        WHERE s.id = ?`,
       [id]
     );
-    return rows[0] || null;
+    const row = rows[0];
+    if (!row) return null;
+    return this.enriquecerConResponsables(row);
   }
 
   static async vincularCotizacion(id, cotizacionId) {
@@ -283,7 +405,10 @@ class CotizacionSolicitud {
       );
     }
     const esSolicitante = row.solicitante_id === actorId;
-    const esResponsable = row.responsable_id === actorId;
+    const enriched = this.enriquecer(row);
+    const esResponsable =
+      row.responsable_id === actorId ||
+      (enriched.responsables_ids || []).includes(Number(actorId));
     if (row.estado === 'borrador') {
       if (!esSolicitante && !esAdmin) throw new Error('No puedes anular este borrador');
       return;

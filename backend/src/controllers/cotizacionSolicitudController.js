@@ -105,10 +105,18 @@ exports.crearCotizacionDesdeSolicitud = async (req, res) => {
       return res.status(400).json({ success: false, mensaje: 'Ya existe una cotización vinculada' });
     }
 
-    const responsableId =
-      sol.responsable_id ||
-      (await Cotizacion.listarResponsables())[0]?.id ||
-      req.usuario.id;
+    const responsableIds =
+      sol.responsables_ids?.length > 0
+        ? sol.responsables_ids
+        : sol.responsable_id
+          ? [sol.responsable_id]
+          : [(await Cotizacion.listarResponsables())[0]?.id || req.usuario.id];
+    const responsableId = responsableIds[0];
+    const tiposTxt =
+      sol.tipos_proyecto_texto ||
+      (Array.isArray(sol.tipos_proyecto)
+        ? sol.tipos_proyecto.map((t) => t.nombre).join(', ')
+        : sol.tipo_proyecto);
 
     const detalle = await Cotizacion.crear(req.usuario.id, {
       general: {
@@ -116,9 +124,9 @@ exports.crearCotizacionDesdeSolicitud = async (req, res) => {
         cliente: sol.cliente,
         tipo_proyecto: sol.tipo_proyecto,
         tipo_proyecto_codigo: sol.tipo_proyecto_codigo,
-        responsable_ids: [responsableId],
+        responsable_ids: responsableIds,
         responsable_id: responsableId,
-        notas_internas: `[Desde ${sol.codigo}] ${sol.contexto_comercial || ''}`.trim()
+        notas_internas: `[Desde ${sol.codigo}] Tipos: ${tiposTxt || '—'}. ${sol.contexto_comercial || ''}`.trim()
       }
     });
 

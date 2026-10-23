@@ -2209,13 +2209,42 @@ async function notificarNuevaSolicitudCotizacion(solicitud) {
     console.log('📧 Email no configurado - Solicitud cotización omitida');
     return false;
   }
+  const { pool } = require('../config/database');
   const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
-  const emailResponsable = String(solicitud.responsable_email || '').trim().toLowerCase();
-  let destinatarios = emailResponsable ? [emailResponsable] : [];
+  let destinatarios = [];
+  const ids =
+    Array.isArray(solicitud.responsables_ids) && solicitud.responsables_ids.length
+      ? solicitud.responsables_ids
+      : solicitud.responsable_id
+        ? [solicitud.responsable_id]
+        : [];
+  if (ids.length) {
+    const placeholders = ids.map(() => '?').join(',');
+    const [rows] = await pool.query(
+      `SELECT LOWER(TRIM(email)) AS email FROM empleados WHERE activo = 1 AND id IN (${placeholders})`,
+      ids
+    );
+    destinatarios = rows.map((r) => r.email).filter(Boolean);
+  }
+  if (!destinatarios.length && solicitud.responsable_email) {
+    destinatarios = [String(solicitud.responsable_email).trim().toLowerCase()];
+  }
   if (!destinatarios.length) {
     destinatarios = [...new Set(COTIZACION_RESPONSABLES_EMAILS.map((e) => e.toLowerCase()))];
   }
+  destinatarios = [...new Set(destinatarios)];
   if (!destinatarios.length) return false;
+
+  const tiposLabel =
+    solicitud.tipos_proyecto_texto ||
+    solicitud.tipo_proyecto ||
+    (Array.isArray(solicitud.tipos_proyecto)
+      ? solicitud.tipos_proyecto.map((t) => t.nombre).join(', ')
+      : '—');
+  const responsablesLabel =
+    solicitud.responsables_texto ||
+    solicitud.responsable_nombre ||
+    '—';
 
   const urlPortal = `${FRONTEND_URL}/cotizaciones`;
 
@@ -2225,9 +2254,9 @@ async function notificarNuevaSolicitudCotizacion(solicitud) {
       <div class="info-row"><span class="info-label">Código:</span><span class="info-value">${solicitud.codigo}</span></div>
       <div class="info-row"><span class="info-label">Proyecto:</span><span class="info-value">${solicitud.nombre_proyecto}</span></div>
       <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value">${solicitud.cliente}</span></div>
-      <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${solicitud.tipo_proyecto || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Tipo(s):</span><span class="info-value">${tiposLabel}</span></div>
       <div class="info-row"><span class="info-label">Comercial (solicitante):</span><span class="info-value">${solicitud.solicitante_nombre || ''}${solicitud.solicitante_email ? ` (${solicitud.solicitante_email})` : ''}</span></div>
-      <div class="info-row"><span class="info-label">Responsable asignado:</span><span class="info-value">${solicitud.responsable_nombre || '—'}${solicitud.responsable_email ? ` (${solicitud.responsable_email})` : ''}</span></div>
+      <div class="info-row"><span class="info-label">Responsable(s):</span><span class="info-value">${responsablesLabel}</span></div>
       ${solicitud.fecha_limite ? `<div class="info-row"><span class="info-label">Fecha límite:</span><span class="info-value">${solicitud.fecha_limite}</span></div>` : ''}
       ${solicitud.contexto_comercial ? `<div class="info-row"><span class="info-label">Contexto:</span><span class="info-value">${solicitud.contexto_comercial}</span></div>` : ''}
     </div>
