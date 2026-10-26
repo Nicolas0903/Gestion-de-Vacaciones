@@ -173,6 +173,27 @@ const { normalizarGeneralTipoProyecto } = require('../constants/cotizacionTiposP
 
 const DEFAULT_MARKUPS = [1.9, 1.6, 1.7, 1.43];
 
+/** Excel: tarifa definida (col. salario) × horas (col. costo/hora). Si no hay tarifa, ref. recurso. */
+function calcularGarantia(parametros, recursos) {
+  const horas = num(parametros.horas_garantia);
+  if (horas <= 0) {
+    return { tarifa: 0, horas: 0, costo_directo: 0, monto: 0 };
+  }
+  let tarifa = num(parametros.tarifa_garantia, NaN);
+  if (!Number.isFinite(tarifa)) {
+    const idx = Math.min(
+      Math.max(num(parametros.recurso_garantia_idx, 0), 0),
+      Math.max(recursos.length - 1, 0)
+    );
+    const ref = recursos[idx];
+    const hm = num(parametros.horas_mes, DEFAULT_HORAS_MES) || DEFAULT_HORAS_MES;
+    tarifa = ref && hm > 0 ? num(ref.salario) / hm : 0;
+  }
+  tarifa = round2(tarifa);
+  const costo_directo = round2(tarifa * horas);
+  return { tarifa, horas, costo_directo, monto: costo_directo };
+}
+
 function calcularCostos(costosRaw) {
   const p = costosRaw?.parametros || {};
   const markupsRaw = Array.isArray(p.markups) && p.markups.length ? p.markups : DEFAULT_MARKUPS;
@@ -195,6 +216,11 @@ function calcularCostos(costosRaw) {
     comision_admin_pct: num(p.comision_admin_pct, 10),
     horas_garantia: horasGarantia,
     recurso_garantia_idx: num(p.recurso_garantia_idx, 0),
+    tarifa_garantia:
+      p.tarifa_garantia != null && p.tarifa_garantia !== ''
+        ? round2(num(p.tarifa_garantia))
+        : null,
+    texto_garantia: String(p.texto_garantia || '').trim(),
     markups,
     proyeccion_activa: Math.min(Math.max(num(p.proyeccion_activa, 0), 0), markups.length - 1),
     terminos_pago: String(p.terminos_pago || ''),
@@ -208,11 +234,8 @@ function calcularCostos(costosRaw) {
   const subtotal_recursos = round2(participantes.reduce((s, r) => s + num(r.costo_final ?? r.costo), 0));
   const total_informativos = round2(informativos.reduce((s, r) => s + num(r.costo_final ?? r.costo), 0));
 
-  const refRecurso = recursos[parametros.recurso_garantia_idx];
-  const garantia =
-    refRecurso && parametros.horas_garantia > 0
-      ? round2((num(refRecurso.salario) / parametros.horas_mes) * parametros.horas_garantia)
-      : 0;
+  const garantiaDet = calcularGarantia(parametros, recursos);
+  const garantia = garantiaDet.monto;
 
   const comision = round2(subtotal_recursos * (parametros.comision_admin_pct / 100));
   const costo_total = round2(subtotal_recursos + garantia + comision);
@@ -247,6 +270,9 @@ function calcularCostos(costosRaw) {
       base_participantes: subtotal_recursos,
       total_informativos,
       garantia,
+      garantia_tarifa: garantiaDet.tarifa,
+      garantia_horas: garantiaDet.horas,
+      garantia_costo_directo: garantiaDet.costo_directo,
       comision,
       costo_total,
       costo_total_usd: costo_en_usd,

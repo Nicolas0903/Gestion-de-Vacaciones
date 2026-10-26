@@ -30,12 +30,20 @@ const calcCostosLocal = (costosRaw) => {
 
   const subtotal = Math.round(recursos.reduce((s, r) => s + r.costo_final, 0) * 100) / 100;
 
-  const refIdx = Math.min(Math.max(Number(params.recurso_garantia_idx) || 0, 0), Math.max(recursos.length - 1, 0));
+  const refIdx = Math.min(
+    Math.max(Number(params.recurso_garantia_idx) || 0, 0),
+    Math.max(recursos.length - 1, 0)
+  );
   const ref = recursos[refIdx];
   const horasGarantia = Number(params.horas_garantia ?? params.dias_garantia) || 0;
+  const tarifaRef =
+    ref && horasMes > 0 ? Math.round(((Number(ref.salario) || 0) / horasMes) * 100) / 100 : 0;
+  let tarifaGarantia = Number(params.tarifa_garantia);
+  if (!Number.isFinite(tarifaGarantia)) tarifaGarantia = tarifaRef;
+  tarifaGarantia = Math.round(tarifaGarantia * 100) / 100;
   const garantia =
-    ref && horasGarantia > 0
-      ? Math.round(((Number(ref.salario) || 0) / horasMes) * horasGarantia * 100) / 100
+    horasGarantia > 0 && tarifaGarantia > 0
+      ? Math.round(tarifaGarantia * horasGarantia * 100) / 100
       : 0;
 
   const comisionPct = Number(params.comision_admin_pct ?? 10);
@@ -70,6 +78,8 @@ const calcCostosLocal = (costosRaw) => {
     resumen: {
       subtotal_recursos: subtotal,
       garantia,
+      garantia_tarifa: tarifaGarantia,
+      garantia_horas: horasGarantia,
       comision,
       comision_pct: comisionPct,
       costo_total: costoTotal,
@@ -126,6 +136,24 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
 
   const setParams = (patch) =>
     onChange({ ...costos, parametros: { ...params, ...patch } });
+
+  const refIdxGarantia = Math.min(
+    Math.max(Number(params.recurso_garantia_idx) || 0, 0),
+    Math.max(recursos.length - 1, 0)
+  );
+  const refGarantia = recursos[refIdxGarantia];
+  const tarifaRefGarantia =
+    refGarantia && (params.horas_mes || 160) > 0
+      ? Math.round(((Number(refGarantia.salario) || 0) / (Number(params.horas_mes) || 160)) * 100) /
+        100
+      : 0;
+
+  const setRecursoRefGarantia = (idx) => {
+    const r = recursos[idx];
+    const hm = Number(params.horas_mes) || 160;
+    const tarifa = r && hm > 0 ? Math.round(((Number(r.salario) || 0) / hm) * 100) / 100 : 0;
+    setParams({ recurso_garantia_idx: idx, tarifa_garantia: tarifa });
+  };
 
   const updateRecurso = (idx, patch) => {
     const next = recursos.map((r, i) => (i === idx ? { ...r, ...patch } : r));
@@ -226,23 +254,49 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
             ))}
 
             <tr className="bg-orange-100">
-              <td className={`${TD} font-medium text-orange-900`} colSpan={3}>
-                Garantía
+              <td className={`${TD} font-medium text-orange-900`}>Garantía</td>
+              <td className={`${TD} text-center text-orange-700/60`}>—</td>
+              <td className={TD}>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  title="Tarifa por hora (como en Excel, col. Salario)"
+                  value={
+                    params.tarifa_garantia != null && params.tarifa_garantia !== ''
+                      ? params.tarifa_garantia
+                      : tarifaRefGarantia || ''
+                  }
+                  onChange={(e) =>
+                    setParams({
+                      tarifa_garantia: e.target.value === '' ? null : Number(e.target.value)
+                    })
+                  }
+                  className={`${inp} text-right bg-orange-50`}
+                />
+              </td>
+              <td className={TD}>
+                <input
+                  type="text"
+                  value={params.texto_garantia ?? ''}
+                  placeholder="Garantía 1 mes y 15 días"
+                  onChange={(e) => setParams({ texto_garantia: e.target.value })}
+                  className={`${inp} bg-orange-50 text-slate-700`}
+                />
               </td>
               <td className={TD}>
                 <input
                   type="number"
                   step="0.5"
                   min="0"
+                  title="Horas (como en Excel, col. Costo/Hora)"
                   value={params.horas_garantia ?? params.dias_garantia ?? 0}
                   onChange={(e) => setParams({ horas_garantia: Number(e.target.value) })}
-                  className={`${inp} text-right bg-orange-50`}
+                  className={`${inp} text-right bg-orange-50 font-medium`}
                 />
               </td>
-              <td className={`${TD} text-xs text-orange-800`} colSpan={3}>
-                Ref: {recursos[Number(params.recurso_garantia_idx) || 0]?.rol || '—'} · (salario /{' '}
-                {params.horas_mes || 160}) × horas
-              </td>
+              <td className={TDnum}>{fmtRec(res.garantia)}</td>
+              <td className={`${TD} text-center text-orange-800`}>1</td>
               <td className={`${TDnum} font-semibold text-orange-900`}>{fmtRec(res.garantia)}</td>
             </tr>
 
@@ -447,11 +501,15 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
               className="mt-1 w-full rounded border px-2 py-1.5"
             />
           </label>
+          <p className="col-span-2 md:col-span-4 text-xs text-slate-500 -mt-1 mb-1">
+            Fila Garantía (Excel): <strong>Salario</strong> = tarifa/hora · <strong>Costo/Hora</strong> = horas ·
+            costo = tarifa × horas. El recurso de referencia solo rellena la tarifa si no la defines.
+          </p>
           <label>
             Recurso ref. garantía
             <select
               value={params.recurso_garantia_idx ?? 0}
-              onChange={(e) => setParams({ recurso_garantia_idx: Number(e.target.value) })}
+              onChange={(e) => setRecursoRefGarantia(Number(e.target.value))}
               className="mt-1 w-full rounded border px-2 py-1.5"
               disabled={!recursos.length}
             >
