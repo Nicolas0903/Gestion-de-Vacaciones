@@ -169,7 +169,7 @@ const CotizacionesActividades = ({ actividades, onChange, tipoProyecto = '', tip
 
       {validacion.iniciado && !validacion.ok && (
         <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-medium">Revisa el dimensionamiento antes de guardar</p>
+          <p className="font-medium">Pendiente para cerrar el alcance (puedes guardar borrador igual)</p>
           <ul className="mt-2 list-disc list-inside space-y-0.5 text-amber-800/90">
             {validacion.errors.map((e) => (
               <li key={e}>{e}</li>

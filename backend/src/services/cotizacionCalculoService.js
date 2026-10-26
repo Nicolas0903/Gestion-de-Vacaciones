@@ -173,7 +173,25 @@ const { normalizarGeneralTipoProyecto } = require('../constants/cotizacionTiposP
 
 const DEFAULT_MARKUPS = [1.9, 1.6, 1.7, 1.43];
 
-/** Excel: tarifa definida (col. salario) × horas (col. costo/hora). Si no hay tarifa, ref. recurso. */
+function resolverIndicesGarantia(p) {
+  if (Array.isArray(p?.recursos_garantia_idx) && p.recursos_garantia_idx.length) {
+    return [...new Set(p.recursos_garantia_idx.map((x) => num(x)).filter((n) => n >= 0))];
+  }
+  return [Math.max(0, num(p?.recurso_garantia_idx, 0))];
+}
+
+function tarifaGarantiaReferencia(recursos, indices, horasMes) {
+  const hm = num(horasMes, DEFAULT_HORAS_MES) || DEFAULT_HORAS_MES;
+  const rates = indices
+    .map((i) => recursos[i])
+    .filter(Boolean)
+    .map((r) => (hm > 0 ? num(r.salario) / hm : 0))
+    .filter((t) => t > 0);
+  if (!rates.length) return 0;
+  return round2(rates.reduce((a, b) => a + b, 0) / rates.length);
+}
+
+/** Excel: tarifa definida (col. salario) × horas (col. costo/hora). Si no hay tarifa, promedio ref(s). */
 function calcularGarantia(parametros, recursos) {
   const horas = num(parametros.horas_garantia);
   if (horas <= 0) {
@@ -181,13 +199,8 @@ function calcularGarantia(parametros, recursos) {
   }
   let tarifa = num(parametros.tarifa_garantia, NaN);
   if (!Number.isFinite(tarifa)) {
-    const idx = Math.min(
-      Math.max(num(parametros.recurso_garantia_idx, 0), 0),
-      Math.max(recursos.length - 1, 0)
-    );
-    const ref = recursos[idx];
-    const hm = num(parametros.horas_mes, DEFAULT_HORAS_MES) || DEFAULT_HORAS_MES;
-    tarifa = ref && hm > 0 ? num(ref.salario) / hm : 0;
+    const indices = resolverIndicesGarantia(parametros);
+    tarifa = tarifaGarantiaReferencia(recursos, indices, parametros.horas_mes);
   }
   tarifa = round2(tarifa);
   const costo_directo = round2(tarifa * horas);
@@ -215,7 +228,8 @@ function calcularCostos(costosRaw) {
     igv_pct: num(p.igv_pct, DEFAULT_IGV),
     comision_admin_pct: num(p.comision_admin_pct, 10),
     horas_garantia: horasGarantia,
-    recurso_garantia_idx: num(p.recurso_garantia_idx, 0),
+    recursos_garantia_idx: resolverIndicesGarantia(p),
+    recurso_garantia_idx: resolverIndicesGarantia(p)[0] ?? 0,
     tarifa_garantia:
       p.tarifa_garantia != null && p.tarifa_garantia !== ''
         ? round2(num(p.tarifa_garantia))

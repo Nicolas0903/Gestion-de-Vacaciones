@@ -6,6 +6,25 @@ const DEFAULT_MARKUPS = [1.9, 1.6, 1.7, 1.43];
 const fmtPen = (n) => formatoMontoRendicion(n, 'PEN');
 const fmtUsd = (n) => formatoMontoRendicion(n, 'USD');
 
+function resolverIndicesGarantia(params) {
+  if (Array.isArray(params?.recursos_garantia_idx) && params.recursos_garantia_idx.length) {
+    return [...new Set(params.recursos_garantia_idx.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n >= 0))];
+  }
+  const one = Number(params?.recurso_garantia_idx);
+  return Number.isFinite(one) ? [one] : [0];
+}
+
+function tarifaGarantiaReferencia(recursos, indices, horasMes) {
+  const hm = horasMes || 160;
+  const rates = indices
+    .map((i) => recursos[i])
+    .filter(Boolean)
+    .map((r) => (hm > 0 ? (Number(r.salario) || 0) / hm : 0))
+    .filter((t) => t > 0);
+  if (!rates.length) return 0;
+  return Math.round((rates.reduce((a, b) => a + b, 0) / rates.length) * 100) / 100;
+}
+
 const calcCostosLocal = (costosRaw) => {
   const params = costosRaw?.parametros || {};
   const horasMes = Number(params.horas_mes) || 160;
@@ -30,16 +49,12 @@ const calcCostosLocal = (costosRaw) => {
 
   const subtotal = Math.round(recursos.reduce((s, r) => s + r.costo_final, 0) * 100) / 100;
 
-  const refIdx = Math.min(
-    Math.max(Number(params.recurso_garantia_idx) || 0, 0),
-    Math.max(recursos.length - 1, 0)
-  );
-  const ref = recursos[refIdx];
+  const indicesGarantia = resolverIndicesGarantia(params);
   const horasGarantia = Number(params.horas_garantia ?? params.dias_garantia) || 0;
-  const tarifaRef =
-    ref && horasMes > 0 ? Math.round(((Number(ref.salario) || 0) / horasMes) * 100) / 100 : 0;
   let tarifaGarantia = Number(params.tarifa_garantia);
-  if (!Number.isFinite(tarifaGarantia)) tarifaGarantia = tarifaRef;
+  if (!Number.isFinite(tarifaGarantia)) {
+    tarifaGarantia = tarifaGarantiaReferencia(recursos, indicesGarantia, horasMes);
+  }
   tarifaGarantia = Math.round(tarifaGarantia * 100) / 100;
   const garantia =
     horasGarantia > 0 && tarifaGarantia > 0
@@ -137,22 +152,21 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
   const setParams = (patch) =>
     onChange({ ...costos, parametros: { ...params, ...patch } });
 
-  const refIdxGarantia = Math.min(
-    Math.max(Number(params.recurso_garantia_idx) || 0, 0),
-    Math.max(recursos.length - 1, 0)
-  );
-  const refGarantia = recursos[refIdxGarantia];
-  const tarifaRefGarantia =
-    refGarantia && (params.horas_mes || 160) > 0
-      ? Math.round(((Number(refGarantia.salario) || 0) / (Number(params.horas_mes) || 160)) * 100) /
-        100
-      : 0;
+  const indicesGarantia = resolverIndicesGarantia(params);
+  const hmGarantia = Number(params.horas_mes) || 160;
+  const tarifaRefGarantia = tarifaGarantiaReferencia(recursos, indicesGarantia, hmGarantia);
 
-  const setRecursoRefGarantia = (idx) => {
-    const r = recursos[idx];
-    const hm = Number(params.horas_mes) || 160;
-    const tarifa = r && hm > 0 ? Math.round(((Number(r.salario) || 0) / hm) * 100) / 100 : 0;
-    setParams({ recurso_garantia_idx: idx, tarifa_garantia: tarifa });
+  const toggleRefGarantia = (idx) => {
+    const set = new Set(indicesGarantia);
+    if (set.has(idx)) set.delete(idx);
+    else set.add(idx);
+    const next = [...set].sort((a, b) => a - b);
+    const tarifa = tarifaGarantiaReferencia(recursos, next, hmGarantia);
+    setParams({
+      recursos_garantia_idx: next,
+      recurso_garantia_idx: next[0] ?? 0,
+      tarifa_garantia: next.length ? tarifa : null
+    });
   };
 
   const updateRecurso = (idx, patch) => {
@@ -503,23 +517,35 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
           </label>
           <p className="col-span-2 md:col-span-4 text-xs text-slate-500 -mt-1 mb-1">
             Fila Garantía (Excel): <strong>Salario</strong> = tarifa/hora · <strong>Costo/Hora</strong> = horas ·
-            costo = tarifa × horas. El recurso de referencia solo rellena la tarifa si no la defines.
+            costo = tarifa × horas. Recursos ref.: promedio de (salario / horas mes) de los marcados.
           </p>
-          <label>
-            Recurso ref. garantía
-            <select
-              value={params.recurso_garantia_idx ?? 0}
-              onChange={(e) => setRecursoRefGarantia(Number(e.target.value))}
-              className="mt-1 w-full rounded border px-2 py-1.5"
-              disabled={!recursos.length}
-            >
+          <fieldset className="col-span-2 md:col-span-3" disabled={!recursos.length}>
+            <legend className="text-slate-700 font-medium mb-1">Recursos ref. garantía (uno o varios)</legend>
+            <div className="mt-1 rounded-lg border bg-white divide-y max-h-36 overflow-y-auto">
               {recursos.map((r, i) => (
-                <option key={r.id || i} value={i}>
-                  {r.rol || `Recurso ${i + 1}`}
-                </option>
+                <label
+                  key={r.id || i}
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300"
+                    checked={indicesGarantia.includes(i)}
+                    onChange={() => toggleRefGarantia(i)}
+                  />
+                  <span>{r.rol || `Recurso ${i + 1}`}</span>
+                  <span className="text-xs text-slate-400 ml-auto tabular-nums">
+                    {fmtRec(tarifaGarantiaReferencia(recursos, [i], hmGarantia))}/h
+                  </span>
+                </label>
               ))}
-            </select>
-          </label>
+            </div>
+            {indicesGarantia.length > 1 && (
+              <p className="text-xs text-slate-500 mt-1">
+                Tarifa sugerida (promedio): <strong>{fmtRec(tarifaRefGarantia)}</strong>/h
+              </p>
+            )}
+          </fieldset>
           <label>
             Moneda facturación (propuesta)
             <select

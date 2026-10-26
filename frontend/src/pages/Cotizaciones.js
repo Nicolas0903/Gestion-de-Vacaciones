@@ -124,15 +124,11 @@ const Cotizaciones = () => {
     () => validarActividadesDimensionamiento(borrador?.actividades),
     [borrador?.actividades]
   );
-  const bloqueoGuardadoActividades =
+  const advertenciaActividades =
     validacionActividades.iniciado && !validacionActividades.ok;
 
   const guardar = async () => {
     if (!selId || !borrador) return;
-    if (bloqueoGuardadoActividades) {
-      toast.error(mensajeValidacionActividades(validacionActividades));
-      return;
-    }
     setGuardando(true);
     try {
       const versionAntes = cot?.version_actual;
@@ -146,6 +142,11 @@ const Cotizaciones = () => {
       } else {
         toast.success('Cambios guardados (sin cambios respecto a la versión actual).');
       }
+      if (advertenciaActividades) {
+        toast('Borrador guardado. Aún falta cuadrar actividades (ver aviso en la pestaña).', {
+          icon: '⚠️'
+        });
+      }
       cargarLista();
     } catch (e) {
       toast.error(e.response?.data?.mensaje || 'Error al guardar');
@@ -156,10 +157,6 @@ const Cotizaciones = () => {
 
   const publicarVersion = async () => {
     if (!selId) return;
-    if (bloqueoGuardadoActividades) {
-      toast.error(mensajeValidacionActividades(validacionActividades));
-      return;
-    }
     setGuardando(true);
     try {
       const versionAntes = cot?.version_actual;
@@ -177,6 +174,9 @@ const Cotizaciones = () => {
         toast.success(`Versión ${v} registrada`);
       } else {
         toast.success('Sin cambios respecto a la versión actual');
+      }
+      if (advertenciaActividades) {
+        toast('Versión guardada; el dimensionamiento aún está incompleto.', { icon: '⚠️' });
       }
       cargarLista();
       setTab('versiones');
@@ -374,11 +374,11 @@ const Cotizaciones = () => {
                     <button
                       type="button"
                       onClick={guardar}
-                      disabled={guardando || bloqueoGuardadoActividades}
+                      disabled={guardando}
                       title={
-                        bloqueoGuardadoActividades
+                        advertenciaActividades
                           ? mensajeValidacionActividades(validacionActividades)
-                          : undefined
+                          : 'Guarda borrador y versiona si hay cambios'
                       }
                       className="px-3 py-1.5 text-sm border rounded-lg hover:bg-slate-50 disabled:opacity-50"
                     >
@@ -387,10 +387,10 @@ const Cotizaciones = () => {
                     <button
                       type="button"
                       onClick={() => setModalPublicar(true)}
-                      disabled={guardando || bloqueoGuardadoActividades}
+                      disabled={guardando}
                       title={
-                        bloqueoGuardadoActividades
-                          ? mensajeValidacionActividades(validacionActividades)
+                        advertenciaActividades
+                          ? `Pendiente: ${mensajeValidacionActividades(validacionActividades)}`
                           : undefined
                       }
                       className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg bg-emerald-600 text-white disabled:opacity-50"

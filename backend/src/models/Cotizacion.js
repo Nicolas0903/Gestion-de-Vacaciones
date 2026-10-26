@@ -7,7 +7,6 @@ const {
   normalizarGeneralTipoProyecto,
   tipoProyectoValido
 } = require('../constants/cotizacionTiposProyecto');
-const { validarActividadesDimensionamiento } = require('../utils/cotizacionActividadesValidacion');
 const { diffCotizacionSnapshots } = require('../utils/cotizacionSnapshotDiff');
 
 function parseJson(val, fallback) {
@@ -515,10 +514,6 @@ class Cotizacion {
 
     const borrador = calcularCotizacion(merged);
     this.validarGeneral(borrador.general);
-    const valAct = validarActividadesDimensionamiento(borrador.actividades);
-    if (!valAct.ok) {
-      throw new Error(valAct.errors[0] || 'El dimensionamiento de actividades no cuadra');
-    }
     const sync = this.syncFromBorrador(borrador);
 
     await pool.query(
@@ -552,10 +547,6 @@ class Cotizacion {
     if (!cot) throw new Error('Cotización no encontrada');
     const borrador = this.enriquecerBorrador(cot.borrador_json, cot);
     this.validarGeneral(borrador.general);
-    const valActPub = validarActividadesDimensionamiento(borrador.actividades);
-    if (!valActPub.ok) {
-      throw new Error(valActPub.errors[0] || 'El dimensionamiento de actividades no cuadra');
-    }
     await this.registrarVersionSiCambio(id, borrador, usuarioId, comentario);
     return this.obtenerDetalle(id);
   }
