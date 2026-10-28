@@ -444,6 +444,58 @@ const CotizacionesPropuesta = ({ propuesta, costos, actividades, onChange }) => 
         </div>
       </section>
 
+      <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h4 className="font-semibold text-slate-800">Cierre de propuesta</h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Estado comercial (standby, ganada o perdida). Más adelante podrá vincularse al cierre de negocio.
+            </p>
+          </div>
+          {propuesta?.cierre_propuesta && (
+            <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700 capitalize">
+              {propuesta.cierre_propuesta}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: 'standby', label: 'Standby', active: 'bg-amber-100 border-amber-300 text-amber-950' },
+            { id: 'ganada', label: 'Ganada', active: 'bg-emerald-100 border-emerald-400 text-emerald-900' },
+            { id: 'perdida', label: 'Perdida', active: 'bg-red-100 border-red-300 text-red-900' }
+          ].map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() =>
+                setProp({
+                  cierre_propuesta: propuesta?.cierre_propuesta === opt.id ? null : opt.id,
+                  cierre_propuesta_at:
+                    propuesta?.cierre_propuesta === opt.id ? null : new Date().toISOString()
+                })
+              }
+              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                propuesta?.cierre_propuesta === opt.id
+                  ? opt.active
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <label className="block text-sm text-slate-600">
+          Notas de cierre (opcional)
+          <textarea
+            rows={2}
+            value={propuesta?.cierre_propuesta_nota ?? ''}
+            onChange={(e) => setProp({ cierre_propuesta_nota: e.target.value })}
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Motivo, competidor, fecha estimada de decisión…"
+          />
+        </label>
+      </section>
+
       <div className="p-4 rounded-xl bg-teal-50 border border-teal-200">
         <div className="text-sm text-teal-800">Monto propuesta (al guardar)</div>
         <div className="text-2xl font-bold text-teal-900">

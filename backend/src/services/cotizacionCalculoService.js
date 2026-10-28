@@ -197,10 +197,19 @@ function calcularGarantia(parametros, recursos) {
   if (horas <= 0) {
     return { tarifa: 0, horas: 0, costo_directo: 0, monto: 0 };
   }
-  let tarifa = num(parametros.tarifa_garantia, NaN);
-  if (!Number.isFinite(tarifa)) {
+  const modo = String(parametros.garantia_modo || 'recursos').toLowerCase();
+  let tarifa = NaN;
+  if (modo === 'manual') {
+    tarifa = num(parametros.tarifa_garantia, NaN);
+  } else {
     const indices = resolverIndicesGarantia(parametros);
     tarifa = tarifaGarantiaReferencia(recursos, indices, parametros.horas_mes);
+    if (!Number.isFinite(tarifa) || tarifa <= 0) {
+      tarifa = num(parametros.tarifa_garantia, NaN);
+    }
+  }
+  if (!Number.isFinite(tarifa)) {
+    tarifa = 0;
   }
   tarifa = round2(tarifa);
   const costo_directo = round2(tarifa * horas);
@@ -235,6 +244,7 @@ function calcularCostos(costosRaw) {
         ? round2(num(p.tarifa_garantia))
         : null,
     texto_garantia: String(p.texto_garantia || '').trim(),
+    garantia_modo: String(p.garantia_modo || 'recursos').toLowerCase() === 'manual' ? 'manual' : 'recursos',
     markups,
     proyeccion_activa: Math.min(Math.max(num(p.proyeccion_activa, 0), 0), markups.length - 1),
     terminos_pago: String(p.terminos_pago || ''),
@@ -474,6 +484,9 @@ function borradorVacio() {
     },
     propuesta: {
       igv_pct: DEFAULT_IGV,
+      cierre_propuesta: null,
+      cierre_propuesta_at: null,
+      cierre_propuesta_nota: '',
       inversion_roles: [
         { cantidad: 1, actividad: 'Jefe Proyecto', inversion: 0 },
         { cantidad: 1, actividad: 'Consultor Senior Power BI', inversion: 0 },

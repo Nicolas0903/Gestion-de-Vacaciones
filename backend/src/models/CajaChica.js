@@ -261,6 +261,50 @@ class CajaChica {
    * Saldo de cierre del último período cerrado estrictamente anterior a (anio, mes).
    * Permite huecos entre meses: no exige que el mes previo calendario exista.
    */
+  static async listarPeriodosPosteriores(anio, mes) {
+    const [rows] = await pool.execute(
+      `SELECT * FROM caja_chica_periodos
+       WHERE (anio > ? OR (anio = ? AND mes > ?))
+       ORDER BY anio ASC, mes ASC`,
+      [anio, anio, mes]
+    );
+    return rows;
+  }
+
+  /**
+   * Alinea la línea saldo_anterior con el último cierre cerrado anterior (calendario).
+   */
+  static async sincronizarSaldoAnteriorIngreso(periodoId, anio, mes) {
+    const saldo = await this.saldoCierrePeriodoAnterior(anio, mes);
+    const ingresos = await this.listarIngresos(periodoId);
+    const line = ingresos.find((i) => i.tipo_motivo === 'saldo_anterior');
+    if (saldo == null) {
+      return { updated: false };
+    }
+    const monto = Number(saldo);
+    if (line) {
+      if (Math.abs(Number(line.monto) - monto) < 0.005) {
+        return { updated: false };
+      }
+      await pool.execute(`UPDATE caja_chica_ingresos SET monto = ? WHERE id = ?`, [monto, line.id]);
+      return { updated: true };
+    }
+    const maxOrden = ingresos.reduce((m, i) => Math.max(m, Number(i.orden) || 0), -1);
+    await pool.execute(
+      `INSERT INTO caja_chica_ingresos (periodo_id, tipo_motivo, monto, orden) VALUES (?, 'saldo_anterior', ?, ?)`,
+      [periodoId, monto, maxOrden + 1]
+    );
+    return { updated: true };
+  }
+
+  static async actualizarSaldoCierre(periodoId, saldoCierre) {
+    const [r] = await pool.execute(
+      `UPDATE caja_chica_periodos SET saldo_cierre = ? WHERE id = ? AND estado = 'cerrado'`,
+      [saldoCierre, periodoId]
+    );
+    return r.affectedRows > 0;
+  }
+
   static async saldoCierrePeriodoAnterior(anio, mes) {
     const [rows] = await pool.execute(
       `SELECT saldo_cierre FROM caja_chica_periodos

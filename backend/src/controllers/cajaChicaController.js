@@ -138,9 +138,40 @@ const crearPeriodo = async (req, res) => {
   }
 };
 
+async function totalesPeriodoDesdeBd(periodoId, anio, mes) {
+  const { desde, hasta } = rangoMes(anio, mes);
+  const ingresos = await CajaChica.listarIngresos(periodoId);
+  const reembolsos = await Reembolso.listarAprobadosPorRangoFechaDocumento(desde, hasta);
+  const totalIngreso = ingresos.reduce((s, r) => s + Number(r.monto), 0);
+  const totalEgreso = reembolsos.reduce((s, r) => s + (Number(r.monto) || 0), 0);
+  return { totalIngreso, totalEgreso, saldo: totalIngreso - totalEgreso };
+}
+
+/** Tras cerrar o corregir un mes, arrastra saldo_anterior y recalcula cierres posteriores cerrados. */
+async function propagarSaldoCadenaMesesPosteriores(anio, mes) {
+  const posteriores = await CajaChica.listarPeriodosPosteriores(anio, mes);
+  let lineasActualizadas = 0;
+  for (const p of posteriores) {
+    const sync = await CajaChica.sincronizarSaldoAnteriorIngreso(p.id, p.anio, p.mes);
+    if (sync.updated) lineasActualizadas++;
+    if (p.estado === 'cerrado') {
+      const { saldo } = await totalesPeriodoDesdeBd(p.id, p.anio, p.mes);
+      await CajaChica.actualizarSaldoCierre(p.id, saldo);
+    }
+  }
+  return lineasActualizadas;
+}
+
 async function construirDetallePeriodo(periodo) {
-  const id = periodo.id;
+  let id = periodo.id;
   const { desde, hasta } = rangoMes(periodo.anio, periodo.mes);
+  await CajaChica.sincronizarSaldoAnteriorIngreso(id, periodo.anio, periodo.mes);
+  if (periodo.estado === 'cerrado') {
+    const { saldo } = await totalesPeriodoDesdeBd(id, periodo.anio, periodo.mes);
+    await CajaChica.actualizarSaldoCierre(id, saldo);
+    periodo = await CajaChica.buscarPeriodoPorId(id);
+    id = periodo.id;
+  }
   const [ingresosRows, reembolsosRaw] = await Promise.all([
     CajaChica.listarIngresos(id),
     Reembolso.listarAprobadosPorRangoFechaDocumento(desde, hasta)
@@ -259,9 +290,14 @@ const cerrarPeriodo = async (req, res) => {
       return res.status(400).json({ success: false, mensaje: 'No se pudo cerrar el período.' });
     }
     const actualizado = await CajaChica.buscarPeriodoPorId(id);
+    const mesesSync = await propagarSaldoCadenaMesesPosteriores(periodo.anio, periodo.mes);
     res.json({
       success: true,
-      mensaje: 'Período cerrado. El saldo quedará disponible para el mes siguiente.',
+      mensaje:
+        'Período cerrado. El saldo quedará disponible para el mes siguiente.' +
+        (mesesSync > 0
+          ? ` Se actualizó el saldo arrastrado en ${mesesSync} línea(s) de meses posteriores.`
+          : ''),
       data: {
         periodo: actualizado,
         totales: {

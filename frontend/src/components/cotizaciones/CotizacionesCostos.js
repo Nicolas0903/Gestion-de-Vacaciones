@@ -51,9 +51,13 @@ const calcCostosLocal = (costosRaw) => {
 
   const indicesGarantia = resolverIndicesGarantia(params);
   const horasGarantia = Number(params.horas_garantia ?? params.dias_garantia) || 0;
-  let tarifaGarantia = Number(params.tarifa_garantia);
-  if (!Number.isFinite(tarifaGarantia)) {
-    tarifaGarantia = tarifaGarantiaReferencia(recursos, indicesGarantia, horasMes);
+  const modoGarantia = String(params.garantia_modo || 'recursos').toLowerCase();
+  let tarifaGarantia =
+    modoGarantia === 'manual'
+      ? Number(params.tarifa_garantia) || 0
+      : tarifaGarantiaReferencia(recursos, indicesGarantia, horasMes);
+  if (modoGarantia !== 'manual' && !tarifaGarantia) {
+    tarifaGarantia = Number(params.tarifa_garantia) || 0;
   }
   tarifaGarantia = Math.round(tarifaGarantia * 100) / 100;
   const garantia =
@@ -130,6 +134,8 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
 
   const [sunatTc, setSunatTc] = useState(null);
   const [sunatErr, setSunatErr] = useState('');
+  const [panelGarantia, setPanelGarantia] = useState(false);
+  const modoGarantia = String(params.garantia_modo || 'recursos').toLowerCase() === 'manual' ? 'manual' : 'recursos';
 
   useEffect(() => {
     let cancel = false;
@@ -268,26 +274,40 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
             ))}
 
             <tr className="bg-orange-100">
-              <td className={`${TD} font-medium text-orange-900`}>Garantía</td>
+              <td className={`${TD} font-medium text-orange-900`}>
+                <div className="flex flex-col gap-1">
+                  <span>Garantía</span>
+                  <button
+                    type="button"
+                    onClick={() => setPanelGarantia((v) => !v)}
+                    className="text-left text-xs font-normal text-orange-800 underline hover:text-orange-950"
+                  >
+                    {panelGarantia ? 'Ocultar opciones' : 'Seleccionar / modificar'}
+                  </button>
+                </div>
+              </td>
               <td className={`${TD} text-center text-orange-700/60`}>—</td>
               <td className={TD}>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  title="Tarifa por hora (como en Excel, col. Salario)"
-                  value={
-                    params.tarifa_garantia != null && params.tarifa_garantia !== ''
-                      ? params.tarifa_garantia
-                      : tarifaRefGarantia || ''
-                  }
-                  onChange={(e) =>
-                    setParams({
-                      tarifa_garantia: e.target.value === '' ? null : Number(e.target.value)
-                    })
-                  }
-                  className={`${inp} text-right bg-orange-50`}
-                />
+                {modoGarantia === 'manual' ? (
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    title="Tarifa por hora (monto personalizado)"
+                    value={params.tarifa_garantia ?? ''}
+                    onChange={(e) =>
+                      setParams({
+                        garantia_modo: 'manual',
+                        tarifa_garantia: e.target.value === '' ? null : Number(e.target.value)
+                      })
+                    }
+                    className={`${inp} text-right bg-orange-50`}
+                  />
+                ) : (
+                  <span className="block px-1 text-right tabular-nums text-orange-900 font-medium">
+                    {fmtRec(tarifaRefGarantia || 0)}
+                  </span>
+                )}
               </td>
               <td className={TD}>
                 <input
@@ -313,6 +333,88 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
               <td className={`${TD} text-center text-orange-800`}>1</td>
               <td className={`${TDnum} font-semibold text-orange-900`}>{fmtRec(res.garantia)}</td>
             </tr>
+
+            {panelGarantia && (
+              <tr className="bg-orange-50/80">
+                <td colSpan={8} className={`${TD} py-3`}>
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex rounded-lg border border-orange-200 overflow-hidden text-sm">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setParams({
+                            garantia_modo: 'recursos',
+                            tarifa_garantia: tarifaRefGarantia || null
+                          })
+                        }
+                        className={`px-3 py-1.5 ${
+                          modoGarantia === 'recursos' ? 'bg-orange-200 font-medium' : 'bg-white hover:bg-orange-50'
+                        }`}
+                      >
+                        Por recursos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setParams({
+                            garantia_modo: 'manual',
+                            tarifa_garantia: params.tarifa_garantia ?? tarifaRefGarantia ?? 0
+                          })
+                        }
+                        className={`px-3 py-1.5 border-l border-orange-200 ${
+                          modoGarantia === 'manual' ? 'bg-orange-200 font-medium' : 'bg-white hover:bg-orange-50'
+                        }`}
+                      >
+                        Monto personalizado
+                      </button>
+                    </div>
+                    {modoGarantia === 'recursos' ? (
+                      <div className="flex-1 min-w-[240px] rounded-lg border bg-white divide-y max-h-36 overflow-y-auto">
+                        {recursos.map((r, i) => (
+                          <label
+                            key={r.id || i}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm"
+                          >
+                            <input
+                              type="checkbox"
+                              className="rounded border-slate-300"
+                              checked={indicesGarantia.includes(i)}
+                              onChange={() => toggleRefGarantia(i)}
+                            />
+                            <span>{r.rol || `Recurso ${i + 1}`}</span>
+                            <span className="text-xs text-slate-400 ml-auto tabular-nums">
+                              {fmtRec(tarifaGarantiaReferencia(recursos, [i], hmGarantia))}/h
+                            </span>
+                          </label>
+                        ))}
+                        {indicesGarantia.length > 1 && (
+                          <p className="px-3 py-2 text-xs text-slate-600 bg-orange-50">
+                            Tarifa aplicada (promedio): <strong>{fmtRec(tarifaRefGarantia)}</strong>/h
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <label className="text-sm text-slate-700 flex flex-col gap-1">
+                        Tarifa/hora (S/ o $)
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={params.tarifa_garantia ?? ''}
+                          onChange={(e) =>
+                            setParams({
+                              garantia_modo: 'manual',
+                              tarifa_garantia: e.target.value === '' ? null : Number(e.target.value)
+                            })
+                          }
+                          className="w-40 rounded border px-2 py-1.5"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            )}
 
             <tr className="bg-blue-100">
               <td className={`${TD} font-medium text-blue-900`} colSpan={3}>
@@ -409,16 +511,10 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
-                  <th className={`${TH} w-32`}>Markup</th>
-                  {markups.map((m, i) => (
+                  <th className={`${TH} w-36`} />
+                  {markups.map((_, i) => (
                     <th key={i} className={TH}>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={m}
-                        onChange={(e) => setMarkup(i, e.target.value)}
-                        className="w-full bg-emerald-900/50 text-white text-center border-none outline-none rounded px-1"
-                      />
+                      Escenario {i + 1}
                     </th>
                   ))}
                 </tr>
@@ -429,6 +525,20 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
                   {markups.map((_, i) => (
                     <td key={i} className={`${TDnum} font-medium`}>
                       {i === 0 ? fmtProy(res.costo_base_proyeccion) : ''}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="bg-emerald-50/60">
+                  <td className={`${TD} font-medium`}>Markup</td>
+                  {markups.map((m, i) => (
+                    <td key={i} className={TD}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={m}
+                        onChange={(e) => setMarkup(i, e.target.value)}
+                        className="w-full rounded border border-emerald-200 px-2 py-1 text-center tabular-nums"
+                      />
                     </td>
                   ))}
                 </tr>
@@ -516,36 +626,8 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
             />
           </label>
           <p className="col-span-2 md:col-span-4 text-xs text-slate-500 -mt-1 mb-1">
-            Fila Garantía (Excel): <strong>Salario</strong> = tarifa/hora · <strong>Costo/Hora</strong> = horas ·
-            costo = tarifa × horas. Recursos ref.: promedio de (salario / horas mes) de los marcados.
+            Garantía: usa <strong>Seleccionar / modificar</strong> en la fila naranja (recursos o tarifa manual).
           </p>
-          <fieldset className="col-span-2 md:col-span-3" disabled={!recursos.length}>
-            <legend className="text-slate-700 font-medium mb-1">Recursos ref. garantía (uno o varios)</legend>
-            <div className="mt-1 rounded-lg border bg-white divide-y max-h-36 overflow-y-auto">
-              {recursos.map((r, i) => (
-                <label
-                  key={r.id || i}
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-300"
-                    checked={indicesGarantia.includes(i)}
-                    onChange={() => toggleRefGarantia(i)}
-                  />
-                  <span>{r.rol || `Recurso ${i + 1}`}</span>
-                  <span className="text-xs text-slate-400 ml-auto tabular-nums">
-                    {fmtRec(tarifaGarantiaReferencia(recursos, [i], hmGarantia))}/h
-                  </span>
-                </label>
-              ))}
-            </div>
-            {indicesGarantia.length > 1 && (
-              <p className="text-xs text-slate-500 mt-1">
-                Tarifa sugerida (promedio): <strong>{fmtRec(tarifaRefGarantia)}</strong>/h
-              </p>
-            )}
-          </fieldset>
           <label>
             Moneda facturación (propuesta)
             <select
