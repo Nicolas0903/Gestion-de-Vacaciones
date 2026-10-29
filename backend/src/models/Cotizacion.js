@@ -101,9 +101,9 @@ class Cotizacion {
     return [];
   }
 
-  static async listar() {
-    const [rows] = await pool.query(
-      `SELECT c.*,
+  static async listar(filtros = {}) {
+    let sql = `
+      SELECT c.*,
               CONCAT(e.nombres, ' ', e.apellidos) AS responsable_nombre,
               CONCAT(ec.nombres, ' ', ec.apellidos) AS creado_por_nombre,
               v.monto_propuesta AS version_monto,
@@ -113,8 +113,39 @@ class Cotizacion {
        LEFT JOIN empleados e ON e.id = c.responsable_id
        LEFT JOIN empleados ec ON ec.id = c.creado_por
        LEFT JOIN cotizacion_versiones v ON v.cotizacion_id = c.id AND v.es_actual = 1
-       ORDER BY c.updated_at DESC, c.id DESC`
-    );
+       WHERE 1=1`;
+    const params = [];
+
+    const q = String(filtros.q || '').trim();
+    if (q) {
+      const like = `%${q}%`;
+      sql += ` AND (
+        c.codigo LIKE ? OR c.proyecto LIKE ? OR c.cliente LIKE ?
+        OR JSON_UNQUOTE(JSON_EXTRACT(c.borrador_json, '$.general.ruc_cliente')) LIKE ?
+        OR JSON_UNQUOTE(JSON_EXTRACT(c.borrador_json, '$.general.nombre_proyecto')) LIKE ?
+      )`;
+      params.push(like, like, like, like, like);
+    }
+    const ruc = String(filtros.ruc || '').trim().replace(/\D/g, '');
+    if (ruc) {
+      sql += ` AND REPLACE(JSON_UNQUOTE(JSON_EXTRACT(c.borrador_json, '$.general.ruc_cliente')), '-', '') LIKE ?`;
+      params.push(`%${ruc}%`);
+    }
+    if (filtros.estado) {
+      sql += ` AND c.estado = ?`;
+      params.push(String(filtros.estado));
+    }
+    if (filtros.desde) {
+      sql += ` AND DATE(c.updated_at) >= ?`;
+      params.push(String(filtros.desde).slice(0, 10));
+    }
+    if (filtros.hasta) {
+      sql += ` AND DATE(c.updated_at) <= ?`;
+      params.push(String(filtros.hasta).slice(0, 10));
+    }
+
+    sql += ` ORDER BY c.updated_at DESC, c.id DESC`;
+    const [rows] = await pool.query(sql, params);
 
     const allIds = new Set();
     for (const row of rows) {
@@ -122,6 +153,7 @@ class Cotizacion {
       const gen = normalizarGeneralTipoProyecto(borrador.general || {});
       if (gen.tipo_proyecto) row.tipo_proyecto = gen.tipo_proyecto;
       if (gen.tipo_proyecto_codigo) row.tipo_proyecto_codigo = gen.tipo_proyecto_codigo;
+      if (gen.ruc_cliente) row.ruc_cliente = gen.ruc_cliente;
       const ids = this.responsableIdsFromGeneral(borrador.general, row.responsable_id);
       row.responsable_ids = ids;
       ids.forEach((id) => allIds.add(id));
@@ -383,6 +415,7 @@ class Cotizacion {
       tipo_proyecto: g.tipo_proyecto || '',
       responsable_ids: respIn,
       responsable_id: respIn[0] || usuarioId,
+      ruc_cliente: g.ruc_cliente || '',
       notas_internas: g.notas_internas || ''
     });
 

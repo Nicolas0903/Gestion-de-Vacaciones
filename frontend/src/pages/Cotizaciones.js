@@ -19,6 +19,8 @@ import CotizacionGeneralForm from '../components/cotizaciones/CotizacionGeneralF
 import CotizacionesActividades from '../components/cotizaciones/CotizacionesActividades';
 import CotizacionesCostos from '../components/cotizaciones/CotizacionesCostos';
 import CotizacionesPropuesta from '../components/cotizaciones/CotizacionesPropuesta';
+import CotizacionesAdjuntos from '../components/cotizaciones/CotizacionesAdjuntos';
+import { ESTADOS_COTIZACION } from '../components/cotizaciones/CotizacionGeneralForm';
 import {
   actividadesConTipoProyecto,
   borradorConSyncPerfilesCostos,
@@ -49,6 +51,7 @@ const TABS = [
   { id: 'actividades', label: 'Actividades' },
   { id: 'costos', label: 'Costos' },
   { id: 'propuesta', label: 'Propuesta' },
+  { id: 'adjuntos', label: 'Adjuntos' },
   { id: 'versiones', label: 'Versiones' }
 ];
 
@@ -67,19 +70,31 @@ const Cotizaciones = () => {
   const [tipos, setTipos] = useState([]);
   const [responsables, setResponsables] = useState([]);
   const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
+  const [busqueda, setBusqueda] = useState({ q: '', ruc: '', estado: '', desde: '', hasta: '' });
+  const [filtrosApi, setFiltrosApi] = useState({});
   const tiposProyectoUi = React.useMemo(() => tiposProyectoOpciones(), []);
+
+  const aplicarBusqueda = () => {
+    const params = {};
+    if (busqueda.q.trim()) params.q = busqueda.q.trim();
+    if (busqueda.ruc.trim()) params.ruc = busqueda.ruc.trim();
+    if (busqueda.estado) params.estado = busqueda.estado;
+    if (busqueda.desde) params.desde = busqueda.desde;
+    if (busqueda.hasta) params.hasta = busqueda.hasta;
+    setFiltrosApi(params);
+  };
 
   const cargarLista = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await cotizacionesService.listar();
+      const { data } = await cotizacionesService.listar(filtrosApi);
       setLista(data.data || []);
     } catch {
       toast.error('No se pudo cargar cotizaciones');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filtrosApi]);
 
   const cargarDetalle = useCallback(async (id) => {
     if (!id) {
@@ -316,7 +331,9 @@ const Cotizaciones = () => {
         <div className="flex flex-wrap justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Cotizaciones</h1>
-            <p className="text-sm text-slate-500">Información general · Actividades · Costos · Propuesta · Versiones</p>
+            <p className="text-sm text-slate-500">
+              Información general · Actividades · Costos · Propuesta · Adjuntos · Versiones
+            </p>
           </div>
           <button
             type="button"
@@ -331,7 +348,61 @@ const Cotizaciones = () => {
           <aside className="lg:col-span-3">
             <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b font-medium text-slate-700">Listado</div>
-              <div className="max-h-[75vh] overflow-y-auto divide-y">
+              <div className="px-3 py-3 border-b space-y-2 bg-slate-50/80">
+                <input
+                  type="search"
+                  placeholder="Buscar código, proyecto, cliente…"
+                  value={busqueda.q}
+                  onChange={(e) => setBusqueda((b) => ({ ...b, q: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="RUC"
+                  value={busqueda.ruc}
+                  onChange={(e) => setBusqueda((b) => ({ ...b, ruc: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm"
+                />
+                <select
+                  value={busqueda.estado}
+                  onChange={(e) => setBusqueda((b) => ({ ...b, estado: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white"
+                >
+                  <option value="">Todos los estados</option>
+                  {ESTADOS_COTIZACION.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    title="Actualizado desde"
+                    value={busqueda.desde}
+                    onChange={(e) => setBusqueda((b) => ({ ...b, desde: e.target.value }))}
+                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
+                  />
+                  <input
+                    type="date"
+                    title="Actualizado hasta"
+                    value={busqueda.hasta}
+                    onChange={(e) => setBusqueda((b) => ({ ...b, hasta: e.target.value }))}
+                    className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={aplicarBusqueda}
+                  className="w-full py-1.5 rounded-lg bg-teal-600 text-white text-xs font-medium"
+                >
+                  Buscar
+                </button>
+              </div>
+              <div className="max-h-[55vh] overflow-y-auto divide-y">
+                {!loading && lista.length === 0 && (
+                  <p className="px-4 py-6 text-sm text-slate-500 text-center">Sin resultados</p>
+                )}
                 {lista.map((c) => (
                   <button
                     key={c.id}
@@ -344,6 +415,9 @@ const Cotizaciones = () => {
                     <div className="font-medium text-sm">{c.codigo}</div>
                     <div className="text-xs text-slate-500 truncate">{c.proyecto}</div>
                     <div className="text-xs text-slate-400">{c.cliente}</div>
+                    {c.ruc_cliente && (
+                      <div className="text-xs text-slate-400">RUC {c.ruc_cliente}</div>
+                    )}
                     <div className="flex gap-2 mt-1 text-xs">
                       <span className="bg-slate-100 px-2 rounded">v{c.version_actual || 0}</span>
                       <span className="text-teal-700">{c.version_monto != null ? fmt(c.version_monto) : '—'}</span>
@@ -485,6 +559,20 @@ const Cotizaciones = () => {
                       onChange={(costos) =>
                         setBorrador((p) => borradorConSyncPerfilesCostos({ ...p, costos }))
                       }
+                    />
+                  )}
+
+                  {tab === 'adjuntos' && selId && (
+                    <CotizacionesAdjuntos
+                      cotizacionId={selId}
+                      codigo={cot?.codigo}
+                      onSolicitudEnviada={(data) => {
+                        if (data) {
+                          setDetalle(data);
+                          setBorrador(data.borrador);
+                        }
+                        cargarLista();
+                      }}
                     />
                   )}
 

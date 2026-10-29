@@ -109,6 +109,16 @@ const CotizacionGeneralForm = ({
         </label>
 
         <label className="block text-sm">
+          <span className="text-slate-600">RUC cliente</span>
+          <input
+            value={form.ruc_cliente || ''}
+            onChange={(e) => set('ruc_cliente', e.target.value.replace(/[^\d-]/g, ''))}
+            placeholder="Ej. 20100070970"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        </label>
+
+        <label className="block text-sm">
           <span className="text-slate-600">Tipo de proyecto *</span>
           <div className="flex gap-2 mt-1">
             <select

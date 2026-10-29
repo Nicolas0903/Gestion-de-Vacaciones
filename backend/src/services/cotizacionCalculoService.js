@@ -457,6 +457,7 @@ function borradorVacio() {
       tipo_proyecto: '',
       responsable_ids: [],
       responsable_id: null,
+      ruc_cliente: '',
       notas_internas: ''
     },
     actividades: {

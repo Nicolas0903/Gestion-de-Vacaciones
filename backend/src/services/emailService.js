@@ -2283,6 +2283,103 @@ async function notificarNuevaSolicitudCotizacion(solicitud) {
   }
 }
 
+async function notificarCotizacionEnvioAprobacion({
+  cotizacion,
+  borrador,
+  enviadoPor,
+  comentario = '',
+  adjuntos = []
+}) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Aprobación cotización omitida');
+    return false;
+  }
+  const { pool } = require('../config/database');
+  const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
+  const Cotizacion = require('../models/Cotizacion');
+
+  const general = borrador?.general || {};
+  const ids = Cotizacion.responsableIdsFromGeneral(general, cotizacion?.responsable_id);
+  const enviadoId = Number(enviadoPor?.id);
+  let destIds = ids.filter((id) => id !== enviadoId);
+  if (!destIds.length) destIds = ids;
+
+  let destinatarios = [];
+  if (destIds.length) {
+    const ph = destIds.map(() => '?').join(',');
+    const [rows] = await pool.query(
+      `SELECT LOWER(TRIM(email)) AS email, nombres, apellidos FROM empleados WHERE activo = 1 AND id IN (${ph})`,
+      destIds
+    );
+    destinatarios = rows.map((r) => r.email).filter(Boolean);
+  }
+  if (!destinatarios.length) {
+    destinatarios = [...new Set(COTIZACION_RESPONSABLES_EMAILS.map((e) => e.toLowerCase()))];
+    const em = String(enviadoPor?.email || '').toLowerCase();
+    destinatarios = destinatarios.filter((d) => d !== em);
+  }
+  destinatarios = [...new Set(destinatarios)];
+  if (!destinatarios.length) return false;
+
+  const urlPortal = `${FRONTEND_URL}/cotizaciones`;
+  const nombreEnv =
+    [enviadoPor?.nombres, enviadoPor?.apellidos].filter(Boolean).join(' ') || enviadoPor?.email || '—';
+  const listaAdj =
+    adjuntos.length > 0
+      ? `<ul>${adjuntos.map((a) => `<li>${escapeHtml(a.filename)}</li>`).join('')}</ul>`
+      : '<p><em>Sin archivos adjuntos en el envío.</em></p>';
+
+  const contenido = `
+    <p><strong>${escapeHtml(nombreEnv)}</strong> envió la cotización <strong>${escapeHtml(cotizacion?.codigo || '')}</strong> a <strong>revisión / aprobación</strong>.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Proyecto:</span><span class="info-value">${escapeHtml(general.nombre_proyecto || cotizacion?.proyecto || '—')}</span></div>
+      <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value">${escapeHtml(general.cliente || cotizacion?.cliente || '—')}</span></div>
+      ${general.ruc_cliente ? `<div class="info-row"><span class="info-label">RUC:</span><span class="info-value">${escapeHtml(general.ruc_cliente)}</span></div>` : ''}
+      <div class="info-row"><span class="info-label">Estado:</span><span class="info-value">En revisión</span></div>
+      ${comentario ? `<div class="info-row"><span class="info-label">Comentario:</span><span class="info-value">${escapeHtml(comentario)}</span></div>` : ''}
+    </div>
+    <p><strong>Archivos:</strong></p>
+    ${listaAdj}
+    <p style="text-align: center; margin: 25px 0;">
+      <a href="${urlPortal}" style="display: inline-block; background: #0d9488; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+        Abrir cotización en el portal
+      </a>
+    </p>
+  `;
+
+  const MAX_ATTACH = 8 * 1024 * 1024;
+  let total = 0;
+  const attachments = [];
+  for (const a of adjuntos) {
+    try {
+      const fs = require('fs');
+      if (!a.path || !fs.existsSync(a.path)) continue;
+      const stat = fs.statSync(a.path);
+      if (total + stat.size > MAX_ATTACH) continue;
+      total += stat.size;
+      attachments.push({ filename: a.filename, path: a.path });
+    } catch (_) {
+      /* skip */
+    }
+  }
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('portal'),
+      to: destinatarios.join(', '),
+      subject: `Cotización ${cotizacion?.codigo || ''} — revisión (${general.cliente || 'cliente'})`,
+      html: plantillaEmail(contenido, 'Cotización para aprobación', 'portal'),
+      attachments
+    });
+    console.log(`📧 Cotización aprobación → ${destinatarios.join(', ')} (${attachments.length} adj.)`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email cotización aprobación:', error.message);
+    return false;
+  }
+}
+
 module.exports = {
   verificarConexion,
   notificarNuevaSolicitud,
@@ -2312,6 +2409,7 @@ module.exports = {
   enviarCajaChicaResumenRocio,
   enviarRespaldoArchivo,
   notificarNuevaSolicitudCotizacion,
+  notificarCotizacionEnvioAprobacion,
   notificarSolicitudPresupuestoPendiente,
   notificarSolicitudPresupuestoCopia
 };

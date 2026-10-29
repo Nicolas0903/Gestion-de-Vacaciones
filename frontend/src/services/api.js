@@ -404,7 +404,7 @@ export const cotizacionesService = {
   crearTipoProyecto: (nombre) => api.post('/cotizaciones/tipos-proyecto', { nombre }),
   responsables: () => api.get('/cotizaciones/responsables'),
   tipoCambioSunat: () => api.get('/cotizaciones/tipo-cambio/sunat'),
-  listar: () => api.get('/cotizaciones'),
+  listar: (params) => api.get('/cotizaciones', { params: params || {} }),
   obtener: (id) => api.get(`/cotizaciones/${id}`),
   crear: (body) => api.post('/cotizaciones', body),
   guardarBorrador: (id, body) => api.put(`/cotizaciones/${id}/borrador`, body),
@@ -412,7 +412,18 @@ export const cotizacionesService = {
   verVersion: (id, versionNum) => api.get(`/cotizaciones/${id}/versiones/${versionNum}`),
   restaurarVersion: (id, versionNum, body) =>
     api.post(`/cotizaciones/${id}/restaurar-version/${versionNum}`, body),
-  eliminar: (id) => api.delete(`/cotizaciones/${id}`)
+  eliminar: (id) => api.delete(`/cotizaciones/${id}`),
+  listarAdjuntos: (id) => api.get(`/cotizaciones/${id}/adjuntos`),
+  subirAdjunto: (id, file, comentario) => {
+    const fd = new FormData();
+    fd.append('archivo', file);
+    if (comentario) fd.append('comentario', comentario);
+    return api.post(`/cotizaciones/${id}/adjuntos`, fd);
+  },
+  descargarAdjuntoUrl: (id, adjuntoId) =>
+    `${API_URL}/cotizaciones/${id}/adjuntos/${adjuntoId}/descargar`,
+  eliminarAdjunto: (id, adjuntoId) => api.delete(`/cotizaciones/${id}/adjuntos/${adjuntoId}`),
+  solicitarAprobacion: (id, body) => api.post(`/cotizaciones/${id}/solicitar-aprobacion`, body || {})
 };
 
 export const comisionesPorPagarService = {
