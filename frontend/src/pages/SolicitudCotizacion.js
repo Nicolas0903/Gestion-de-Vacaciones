@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { ArrowLeftIcon, PaperAirplaneIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { cotizacionSolicitudesService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import CotizacionFlujoPageBanner from '../components/CotizacionFlujoPageBanner';
 import { tiposProyectoOpciones } from '../utils/cotizacionTiposProyecto';
 
 const ESTADO_LABEL = {
@@ -40,7 +41,7 @@ function responsablesIdsDesdeRow(row) {
 }
 
 const SolicitudCotizacion = () => {
-  const { usuario } = useAuth();
+  const { usuario, puedeAccederModuloPortal } = useAuth();
   const [lista, setLista] = useState([]);
   const [selId, setSelId] = useState(null);
   const [form, setForm] = useState(emptyForm());
@@ -205,7 +206,13 @@ const SolicitudCotizacion = () => {
           <ArrowLeftIcon className="w-4 h-4" /> Portal
         </Link>
 
-        <h1 className="text-2xl font-bold text-slate-800">Solicitud de cotización</h1>
+        <CotizacionFlujoPageBanner
+          paso={1}
+          puedeIrCotizaciones={puedeAccederModuloPortal('cotizaciones')}
+          puedeIrSolicitud={false}
+        />
+
+        <h1 className="text-2xl font-bold text-slate-800">Pedir cotización</h1>
         <p className="text-sm text-slate-500 mt-1 mb-6">
           Completa la información comercial. Puedes marcar <strong>uno o varios</strong> tipos de proyecto y{' '}
           <strong>uno o varios</strong> responsables; al enviar, cada responsable seleccionado recibe el correo.

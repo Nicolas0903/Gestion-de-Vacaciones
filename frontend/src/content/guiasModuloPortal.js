@@ -148,23 +148,23 @@ export const GUIAS_MODULO_PORTAL = {
     ]
   },
   'solicitud-cotizacion': {
-    titulo: 'Solicitud de cotización',
-    intro: 'Pedido comercial previo a la cotización formal en presales.',
+    titulo: 'Paso 1 · Pedir cotización',
+    intro: 'Solo datos comerciales (cliente, proyecto, responsables). No es la hoja de costos.',
     pasos: [
-      'Nueva solicitud: proyecto, cliente, contexto y responsable (obligatorio al enviar).',
-      'Guardar borrador o Enviar al equipo; correo al responsable elegido.',
-      'Anular envío o eliminar borrador según estado.',
-      'El responsable crea la cotización desde el módulo Cotizaciones.'
+      'Comercial: nueva solicitud con proyecto, cliente, contexto y responsables (obligatorio al enviar).',
+      'Guardar borrador o Enviar al equipo; correo a cada responsable marcado.',
+      'Si te confundiste de módulo y debes elaborar costos, ve al Paso 2 (Elaborar cotización).',
+      'El responsable crea la cotización formal desde el Paso 2.'
     ]
   },
   cotizaciones: {
-    titulo: 'Cotizaciones',
-    intro: 'Elaboración comercial con actividades, costos, propuesta y versiones.',
+    titulo: 'Paso 2 · Elaborar cotización',
+    intro: 'Propuesta técnica/comercial: actividades, costos, adjuntos y versiones.',
     pasos: [
-      'Bandeja: crear cotización desde solicitudes enviadas o rechazar con motivo.',
-      'Editor: pestañas General, Actividades (% 100), Costos, Propuesta, Versiones.',
-      'Guardar sube versión automáticamente si hubo cambios (queda editado por).',
-      'Restaurar versión anterior desde historial.'
+      'Bandeja superior: solicitudes enviadas pendientes → Crear cotización.',
+      'Editor: General, Actividades, Costos, Propuesta, Adjuntos, Versiones.',
+      'Si aún no hay pedido comercial, usa Paso 1 (Pedir cotización) antes.',
+      'Guardar versiona automáticamente si hubo cambios.'
     ]
   },
   'cierre-negocio': {

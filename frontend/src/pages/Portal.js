@@ -6,6 +6,7 @@ import LogoTransparente from '../components/LogoTransparente';
 import NotificacionesDropdown from '../components/NotificacionesDropdown';
 import PortalResumenDashboard from '../components/PortalResumenDashboard';
 import GuiaModuloUso from '../components/GuiaModuloUso';
+import PortalFlujoCotizacionAyuda from '../components/PortalFlujoCotizacionAyuda';
 import CambiarPasswordModal from '../components/CambiarPasswordModal';
 import {
   CalendarDaysIcon,
@@ -31,8 +32,12 @@ import {
   MagnifyingGlassIcon,
   HomeIcon,
   Squares2X2Icon,
-  PowerIcon
+  PowerIcon,
+  InboxArrowDownIcon,
+  CalculatorIcon
 } from '@heroicons/react/24/outline';
+
+const MODULOS_FLUJO_COTIZACION = ['solicitud-cotizacion', 'cotizaciones'];
 
 const AREAS_PORTAL = [
   {
@@ -205,6 +210,8 @@ const Portal = () => {
   const subAccesoRendicion = puedeAccederModuloPortal('rendicion-presupuesto');
   const subAccesoCajaChica = puedeAccederModuloPortal('caja-chica');
   const subAccesoRendicionCaja = puedeAccederModuloPortal('caja-rendicion');
+  const subAccesoSolicitudCot = puedeAccederModuloPortal('solicitud-cotizacion');
+  const subAccesoCotizaciones = puedeAccederModuloPortal('cotizaciones');
 
   const modulos = [];
 
@@ -373,43 +380,54 @@ const Portal = () => {
     });
   }
 
-  if (puedeAccederModuloPortal('solicitud-cotizacion')) {
+  if (subAccesoSolicitudCot) {
     modulos.push({
       id: 'solicitud-cotizacion',
       area: 'operaciones',
-      titulo: 'Solicitud de cotización',
-      descripcion: 'Pedido comercial con información inicial para el equipo de cotizaciones',
-      metricHint: 'Antes de la cotización formal',
-      accionLabel: 'Nueva solicitud',
+      titulo: 'Pedir cotización',
+      descripcion: 'Pedido comercial: cliente, proyecto y responsables antes de la propuesta formal',
+      metricHint: 'Para comercial — enviar datos al equipo (no es la hoja de costos)',
+      accionLabel: 'Crear pedido comercial',
       accionTo: '/solicitud-cotizacion',
-      icono: DocumentTextIcon,
+      icono: InboxArrowDownIcon,
       color: 'from-indigo-500 to-violet-600',
       shadowColor: 'shadow-indigo-500/30',
       bgLight: 'bg-indigo-50',
       textColor: 'text-indigo-700',
       link: '/solicitud-cotizacion',
       activo: true,
-      restringido: false
+      restringido: false,
+      pasoFlujo: '1',
+      rolHint: 'Comercial',
+      extraLinks: subAccesoCotizaciones
+        ? [{ to: '/cotizaciones', label: 'Me asignaron elaborar → Paso 2' }]
+        : []
     });
   }
 
-  if (puedeAccederModuloPortal('cotizaciones')) {
+  if (subAccesoCotizaciones) {
     modulos.push({
       id: 'cotizaciones',
       area: 'operaciones',
-      titulo: 'Cotizaciones',
-      descripcion: 'Bandeja de solicitudes comerciales y elaboración de propuestas',
-      metricHint: 'Solicitudes y cotizaciones',
-      accionLabel: 'Abrir cotizaciones',
+      titulo: 'Elaborar cotización',
+      descripcion: 'Actividades, costos, propuesta, adjuntos y versiones de la cotización',
+      metricHint: 'Para el equipo asignado — elaborar la propuesta técnica/comercial',
+      accionLabel: 'Abrir mis cotizaciones',
       accionTo: '/cotizaciones',
-      icono: DocumentTextIcon,
+      icono: CalculatorIcon,
       color: 'from-sky-600 to-blue-700',
       shadowColor: 'shadow-sky-600/30',
       bgLight: 'bg-sky-50',
       textColor: 'text-sky-700',
       link: '/cotizaciones',
       activo: true,
-      restringido: true
+      restringido: true,
+      restringidoLabel: 'Por asignación',
+      pasoFlujo: '2',
+      rolHint: 'Presales / técnico',
+      extraLinks: subAccesoSolicitudCot
+        ? [{ to: '/solicitud-cotizacion', label: 'Primero hay que pedir → Paso 1' }]
+        : []
     });
   }
 
@@ -669,6 +687,33 @@ const Portal = () => {
     </div>
   );
 
+  const renderModulosLista = (items) => {
+    const flujo = items
+      .filter((m) => MODULOS_FLUJO_COTIZACION.includes(m.id))
+      .sort(
+        (a, b) =>
+          MODULOS_FLUJO_COTIZACION.indexOf(a.id) - MODULOS_FLUJO_COTIZACION.indexOf(b.id)
+      );
+    const resto = items.filter((m) => !MODULOS_FLUJO_COTIZACION.includes(m.id));
+    const tieneSol = flujo.some((m) => m.id === 'solicitud-cotizacion');
+    const tieneCot = flujo.some((m) => m.id === 'cotizaciones');
+
+    return (
+      <>
+        {flujo.length > 0 && (
+          <div className="col-span-full">
+            <PortalFlujoCotizacionAyuda
+              tieneSolicitud={tieneSol}
+              tieneCotizaciones={tieneCot}
+            />
+          </div>
+        )}
+        {flujo.map((modulo) => renderModuloFila(modulo))}
+        {resto.map((modulo) => renderModuloFila(modulo))}
+      </>
+    );
+  };
+
   const renderModuloFila = (modulo) => {
     const Icono = modulo.icono;
     const abrir = () => destinoModulo(modulo, navigate, setModuloSelector);
@@ -703,10 +748,26 @@ const Portal = () => {
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
+              {modulo.pasoFlujo && (
+                <span
+                  className={`px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide rounded ${
+                    modulo.pasoFlujo === '1'
+                      ? 'bg-indigo-100 text-indigo-800'
+                      : 'bg-sky-100 text-sky-800'
+                  }`}
+                >
+                  Paso {modulo.pasoFlujo}
+                </span>
+              )}
               <h3 className="font-semibold text-slate-900 text-[15px]">{modulo.titulo}</h3>
+              {modulo.rolHint && (
+                <span className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-slate-100 text-slate-600">
+                  {modulo.rolHint}
+                </span>
+              )}
               {modulo.restringido && (
-                <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-rose-50 text-rose-600">
-                  Restringido
+                <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-amber-50 text-amber-800">
+                  {modulo.restringidoLabel || 'Restringido'}
                 </span>
               )}
             </div>
@@ -1015,9 +1076,7 @@ const Portal = () => {
                         Ver todo
                       </button>
                     </div>
-                    <div className="space-y-3">
-                      {items.map((modulo) => renderModuloFila(modulo))}
-                    </div>
+                    <div className="space-y-3">{renderModulosLista(items)}</div>
                   </section>
                 );
               })}
@@ -1025,8 +1084,20 @@ const Portal = () => {
             </>
           ) : (
             <div ref={refModulosGrid} className="scroll-mt-24">
+              {navActiva === 'operaciones' &&
+                subAccesoSolicitudCot &&
+                subAccesoCotizaciones &&
+                modulosParaVista.some((m) => MODULOS_FLUJO_COTIZACION.includes(m.id)) && (
+                  <div className="mb-4">
+                    <PortalFlujoCotizacionAyuda
+                      tieneSolicitud
+                      tieneCotizaciones
+                      compact
+                    />
+                  </div>
+                )}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {modulosParaVista.map((modulo) => renderModuloFila(modulo))}
+                {renderModulosLista(modulosParaVista)}
               </div>
             </div>
           )}

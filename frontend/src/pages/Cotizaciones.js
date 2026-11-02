@@ -22,6 +22,7 @@ import CotizacionesPropuesta from '../components/cotizaciones/CotizacionesPropue
 import CotizacionesAdjuntos from '../components/cotizaciones/CotizacionesAdjuntos';
 import CotizacionAccesoResponsablesAdmin from '../components/cotizaciones/CotizacionAccesoResponsablesAdmin';
 import { useAuth } from '../context/AuthContext';
+import CotizacionFlujoPageBanner from '../components/CotizacionFlujoPageBanner';
 import { ESTADOS_COTIZACION } from '../components/cotizaciones/CotizacionGeneralForm';
 import {
   actividadesConTipoProyecto,
@@ -58,7 +59,7 @@ const TABS = [
 ];
 
 const Cotizaciones = () => {
-  const { usuario } = useAuth();
+  const { usuario, puedeAccederModuloPortal } = useAuth();
   const esAdmin = usuario?.rol_nombre === 'admin';
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -285,6 +286,12 @@ const Cotizaciones = () => {
         <Link to="/portal" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-teal-600 mb-4">
           <ArrowLeftIcon className="w-4 h-4" /> Portal
         </Link>
+
+        <CotizacionFlujoPageBanner
+          paso={2}
+          puedeIrSolicitud={puedeAccederModuloPortal('solicitud-cotizacion')}
+          puedeIrCotizaciones={false}
+        />
 
         {solicitudesPendientes.length > 0 && (
           <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/80 p-4">
