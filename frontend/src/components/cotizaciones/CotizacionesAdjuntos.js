@@ -10,7 +10,12 @@ const fmtBytes = (n) => {
   return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const CotizacionesAdjuntos = ({ cotizacionId, codigo, onSolicitudEnviada }) => {
+const CotizacionesAdjuntos = ({
+  cotizacionId,
+  codigo,
+  onSolicitudEnviada,
+  permitirEnviarAprobacion = true
+}) => {
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
@@ -159,6 +164,7 @@ const CotizacionesAdjuntos = ({ cotizacionId, codigo, onSolicitudEnviada }) => {
         ))}
       </div>
 
+      {permitirEnviarAprobacion && (
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
         <h4 className="font-semibold text-amber-950 text-sm">Enviar a aprobación</h4>
         <p className="text-xs text-amber-900/80">
@@ -181,6 +187,7 @@ const CotizacionesAdjuntos = ({ cotizacionId, codigo, onSolicitudEnviada }) => {
           <PaperAirplaneIcon className="w-4 h-4" /> Notificar aprobador
         </button>
       </div>
+      )}
     </div>
   );
 };

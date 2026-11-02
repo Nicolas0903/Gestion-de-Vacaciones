@@ -149,3 +149,11 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
 
   return true;
 }
+
+/** Ver propuesta/adjuntos (comercial) o elaboración completa (equipo). */
+export function puedeAccederVistaCotizaciones(usuario, opts) {
+  return (
+    evaluarAccesoModuloPortal(usuario, 'cotizaciones', opts) ||
+    evaluarAccesoModuloPortal(usuario, 'solicitud-cotizacion', opts)
+  );
+}

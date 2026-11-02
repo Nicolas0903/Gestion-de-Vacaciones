@@ -399,9 +399,12 @@ const Portal = () => {
       restringido: false,
       pasoFlujo: '1',
       rolHint: 'Comercial',
-      extraLinks: subAccesoCotizaciones
-        ? [{ to: '/cotizaciones', label: 'Me asignaron elaborar → Paso 2' }]
-        : []
+      extraLinks: [
+        ...(subAccesoCotizaciones
+          ? [{ to: '/cotizaciones', label: 'Me asignaron elaborar → Paso 2' }]
+          : []),
+        { to: '/cotizaciones', label: 'Ver propuesta y adjuntos de mis pedidos' }
+      ]
     });
   }
 

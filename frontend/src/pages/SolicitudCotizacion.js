@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeftIcon, PaperAirplaneIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { cotizacionSolicitudesService } from '../services/api';
@@ -42,6 +42,7 @@ function responsablesIdsDesdeRow(row) {
 
 const SolicitudCotizacion = () => {
   const { usuario, puedeAccederModuloPortal } = useAuth();
+  const navigate = useNavigate();
   const [lista, setLista] = useState([]);
   const [selId, setSelId] = useState(null);
   const [form, setForm] = useState(emptyForm());
@@ -253,7 +254,17 @@ const SolicitudCotizacion = () => {
               <div className="text-sm text-slate-600">
                 <strong>{sel.codigo}</strong> · {ESTADO_LABEL[sel.estado]}
                 {sel.cotizacion_codigo && (
-                  <span className="ml-2 text-teal-700">→ Cotización {sel.cotizacion_codigo}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate('/cotizaciones', {
+                        state: { cotizacionId: sel.cotizacion_id }
+                      })
+                    }
+                    className="ml-2 text-teal-700 font-medium hover:underline"
+                  >
+                    → Ver propuesta {sel.cotizacion_codigo}
+                  </button>
                 )}
               </div>
             )}
@@ -406,17 +417,22 @@ const SolicitudCotizacion = () => {
               </div>
             )}
 
-            {sel?.estado === 'en_elaboracion' && sel.cotizacion_codigo && (
+            {sel?.cotizacion_id && sel.cotizacion_codigo && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
-                <Link
-                  to="/cotizaciones"
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate('/cotizaciones', {
+                      state: { cotizacionId: sel.cotizacion_id }
+                    })
+                  }
                   className="inline-flex items-center px-4 py-2 rounded-lg bg-teal-600 text-white text-sm"
                 >
-                  Ir al módulo Cotizaciones
-                </Link>
+                  Ver propuesta y adjuntos ({sel.cotizacion_codigo})
+                </button>
                 <p className="text-xs text-slate-600 w-full">
-                  Cotización vinculada: <strong>{sel.cotizacion_codigo}</strong>. Elimínela allí para poder borrar
-                  esta solicitud.
+                  Consulta la propuesta económica y sube documentos para el cliente. El cierre comercial lo hace el
+                  equipo de elaboración.
                 </p>
               </div>
             )}

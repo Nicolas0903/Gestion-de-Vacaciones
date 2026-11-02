@@ -1,5 +1,7 @@
 const Cotizacion = require('../models/Cotizacion');
 const CotizacionAdjunto = require('../models/CotizacionAdjunto');
+const { Empleado } = require('../models');
+const { tieneAccesoEfectivoModulo } = require('../utils/portalAcceso');
 const { borradorVacio, calcularCotizacion } = require('../services/cotizacionCalculoService');
 const { obtenerTipoCambioSunat } = require('../services/sunatTipoCambioService');
 const { notificarCotizacionEnvioAprobacion } = require('../services/emailService');
@@ -8,19 +10,62 @@ function esAdmin(req) {
   return req.usuario?.rol_nombre === 'admin';
 }
 
-async function verificarAccesoCotizacion(req, res, id) {
+async function empleadoReq(req) {
+  if (req.empleadoPortal) return req.empleadoPortal;
+  return Empleado.buscarPorId(req.usuario.id);
+}
+
+/** @returns {{ ok: true, cot, modo: 'elaborador'|'comercial' } | { ok: false, status, mensaje }} */
+async function accesoCotizacion(req, id) {
   const cot = await Cotizacion.buscarPorId(id);
   if (!cot) {
-    res.status(404).json({ success: false, mensaje: 'Cotización no encontrada' });
-    return null;
+    return { ok: false, status: 404, mensaje: 'Cotización no encontrada' };
   }
-  if (esAdmin(req)) return cot;
+  const empleado = await empleadoReq(req);
   const borrador = Cotizacion.enriquecerBorrador(cot.borrador_json, cot);
-  if (!Cotizacion.usuarioTieneAcceso(cot, borrador, req.usuario.id)) {
-    res.status(403).json({ success: false, mensaje: 'Sin acceso a esta cotización' });
+  const uid = req.usuario.id;
+
+  if (esAdmin(req)) {
+    return { ok: true, cot, modo: 'elaborador' };
+  }
+
+  const puedeElaborarModulo = empleado && tieneAccesoEfectivoModulo(empleado, 'cotizaciones');
+  if (puedeElaborarModulo && Cotizacion.usuarioTieneAcceso(cot, borrador, uid)) {
+    return { ok: true, cot, modo: 'elaborador' };
+  }
+
+  const esSolicitante = await Cotizacion.usuarioEsSolicitanteComercial(id, uid);
+  if (esSolicitante && empleado && tieneAccesoEfectivoModulo(empleado, 'solicitud-cotizacion')) {
+    return { ok: true, cot, modo: 'comercial' };
+  }
+
+  return { ok: false, status: 403, mensaje: 'Sin acceso a esta cotización' };
+}
+
+async function verificarAccesoCotizacion(req, res, id) {
+  const a = await accesoCotizacion(req, id);
+  if (!a.ok) {
+    res.status(a.status).json({ success: false, mensaje: a.mensaje });
     return null;
   }
-  return cot;
+  req.cotizacionModoAcceso = a.modo;
+  return a.cot;
+}
+
+async function verificarElaboracionCotizacion(req, res, id) {
+  const a = await accesoCotizacion(req, id);
+  if (!a.ok) {
+    res.status(a.status).json({ success: false, mensaje: a.mensaje });
+    return null;
+  }
+  if (a.modo !== 'elaborador') {
+    res.status(403).json({
+      success: false,
+      mensaje: 'Solo el equipo de elaboración puede modificar esta cotización'
+    });
+    return null;
+  }
+  return a.cot;
 }
 
 exports.plantilla = (req, res) => {
@@ -93,7 +138,10 @@ exports.obtener = async (req, res) => {
     const cot = await verificarAccesoCotizacion(req, res, req.params.id);
     if (!cot) return;
     const detalle = await Cotizacion.obtenerDetalle(req.params.id);
-    res.json({ success: true, data: detalle });
+    res.json({
+      success: true,
+      data: { ...detalle, acceso_modo: req.cotizacionModoAcceso || 'elaborador' }
+    });
   } catch (e) {
     console.error('cotizaciones obtener:', e);
     res.status(500).json({ success: false, mensaje: 'Error al obtener cotización' });
@@ -102,6 +150,10 @@ exports.obtener = async (req, res) => {
 
 exports.crear = async (req, res) => {
   try {
+    const empleado = await empleadoReq(req);
+    if (!empleado || !tieneAccesoEfectivoModulo(empleado, 'cotizaciones')) {
+      return res.status(403).json({ success: false, mensaje: 'Solo el equipo de elaboración puede crear cotizaciones' });
+    }
     const detalle = await Cotizacion.crear(req.usuario.id, req.body);
     res.status(201).json({ success: true, data: detalle, mensaje: 'Cotización creada (v1)' });
   } catch (e) {
@@ -112,7 +164,7 @@ exports.crear = async (req, res) => {
 
 exports.guardarBorrador = async (req, res) => {
   try {
-    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    const cot = await verificarElaboracionCotizacion(req, res, req.params.id);
     if (!cot) return;
     const body = { ...(req.body || {}) };
     if (!esAdmin(req) && body.general) {
@@ -150,7 +202,7 @@ exports.asignarAccesoResponsables = async (req, res) => {
 
 exports.publicarVersion = async (req, res) => {
   try {
-    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    const cot = await verificarElaboracionCotizacion(req, res, req.params.id);
     if (!cot) return;
     const comentario = req.body?.comentario || '';
     const detalle = await Cotizacion.publicarVersion(req.params.id, comentario, req.usuario.id);
@@ -179,7 +231,7 @@ exports.verVersion = async (req, res) => {
 
 exports.restaurarVersion = async (req, res) => {
   try {
-    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    const cot = await verificarElaboracionCotizacion(req, res, req.params.id);
     if (!cot) return;
     const detalle = await Cotizacion.restaurarVersion(
       req.params.id,
@@ -196,7 +248,7 @@ exports.restaurarVersion = async (req, res) => {
 
 exports.eliminar = async (req, res) => {
   try {
-    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    const cot = await verificarElaboracionCotizacion(req, res, req.params.id);
     if (!cot) return;
     const ok = await Cotizacion.eliminar(req.params.id);
     if (!ok) {
@@ -283,7 +335,7 @@ exports.eliminarAdjunto = async (req, res) => {
 exports.solicitarAprobacion = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const cot = await verificarAccesoCotizacion(req, res, id);
+    const cot = await verificarElaboracionCotizacion(req, res, id);
     if (!cot) return;
     const detalleAntes = await Cotizacion.obtenerDetalle(id);
     const borrador = detalleAntes.borrador;

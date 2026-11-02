@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   ArrowLeftIcon,
@@ -49,7 +49,7 @@ function cambiosDeVersion(v) {
   return [];
 }
 
-const TABS = [
+const TABS_ELABORADOR = [
   { id: 'general', label: 'Información general' },
   { id: 'actividades', label: 'Actividades' },
   { id: 'costos', label: 'Costos' },
@@ -58,9 +58,18 @@ const TABS = [
   { id: 'versiones', label: 'Versiones' }
 ];
 
+const TABS_COMERCIAL = [
+  { id: 'propuesta', label: 'Propuesta' },
+  { id: 'adjuntos', label: 'Adjuntos' }
+];
+
 const Cotizaciones = () => {
   const { usuario, puedeAccederModuloPortal } = useAuth();
+  const location = useLocation();
   const esAdmin = usuario?.rol_nombre === 'admin';
+  const [accesoModo, setAccesoModo] = useState('elaborador');
+  const modoComercial = accesoModo === 'comercial';
+  const tabsVisibles = modoComercial ? TABS_COMERCIAL : TABS_ELABORADOR;
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selId, setSelId] = useState(null);
@@ -111,6 +120,9 @@ const Cotizaciones = () => {
       const { data } = await cotizacionesService.obtener(id);
       setDetalle(data.data);
       setBorrador(data.data.borrador);
+      const modo = data.data.acceso_modo || 'elaborador';
+      setAccesoModo(modo);
+      setTab(modo === 'comercial' ? 'propuesta' : 'general');
     } catch {
       toast.error('No se pudo cargar la cotización');
       setSelId(null);
@@ -123,8 +135,12 @@ const Cotizaciones = () => {
 
   useEffect(() => {
     cargarDetalle(selId);
-    if (selId) setTab('general');
   }, [selId, cargarDetalle]);
+
+  useEffect(() => {
+    const id = location.state?.cotizacionId;
+    if (id) setSelId(Number(id));
+  }, [location.state?.cotizacionId]);
 
   useEffect(() => {
     setTipos(tiposProyectoOpciones());
@@ -293,7 +309,14 @@ const Cotizaciones = () => {
           puedeIrCotizaciones={false}
         />
 
-        {solicitudesPendientes.length > 0 && (
+        {modoComercial && (
+          <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-sm text-indigo-950">
+            <strong>Vista comercial.</strong> Puedes consultar la propuesta y subir adjuntos. El cierre comercial
+            (ganada / perdida) lo registra el equipo de elaboración.
+          </div>
+        )}
+
+        {solicitudesPendientes.length > 0 && !modoComercial && (
           <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/80 p-4">
             <h2 className="font-semibold text-indigo-900 text-sm">
               Solicitudes para elaborar (comercial → responsable)
@@ -346,13 +369,15 @@ const Cotizaciones = () => {
               Información general · Actividades · Costos · Propuesta · Adjuntos · Versiones
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setModalNueva(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-medium"
-          >
-            <PlusIcon className="w-5 h-5" /> Nueva cotización
-          </button>
+          {puedeAccederModuloPortal('cotizaciones') && (
+            <button
+              type="button"
+              onClick={() => setModalNueva(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-medium"
+            >
+              <PlusIcon className="w-5 h-5" /> Nueva cotización
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -456,6 +481,8 @@ const Cotizaciones = () => {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {!modoComercial && (
+                    <>
                     <button
                       type="button"
                       onClick={guardar}
@@ -490,11 +517,13 @@ const Cotizaciones = () => {
                     >
                       <TrashIcon className="w-4 h-4" /> Eliminar
                     </button>
+                    </>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex border-b px-2 pt-2 gap-1">
-                  {TABS.map((t) => (
+                  {tabsVisibles.map((t) => (
                     <button
                       key={t.id}
                       type="button"
@@ -595,6 +624,7 @@ const Cotizaciones = () => {
                     <CotizacionesAdjuntos
                       cotizacionId={selId}
                       codigo={cot?.codigo}
+                      permitirEnviarAprobacion={!modoComercial}
                       onSolicitudEnviada={(data) => {
                         if (data) {
                           setDetalle(data);
@@ -610,6 +640,8 @@ const Cotizaciones = () => {
                       propuesta={borrador.propuesta}
                       costos={borrador.costos}
                       actividades={borrador.actividades}
+                      soloLectura={modoComercial}
+                      ocultarCierreComercial={modoComercial}
                       onChange={(propuesta) => setBorrador((p) => ({ ...p, propuesta }))}
                     />
                   )}

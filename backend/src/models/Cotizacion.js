@@ -91,7 +91,7 @@ class Cotizacion {
     return new Set(rows.map((r) => Number(r.id)));
   }
 
-  /** Acceso a elaborar/ver cotización (no admin): creador o responsable asignado. */
+  /** Acceso a elaborar cotización (no admin): creador o responsable asignado. */
   static usuarioTieneAcceso(cot, borrador, usuarioId) {
     const uid = Number(usuarioId);
     if (!Number.isFinite(uid)) return false;
@@ -99,6 +99,16 @@ class Cotizacion {
     const gen = borrador?.general != null ? borrador.general : borrador;
     const ids = this.responsableIdsFromGeneral(gen, cot.responsable_id);
     return ids.includes(uid);
+  }
+
+  static async usuarioEsSolicitanteComercial(cotizacionId, usuarioId) {
+    const uid = Number(usuarioId);
+    if (!Number.isFinite(uid)) return false;
+    const [rows] = await pool.query(
+      `SELECT 1 FROM cotizacion_solicitudes WHERE cotizacion_id = ? AND solicitante_id = ? LIMIT 1`,
+      [cotizacionId, uid]
+    );
+    return rows.length > 0;
   }
 
   static responsableIdsFromGeneral(general, fallbackId = null) {
@@ -168,8 +178,12 @@ class Cotizacion {
           COALESCE(JSON_EXTRACT(c.borrador_json, '$.general.responsable_ids'), JSON_ARRAY()),
           CAST(? AS JSON)
         )
+        OR EXISTS (
+          SELECT 1 FROM cotizacion_solicitudes sc
+          WHERE sc.cotizacion_id = c.id AND sc.solicitante_id = ?
+        )
       )`;
-      params.push(uid, uid, uid);
+      params.push(uid, uid, uid, uid);
     }
 
     sql += ` ORDER BY c.updated_at DESC, c.id DESC`;

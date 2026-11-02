@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { autenticar } = require('../middleware/auth');
-const { verificarAccesoModuloPortal } = require('../middleware/moduloPortal');
+const { verificarAccesoModuloCotizacionesApi } = require('../middleware/cotizacionesAcceso');
 const ctrl = require('../controllers/cotizacionController');
 const CotizacionAdjunto = require('../models/CotizacionAdjunto');
 
@@ -53,7 +53,7 @@ const uploadAdjuntoCotizacion = multer({
   limits: { fileSize: 15 * 1024 * 1024 }
 });
 
-router.use(autenticar, verificarAccesoModuloPortal('cotizaciones'));
+router.use(autenticar, verificarAccesoModuloCotizacionesApi);
 
 router.get('/plantilla', ctrl.plantilla);
 router.get('/tipos-proyecto', ctrl.listarTiposProyecto);

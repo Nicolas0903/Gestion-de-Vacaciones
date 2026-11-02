@@ -4,7 +4,8 @@ import { Toaster, toast } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import {
   evaluarAccesoModuloPortal,
-  buildAccesoPortalOpts
+  buildAccesoPortalOpts,
+  puedeAccederVistaCotizaciones
 } from './utils/accesoPortal';
 
 // Pages
@@ -108,6 +109,46 @@ function ModuloPortalRoute({ moduloId, children }) {
       cancelado = true;
     };
   }, [loading, moduloId, usuario?.id, refrescarUsuario]);
+
+  if (loading || verificando) {
+    return <LoadingSpinner />;
+  }
+  if (!permitido) {
+    return <Navigate to="/portal" replace />;
+  }
+  return children;
+}
+
+function ModuloCotizacionesRoute({ children }) {
+  const { loading, usuario, refrescarUsuario } = useAuth();
+  const [verificando, setVerificando] = useState(true);
+  const [permitido, setPermitido] = useState(false);
+
+  useEffect(() => {
+    if (loading) return undefined;
+
+    let cancelado = false;
+    const evaluar = (u) => puedeAccederVistaCotizaciones(u, buildAccesoPortalOpts(u));
+
+    (async () => {
+      setVerificando(true);
+      let u = usuario;
+      if (!evaluar(u)) {
+        u = (await refrescarUsuario()) || usuario;
+      }
+      if (cancelado) return;
+      const ok = evaluar(u);
+      setPermitido(ok);
+      setVerificando(false);
+      if (!ok) {
+        toast.error('No tienes acceso a cotizaciones.');
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [loading, usuario?.id, refrescarUsuario]);
 
   if (loading || verificando) {
     return <LoadingSpinner />;
@@ -322,9 +363,9 @@ function AppRoutes() {
 
       <Route path="/cotizaciones" element={
         <ProtectedRoute>
-          <ModuloPortalRoute moduloId="cotizaciones">
+          <ModuloCotizacionesRoute>
             <PageWrapper wide guiaModuloId="cotizaciones"><Cotizaciones /></PageWrapper>
-          </ModuloPortalRoute>
+          </ModuloCotizacionesRoute>
         </ProtectedRoute>
       } />
 

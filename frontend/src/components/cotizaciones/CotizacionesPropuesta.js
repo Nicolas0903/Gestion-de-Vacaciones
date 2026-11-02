@@ -49,7 +49,14 @@ const calcPropuestaLocal = (propuesta, igvPctDefault = 18) => {
 const pctDisplay = (v) => Math.round((Number(v) || 0) * 10000) / 100;
 const pctStore = (v) => Math.round(Number(v) * 100) / 10000;
 
-const CotizacionesPropuesta = ({ propuesta, costos, actividades, onChange }) => {
+const CotizacionesPropuesta = ({
+  propuesta,
+  costos,
+  actividades,
+  onChange,
+  soloLectura = false,
+  ocultarCierreComercial = false
+}) => {
   const moneda = normalizarMonedaRendicion(costos?.parametros?.moneda);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
   const igvPct = propuesta?.igv_pct ?? costos?.parametros?.igv_pct ?? 18;
@@ -66,23 +73,30 @@ const CotizacionesPropuesta = ({ propuesta, costos, actividades, onChange }) => 
     return total;
   }, [actividades]);
 
-  const setProp = (patch) => onChange({ ...propuesta, ...patch });
+  const setProp = (patch) => {
+    if (soloLectura) return;
+    onChange({ ...propuesta, ...patch });
+  };
 
   const updateList = (key, idx, patch) => {
+    if (soloLectura) return;
     const list = [...(propuesta[key] || [])];
     list[idx] = { ...list[idx], ...patch };
     setProp({ [key]: list });
   };
 
   const addRow = (key, defaults) => {
+    if (soloLectura) return;
     setProp({ [key]: [...(propuesta[key] || []), defaults] });
   };
 
   const removeRow = (key, idx) => {
+    if (soloLectura) return;
     setProp({ [key]: (propuesta[key] || []).filter((_, i) => i !== idx) });
   };
 
   const syncInversionDesdeCostos = () => {
+    if (soloLectura) return;
     const recursos = (costos?.recursos || []).filter((r) => !r.es_informativo);
     if (!recursos.length) return;
     const hm = Number(costos?.parametros?.horas_mes) || 160;
@@ -98,7 +112,7 @@ const CotizacionesPropuesta = ({ propuesta, costos, actividades, onChange }) => 
   };
 
   const syncDetalleHoras = () => {
-    if (!horasProyecto) return;
+    if (soloLectura || !horasProyecto) return;
     const det = [...(propuesta?.detalle || [])];
     if (det.length === 0) {
       det.push({ actividad: 'Construcción de la solución analítica', horas: horasProyecto, precio: 0 });
@@ -110,6 +124,12 @@ const CotizacionesPropuesta = ({ propuesta, costos, actividades, onChange }) => 
 
   return (
     <div className="space-y-8">
+      {soloLectura && (
+        <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          Vista comercial de solo lectura. Para cambiar montos o cierre, el equipo de elaboración guarda desde su
+          acceso.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">Propuesta económica</h3>
@@ -117,6 +137,7 @@ const CotizacionesPropuesta = ({ propuesta, costos, actividades, onChange }) => 
             Cuadros alineados al formato Excel · Moneda: {moneda === 'USD' ? 'Dólares ($)' : 'Soles (S/)'}
           </p>
         </div>
+        {!soloLectura && (
         <label className="text-sm flex items-center gap-2">
           IGV (%)
           <input
@@ -127,6 +148,10 @@ const CotizacionesPropuesta = ({ propuesta, costos, actividades, onChange }) => 
             className="w-20 rounded border px-2 py-1"
           />
         </label>
+        )}
+        {soloLectura && (
+          <span className="text-sm text-slate-600">IGV: {igvPct}%</span>
+        )}
       </div>
 
       {/* Cuadro 1: Inversión por roles */}
@@ -444,6 +469,7 @@ const CotizacionesPropuesta = ({ propuesta, costos, actividades, onChange }) => 
         </div>
       </section>
 
+      {!ocultarCierreComercial && (
       <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -495,6 +521,7 @@ const CotizacionesPropuesta = ({ propuesta, costos, actividades, onChange }) => 
           />
         </label>
       </section>
+      )}
 
       <div className="p-4 rounded-xl bg-teal-50 border border-teal-200">
         <div className="text-sm text-teal-800">Monto propuesta (al guardar)</div>
