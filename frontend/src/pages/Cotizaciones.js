@@ -20,6 +20,8 @@ import CotizacionesActividades from '../components/cotizaciones/CotizacionesActi
 import CotizacionesCostos from '../components/cotizaciones/CotizacionesCostos';
 import CotizacionesPropuesta from '../components/cotizaciones/CotizacionesPropuesta';
 import CotizacionesAdjuntos from '../components/cotizaciones/CotizacionesAdjuntos';
+import CotizacionAccesoResponsablesAdmin from '../components/cotizaciones/CotizacionAccesoResponsablesAdmin';
+import { useAuth } from '../context/AuthContext';
 import { ESTADOS_COTIZACION } from '../components/cotizaciones/CotizacionGeneralForm';
 import {
   actividadesConTipoProyecto,
@@ -56,6 +58,8 @@ const TABS = [
 ];
 
 const Cotizaciones = () => {
+  const { usuario } = useAuth();
+  const esAdmin = usuario?.rol_nombre === 'admin';
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selId, setSelId] = useState(null);
@@ -288,8 +292,8 @@ const Cotizaciones = () => {
               Solicitudes para elaborar (comercial → responsable)
             </h2>
             <p className="text-xs text-indigo-800/80 mt-1 mb-2">
-              Revisa la info y pulsa <strong>Crear cotización</strong> para tomar la solicitud. Admin ve todas;
-              el responsable asignado solo ve las suyas.
+              Revisa la info y pulsa <strong>Crear cotización</strong> para tomar la solicitud. Admin ve todas las
+              cotizaciones y puede reasignar acceso en Información general; el resto solo ve las asignadas a su nombre.
             </p>
             <ul className="mt-2 space-y-2">
               {solicitudesPendientes.map((s) => (
@@ -499,6 +503,7 @@ const Cotizaciones = () => {
 
                 <div className="p-4 md:p-6">
                   {tab === 'general' && borrador && (
+                    <>
                     <CotizacionGeneralForm
                       form={{
                         codigo: cot?.codigo || borrador.general?.codigo,
@@ -519,6 +524,7 @@ const Cotizaciones = () => {
                       tipos={tiposProyectoUi}
                       responsables={responsables}
                       codigoReadOnly
+                      responsablesReadOnly
                       onChange={(patch) =>
                         setBorrador((p) => {
                           const general = { ...p.general, ...patch };
@@ -536,6 +542,22 @@ const Cotizaciones = () => {
                         })
                       }
                     />
+                    {esAdmin && selId && (
+                      <div className="mt-4">
+                        <CotizacionAccesoResponsablesAdmin
+                          cotizacionId={selId}
+                          borrador={borrador}
+                          cot={cot}
+                          responsables={responsables}
+                          onActualizado={(data) => {
+                            setDetalle(data);
+                            setBorrador(data.borrador);
+                            cargarLista();
+                          }}
+                        />
+                      </div>
+                    )}
+                    </>
                   )}
 
                   {tab === 'actividades' && borrador && (

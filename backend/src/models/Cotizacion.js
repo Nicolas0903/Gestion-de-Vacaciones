@@ -86,6 +86,21 @@ class Cotizacion {
     );
   }
 
+  static async idsResponsablesValidos() {
+    const rows = await this.listarResponsables();
+    return new Set(rows.map((r) => Number(r.id)));
+  }
+
+  /** Acceso a elaborar/ver cotización (no admin): creador o responsable asignado. */
+  static usuarioTieneAcceso(cot, borrador, usuarioId) {
+    const uid = Number(usuarioId);
+    if (!Number.isFinite(uid)) return false;
+    if (Number(cot.creado_por) === uid) return true;
+    const gen = borrador?.general != null ? borrador.general : borrador;
+    const ids = this.responsableIdsFromGeneral(gen, cot.responsable_id);
+    return ids.includes(uid);
+  }
+
   static responsableIdsFromGeneral(general, fallbackId = null) {
     if (Array.isArray(general?.responsable_ids) && general.responsable_ids.length) {
       return general.responsable_ids.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0);
@@ -142,6 +157,19 @@ class Cotizacion {
     if (filtros.hasta) {
       sql += ` AND DATE(c.updated_at) <= ?`;
       params.push(String(filtros.hasta).slice(0, 10));
+    }
+
+    if (filtros.soloAccesoUsuarioId) {
+      const uid = Number(filtros.soloAccesoUsuarioId);
+      sql += ` AND (
+        c.creado_por = ?
+        OR c.responsable_id = ?
+        OR JSON_CONTAINS(
+          COALESCE(JSON_EXTRACT(c.borrador_json, '$.general.responsable_ids'), JSON_ARRAY()),
+          CAST(? AS JSON)
+        )
+      )`;
+      params.push(uid, uid, uid);
     }
 
     sql += ` ORDER BY c.updated_at DESC, c.id DESC`;
@@ -595,6 +623,36 @@ class Cotizacion {
       comentario || `Restaurada desde versión ${versionNum}`,
       usuarioId
     );
+  }
+
+  /**
+   * Admin: cambia quién puede elaborar esta cotización (borrador_json.general.responsable_ids).
+   * No modifica la solicitud comercial vinculada.
+   */
+  static async asignarResponsablesAcceso(id, responsableIdsInput) {
+    const cot = await this.buscarPorId(id);
+    if (!cot) throw new Error('Cotización no encontrada');
+    const validos = await this.idsResponsablesValidos();
+    let ids = (Array.isArray(responsableIdsInput) ? responsableIdsInput : [])
+      .map((x) => Number(x))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    ids = [...new Set(ids)].filter((rid) => validos.has(rid));
+    if (!ids.length) {
+      throw new Error('Debe asignar al menos un responsable válido del catálogo');
+    }
+
+    const prev = parseJson(cot.borrador_json, borradorVacio());
+    prev.general = normalizarGeneralTipoProyecto({
+      ...prev.general,
+      responsable_ids: ids,
+      responsable_id: ids[0]
+    });
+    const borrador = calcularCotizacion(prev);
+    await pool.query(
+      `UPDATE cotizaciones SET responsable_id = ?, borrador_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [ids[0], JSON.stringify(borrador), id]
+    );
+    return this.obtenerDetalle(id);
   }
 
   static async eliminar(id) {

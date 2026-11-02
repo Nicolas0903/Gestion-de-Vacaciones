@@ -35,7 +35,8 @@ const CotizacionGeneralForm = ({
   nuevoTipo = '',
   onNuevoTipoChange,
   onAgregarTipo,
-  codigoReadOnly = false
+  codigoReadOnly = false,
+  responsablesReadOnly = false
 }) => {
   const set = (k, v) => onChange({ [k]: v });
 
@@ -159,26 +160,47 @@ const CotizacionGeneralForm = ({
 
         <div className="block text-sm md:col-span-2">
           <span className="text-slate-600">Responsable(s) *</span>
-          <p className="text-xs text-slate-400 mt-0.5">Puedes seleccionar uno o más.</p>
-          <div className="mt-2 rounded-lg border border-slate-300 bg-white p-3 grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-            {responsables.map((r) => (
-              <label
-                key={r.id}
-                className="flex items-center gap-2 text-sm cursor-pointer rounded-md px-2 py-1.5 hover:bg-slate-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(r.id)}
-                  onChange={() => toggleResponsable(r.id)}
-                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                <span>
-                  {r.nombres} {r.apellidos}
-                </span>
-              </label>
-            ))}
-          </div>
-          {selectedIds.size === 0 && (
+          {responsablesReadOnly ? (
+            <p className="text-xs text-slate-500 mt-0.5">
+              Solo lectura aquí. Un administrador puede cambiar el acceso en el panel inferior.
+            </p>
+          ) : (
+            <p className="text-xs text-slate-400 mt-0.5">Puedes seleccionar uno o más.</p>
+          )}
+          {responsablesReadOnly ? (
+            <ul className="mt-2 rounded-lg border border-slate-200 bg-slate-100/80 p-3 text-sm space-y-1">
+              {responsables
+                .filter((r) => selectedIds.has(r.id))
+                .map((r) => (
+                  <li key={r.id}>
+                    {r.nombres} {r.apellidos}
+                  </li>
+                ))}
+              {selectedIds.size === 0 && (
+                <li className="text-amber-700 text-xs">Sin responsables asignados.</li>
+              )}
+            </ul>
+          ) : (
+            <div className="mt-2 rounded-lg border border-slate-300 bg-white p-3 grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {responsables.map((r) => (
+                <label
+                  key={r.id}
+                  className="flex items-center gap-2 text-sm cursor-pointer rounded-md px-2 py-1.5 hover:bg-slate-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(r.id)}
+                    onChange={() => toggleResponsable(r.id)}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>
+                    {r.nombres} {r.apellidos}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+          {!responsablesReadOnly && selectedIds.size === 0 && (
             <span className="text-xs text-amber-600 mt-1 block">Selecciona al menos un responsable.</span>
           )}
         </div>

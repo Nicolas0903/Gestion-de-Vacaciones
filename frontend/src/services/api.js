@@ -423,7 +423,8 @@ export const cotizacionesService = {
   descargarAdjuntoUrl: (id, adjuntoId) =>
     `${API_URL}/cotizaciones/${id}/adjuntos/${adjuntoId}/descargar`,
   eliminarAdjunto: (id, adjuntoId) => api.delete(`/cotizaciones/${id}/adjuntos/${adjuntoId}`),
-  solicitarAprobacion: (id, body) => api.post(`/cotizaciones/${id}/solicitar-aprobacion`, body || {})
+  solicitarAprobacion: (id, body) => api.post(`/cotizaciones/${id}/solicitar-aprobacion`, body || {}),
+  asignarAccesoResponsables: (id, body) => api.put(`/cotizaciones/${id}/acceso-responsables`, body)
 };
 
 export const comisionesPorPagarService = {

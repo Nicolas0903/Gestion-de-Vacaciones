@@ -4,6 +4,25 @@ const { borradorVacio, calcularCotizacion } = require('../services/cotizacionCal
 const { obtenerTipoCambioSunat } = require('../services/sunatTipoCambioService');
 const { notificarCotizacionEnvioAprobacion } = require('../services/emailService');
 
+function esAdmin(req) {
+  return req.usuario?.rol_nombre === 'admin';
+}
+
+async function verificarAccesoCotizacion(req, res, id) {
+  const cot = await Cotizacion.buscarPorId(id);
+  if (!cot) {
+    res.status(404).json({ success: false, mensaje: 'Cotización no encontrada' });
+    return null;
+  }
+  if (esAdmin(req)) return cot;
+  const borrador = Cotizacion.enriquecerBorrador(cot.borrador_json, cot);
+  if (!Cotizacion.usuarioTieneAcceso(cot, borrador, req.usuario.id)) {
+    res.status(403).json({ success: false, mensaje: 'Sin acceso a esta cotización' });
+    return null;
+  }
+  return cot;
+}
+
 exports.plantilla = (req, res) => {
   res.json({ success: true, data: calcularCotizacion(borradorVacio()) });
 };
@@ -59,7 +78,8 @@ exports.listar = async (req, res) => {
       ruc: req.query.ruc,
       estado: req.query.estado,
       desde: req.query.desde,
-      hasta: req.query.hasta
+      hasta: req.query.hasta,
+      soloAccesoUsuarioId: esAdmin(req) ? null : req.usuario.id
     });
     res.json({ success: true, data: lista });
   } catch (e) {
@@ -70,10 +90,9 @@ exports.listar = async (req, res) => {
 
 exports.obtener = async (req, res) => {
   try {
+    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    if (!cot) return;
     const detalle = await Cotizacion.obtenerDetalle(req.params.id);
-    if (!detalle) {
-      return res.status(404).json({ success: false, mensaje: 'Cotización no encontrada' });
-    }
     res.json({ success: true, data: detalle });
   } catch (e) {
     console.error('cotizaciones obtener:', e);
@@ -93,7 +112,15 @@ exports.crear = async (req, res) => {
 
 exports.guardarBorrador = async (req, res) => {
   try {
-    const detalle = await Cotizacion.actualizarBorrador(req.params.id, req.body, {
+    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    if (!cot) return;
+    const body = { ...(req.body || {}) };
+    if (!esAdmin(req) && body.general) {
+      body.general = { ...body.general };
+      delete body.general.responsable_ids;
+      delete body.general.responsable_id;
+    }
+    const detalle = await Cotizacion.actualizarBorrador(req.params.id, body, {
       usuarioId: req.usuario.id
     });
     res.json({ success: true, data: detalle });
@@ -103,8 +130,28 @@ exports.guardarBorrador = async (req, res) => {
   }
 };
 
+exports.asignarAccesoResponsables = async (req, res) => {
+  try {
+    if (!esAdmin(req)) {
+      return res.status(403).json({ success: false, mensaje: 'Solo administradores pueden reasignar acceso' });
+    }
+    const ids = req.body?.responsable_ids ?? req.body?.responsables_ids;
+    const detalle = await Cotizacion.asignarResponsablesAcceso(req.params.id, ids);
+    res.json({
+      success: true,
+      data: detalle,
+      mensaje: 'Acceso actualizado para esta cotización (la solicitud comercial no se modificó)'
+    });
+  } catch (e) {
+    console.error('cotizaciones asignarAccesoResponsables:', e);
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al asignar responsables' });
+  }
+};
+
 exports.publicarVersion = async (req, res) => {
   try {
+    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    if (!cot) return;
     const comentario = req.body?.comentario || '';
     const detalle = await Cotizacion.publicarVersion(req.params.id, comentario, req.usuario.id);
     res.json({ success: true, data: detalle, mensaje: 'Versión publicada' });
@@ -116,6 +163,8 @@ exports.publicarVersion = async (req, res) => {
 
 exports.verVersion = async (req, res) => {
   try {
+    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    if (!cot) return;
     const version = await Cotizacion.obtenerVersion(req.params.id, req.params.versionNum);
     if (!version) {
       return res.status(404).json({ success: false, mensaje: 'Versión no encontrada' });
@@ -130,6 +179,8 @@ exports.verVersion = async (req, res) => {
 
 exports.restaurarVersion = async (req, res) => {
   try {
+    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    if (!cot) return;
     const detalle = await Cotizacion.restaurarVersion(
       req.params.id,
       req.params.versionNum,
@@ -145,6 +196,8 @@ exports.restaurarVersion = async (req, res) => {
 
 exports.eliminar = async (req, res) => {
   try {
+    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    if (!cot) return;
     const ok = await Cotizacion.eliminar(req.params.id);
     if (!ok) {
       return res.status(404).json({ success: false, mensaje: 'Cotización no encontrada' });
@@ -159,10 +212,8 @@ exports.eliminar = async (req, res) => {
 exports.listarAdjuntos = async (req, res) => {
   try {
     const cotizacionId = parseInt(req.params.id, 10);
-    const cot = await Cotizacion.buscarPorId(cotizacionId);
-    if (!cot) {
-      return res.status(404).json({ success: false, mensaje: 'Cotización no encontrada' });
-    }
+    const cot = await verificarAccesoCotizacion(req, res, cotizacionId);
+    if (!cot) return;
     const rows = await CotizacionAdjunto.listarPorCotizacion(cotizacionId);
     res.json({ success: true, data: rows });
   } catch (e) {
@@ -174,10 +225,8 @@ exports.listarAdjuntos = async (req, res) => {
 exports.subirAdjunto = async (req, res) => {
   try {
     const cotizacionId = parseInt(req.params.id, 10);
-    const cot = await Cotizacion.buscarPorId(cotizacionId);
-    if (!cot) {
-      return res.status(404).json({ success: false, mensaje: 'Cotización no encontrada' });
-    }
+    const cot = await verificarAccesoCotizacion(req, res, cotizacionId);
+    if (!cot) return;
     if (!req.file) {
       return res.status(400).json({ success: false, mensaje: 'No se recibió archivo' });
     }
@@ -199,6 +248,8 @@ exports.subirAdjunto = async (req, res) => {
 exports.descargarAdjunto = async (req, res) => {
   try {
     const cotizacionId = parseInt(req.params.id, 10);
+    const cot = await verificarAccesoCotizacion(req, res, cotizacionId);
+    if (!cot) return;
     const adjuntoId = parseInt(req.params.adjuntoId, 10);
     const row = await CotizacionAdjunto.buscarPorId(adjuntoId, cotizacionId);
     if (!row) {
@@ -215,6 +266,8 @@ exports.descargarAdjunto = async (req, res) => {
 exports.eliminarAdjunto = async (req, res) => {
   try {
     const cotizacionId = parseInt(req.params.id, 10);
+    const cot = await verificarAccesoCotizacion(req, res, cotizacionId);
+    if (!cot) return;
     const adjuntoId = parseInt(req.params.adjuntoId, 10);
     const ok = await CotizacionAdjunto.eliminar(adjuntoId, cotizacionId);
     if (!ok) {
@@ -230,10 +283,8 @@ exports.eliminarAdjunto = async (req, res) => {
 exports.solicitarAprobacion = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const cot = await Cotizacion.buscarPorId(id);
-    if (!cot) {
-      return res.status(404).json({ success: false, mensaje: 'Cotización no encontrada' });
-    }
+    const cot = await verificarAccesoCotizacion(req, res, id);
+    if (!cot) return;
     const detalleAntes = await Cotizacion.obtenerDetalle(id);
     const borrador = detalleAntes.borrador;
     borrador.general = { ...borrador.general, estado: 'en_revision' };
