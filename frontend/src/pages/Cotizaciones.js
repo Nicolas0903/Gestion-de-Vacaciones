@@ -756,6 +756,9 @@ const Cotizaciones = () => {
 
                   {tab === 'propuesta' && borrador && (
                     <CotizacionesPropuesta
+                      codigoCotizacion={cot?.codigo}
+                      clienteCotizacion={cot?.cliente || borrador.general?.cliente}
+                      proyectoCotizacion={cot?.proyecto || borrador.general?.nombre_proyecto}
                       propuesta={borrador.propuesta}
                       costos={borrador.costos}
                       actividades={borrador.actividades}

@@ -1,5 +1,7 @@
-import React, { useMemo } from 'react';
-import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import React, { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import { ArrowDownTrayIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { exportarPropuestaEconomicaExcel } from '../../utils/exportPropuestaExcel';
 import { formatoMontoRendicion } from '../../utils/monedaRendicion';
 import { costosConRecursosDesdePerfiles } from '../../utils/cotizacionTiposProyecto';
 import {
@@ -161,6 +163,27 @@ const CotizacionesPropuesta = ({
     setProp({ inversion_roles: roles });
   };
 
+  const exportarExcel = () => {
+    setExportandoExcel(true);
+    try {
+      const ok = exportarPropuestaEconomicaExcel({
+        codigo: codigoCotizacion,
+        cliente: clienteCotizacion,
+        proyecto: proyectoCotizacion,
+        moneda,
+        igvPct,
+        calc,
+        limiteTotalFinal: limiteEfectivo
+      });
+      if (ok) toast.success('Excel de propuesta económica descargado.');
+      else toast.error('No hay datos para exportar.');
+    } catch {
+      toast.error('No se pudo generar el Excel.');
+    } finally {
+      setExportandoExcel(false);
+    }
+  };
+
   const syncDetalleHoras = () => {
     if (bloqueaMontos || !horasProyecto) return;
     const det = [...(propuesta?.detalle || [])];
@@ -208,6 +231,15 @@ const CotizacionesPropuesta = ({
             Cuadros alineados al formato Excel · Moneda: {moneda === 'USD' ? 'Dólares ($)' : 'Soles (S/)'}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={exportarExcel}
+          disabled={exportandoExcel}
+          className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-800 bg-white hover:bg-emerald-50 disabled:opacity-50"
+        >
+          <ArrowDownTrayIcon className="w-4 h-4" />
+          {exportandoExcel ? 'Exportando…' : 'Exportar Excel'}
+        </button>
         {!bloqueaMontos && !edicionComercialConLimite && (
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <label className="flex items-center gap-2">
