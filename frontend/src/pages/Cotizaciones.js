@@ -14,6 +14,10 @@ import {
 import { cotizacionSolicitudesService, cotizacionesService } from '../services/api';
 import { formatoMontoRendicion } from '../utils/monedaRendicion';
 import { monedaFacturacionPropuesta } from '../utils/cotizacionPropuestaInversion';
+import {
+  limiteTotalFinalPropuesta,
+  propuestaComercialExcedeLimite
+} from '../utils/cotizacionPropuestaLimite';
 import ModalPortal from '../components/ModalPortal';
 import NuevaCotizacionModal from '../components/cotizaciones/NuevaCotizacionModal';
 import CotizacionGeneralForm from '../components/cotizaciones/CotizacionGeneralForm';
@@ -72,7 +76,8 @@ const Cotizaciones = () => {
   const modoComercial = accesoModo === 'comercial';
   const modoComercialEquipo = accesoModo === 'comercial_equipo';
   const modoGestorCierre = accesoModo === 'gestor_cierre';
-  const modoVistaComercial = modoComercial || modoComercialEquipo || modoGestorCierre;
+  const modoEdicionPropuestaComercial = modoComercial || modoComercialEquipo;
+  const modoVistaComercial = modoEdicionPropuestaComercial || modoGestorCierre;
   const [puedeGestionarCierre, setPuedeGestionarCierre] = useState(false);
   const [cierreAccionesLoading, setCierreAccionesLoading] = useState(false);
   const tabsVisibles = modoVistaComercial ? TABS_COMERCIAL : TABS_ELABORADOR;
@@ -170,12 +175,38 @@ const Cotizaciones = () => {
   const advertenciaActividades =
     validacionActividades.iniciado && !validacionActividades.ok;
 
+  const excedeLimiteComercial = React.useMemo(() => {
+    if (!modoEdicionPropuestaComercial || !borrador?.propuesta) return false;
+    const igv = borrador.propuesta.igv_pct ?? borrador.costos?.parametros?.igv_pct ?? 18;
+    const roles = (borrador.propuesta.inversion_roles || []).map((item) => {
+      const inversion = Number(item.inversion) || 0;
+      const igvPct = Number(igv) / 100;
+      const igvM = Math.round(inversion * igvPct * 100) / 100;
+      return { inversion, total: Math.round((inversion + igvM) * 100) / 100 };
+    });
+    const totalInv = Math.round(roles.reduce((s, i) => s + i.total, 0) * 100) / 100;
+    const det = borrador.propuesta.detalle || [];
+    const detTot = det.reduce((s, d) => s + (Number(d.precio) || 0), 0);
+    const detIgv = Math.round(detTot * (Number(igv) / 100) * 100) / 100;
+    const detFinal = Math.round((detTot + detIgv) * 100) / 100;
+    return propuestaComercialExcedeLimite(borrador.propuesta, {
+      total_inversion: totalInv,
+      detalle_final: detFinal
+    });
+  }, [modoEdicionPropuestaComercial, borrador?.propuesta, borrador?.costos?.parametros?.igv_pct]);
+
   const guardar = async () => {
     if (!selId || !borrador) return;
+    if (modoEdicionPropuestaComercial && excedeLimiteComercial) {
+      toast.error('El total supera el monto tope autorizado por presales.');
+      return;
+    }
     setGuardando(true);
     try {
       const versionAntes = cot?.version_actual;
-      const payload = borradorConSyncPerfilesCostos(borrador);
+      const payload = modoEdicionPropuestaComercial
+        ? { propuesta: borrador.propuesta }
+        : borradorConSyncPerfilesCostos(borrador);
       const { data } = await cotizacionesService.guardarBorrador(selId, payload);
       setDetalle(data.data);
       setBorrador(data.data.borrador);
@@ -378,16 +409,16 @@ const Cotizaciones = () => {
           puedeIrCotizaciones={false}
         />
 
-        {modoComercial && !modoComercialEquipo && (
+        {modoEdicionPropuestaComercial && (
           <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-sm text-indigo-950">
-            <strong>Vista comercial.</strong> Puedes consultar la propuesta y subir adjuntos. El cierre comercial
-            (ganada / perdida) lo registra el equipo de elaboración.
-          </div>
-        )}
-        {modoComercialEquipo && (
-          <div className="mb-4 rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm text-violet-950">
-            <strong>Equipo comercial.</strong> Ves todas las cotizaciones, propuesta (montos en lectura) y adjuntos.
-            El cierre comercial lo registran Magali, Enrique o administración.
+            <strong>Edición comercial.</strong> Puedes ajustar cuadros de propuesta y adjuntos. El{' '}
+            <strong>total final no puede superar</strong>{' '}
+            {fmt(limiteTotalFinalPropuesta(borrador?.propuesta) || 0) || '—'} (tope fijado por presales al guardar).
+            {excedeLimiteComercial && (
+              <span className="block mt-1 text-red-700 font-medium">
+                El total actual supera ese límite; reduce montos antes de guardar.
+              </span>
+            )}
           </div>
         )}
         {modoGestorCierre && (
@@ -562,20 +593,22 @@ const Cotizaciones = () => {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {!modoVistaComercial && (
+                    {(!modoVistaComercial || modoEdicionPropuestaComercial) && (
                     <>
                     <button
                       type="button"
                       onClick={guardar}
-                      disabled={guardando}
+                      disabled={guardando || (modoEdicionPropuestaComercial && excedeLimiteComercial)}
                       title={
-                        advertenciaActividades
-                          ? mensajeValidacionActividades(validacionActividades)
-                          : 'Guarda borrador y versiona si hay cambios'
+                        modoEdicionPropuestaComercial
+                          ? 'Guarda solo la propuesta (dentro del monto tope)'
+                          : advertenciaActividades
+                            ? mensajeValidacionActividades(validacionActividades)
+                            : 'Guarda borrador y versiona si hay cambios'
                       }
                       className="px-3 py-1.5 text-sm border rounded-lg hover:bg-slate-50 disabled:opacity-50"
                     >
-                      Guardar
+                      {modoEdicionPropuestaComercial ? 'Guardar propuesta' : 'Guardar'}
                     </button>
                     {!modoVistaComercial && (
                     <>
@@ -726,9 +759,12 @@ const Cotizaciones = () => {
                       propuesta={borrador.propuesta}
                       costos={borrador.costos}
                       actividades={borrador.actividades}
-                      soloLectura={modoComercial}
-                      soloMontosLectura={modoComercialEquipo || modoGestorCierre}
-                      ocultarCierreComercial={modoComercial || modoComercialEquipo}
+                      soloLectura={false}
+                      soloMontosLectura={modoGestorCierre}
+                      edicionComercialConLimite={modoEdicionPropuestaComercial}
+                      montoLimiteFinal={limiteTotalFinalPropuesta(borrador?.propuesta)}
+                      ocultarCierreComercial={modoEdicionPropuestaComercial || modoGestorCierre}
+                      ocultarSyncCostos={modoEdicionPropuestaComercial}
                       puedeGestionarCierreComercial={puedeGestionarCierre}
                       cierreComercialEstado={borrador.propuesta?.cierre_comercial_estado || 'borrador'}
                       onGuardarCierreComercial={guardarCierreComercial}

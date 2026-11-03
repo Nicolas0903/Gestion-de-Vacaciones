@@ -6,6 +6,10 @@ import {
   inversionRolesDesdeCostos,
   monedaFacturacionPropuesta
 } from '../../utils/cotizacionPropuestaInversion';
+import {
+  limiteTotalFinalPropuesta,
+  propuestaComercialExcedeLimite
+} from '../../utils/cotizacionPropuestaLimite';
 
 const TH = 'bg-emerald-800 text-white font-semibold text-sm px-3 py-2 border border-emerald-900';
 const TD = 'border border-slate-300 px-2 py-1.5 text-sm';
@@ -61,6 +65,9 @@ const CotizacionesPropuesta = ({
   onChange,
   soloLectura = false,
   soloMontosLectura = false,
+  edicionComercialConLimite = false,
+  montoLimiteFinal = 0,
+  ocultarSyncCostos = false,
   ocultarCierreComercial = false,
   puedeGestionarCierreComercial = false,
   cierreComercialEstado = 'borrador',
@@ -71,12 +78,14 @@ const CotizacionesPropuesta = ({
 }) => {
   const cierreCerrado = cierreComercialEstado === 'cerrado';
   const cierreEditable = puedeGestionarCierreComercial && !cierreCerrado;
-  const bloqueaMontos = soloLectura || soloMontosLectura;
+  const bloqueaMontos = soloLectura || (soloMontosLectura && !edicionComercialConLimite);
   const moneda = monedaFacturacionPropuesta(propuesta, costos);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
   const igvPct = propuesta?.igv_pct ?? costos?.parametros?.igv_pct ?? 18;
 
   const calc = useMemo(() => calcPropuestaLocal(propuesta, igvPct), [propuesta, igvPct]);
+  const limiteEfectivo = montoLimiteFinal || limiteTotalFinalPropuesta(propuesta);
+  const excedeLimite = edicionComercialConLimite && propuestaComercialExcedeLimite(propuesta, calc.totales);
   const horasProyecto = useMemo(() => {
     if (actividades?.total_horas != null) return Number(actividades.total_horas);
     let total = 0;
@@ -171,7 +180,22 @@ const CotizacionesPropuesta = ({
           acceso.
         </p>
       )}
-      {soloMontosLectura && !soloLectura && (
+      {edicionComercialConLimite && (
+        <p
+          className={`text-sm rounded-lg px-3 py-2 border ${
+            excedeLimite
+              ? 'bg-red-50 border-red-200 text-red-900'
+              : 'bg-indigo-50 border-indigo-200 text-indigo-950'
+          }`}
+        >
+          Tope comercial (total final máximo): <strong>{fmt(limiteEfectivo || 0)}</strong>. Puedes repartir filas y
+          pagos; el IGV lo fija presales.
+          {excedeLimite && (
+            <span className="block mt-1 font-medium">Total actual {fmt(calc.totales.total_inversion)} — supera el tope.</span>
+          )}
+        </p>
+      )}
+      {soloMontosLectura && !soloLectura && !edicionComercialConLimite && (
         <p className="text-sm text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
           Los <strong>montos e IGV</strong> los define presales. El <strong>cierre comercial</strong> (ganada / perdida)
           lo registran Magali, Enrique o administración.
@@ -184,7 +208,7 @@ const CotizacionesPropuesta = ({
             Cuadros alineados al formato Excel · Moneda: {moneda === 'USD' ? 'Dólares ($)' : 'Soles (S/)'}
           </p>
         </div>
-        {!bloqueaMontos && (
+        {!bloqueaMontos && !edicionComercialConLimite && (
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <label className="flex items-center gap-2">
             Moneda facturación
@@ -209,7 +233,7 @@ const CotizacionesPropuesta = ({
           </label>
         </div>
         )}
-        {bloqueaMontos && (
+        {(bloqueaMontos || edicionComercialConLimite) && (
           <span className="text-sm text-slate-600">
             Moneda: {moneda === 'USD' ? 'USD ($)' : 'PEN (S/)'} · IGV: {igvPct}%
           </span>
@@ -222,6 +246,7 @@ const CotizacionesPropuesta = ({
           <h4 className="font-medium text-slate-700">Inversión por recursos / roles</h4>
           {!bloqueaMontos && (
           <div className="flex gap-2">
+            {!ocultarSyncCostos && (
             <button
               type="button"
               onClick={syncInversionDesdeCostos}
@@ -229,6 +254,7 @@ const CotizacionesPropuesta = ({
             >
               Sincronizar desde costos
             </button>
+            )}
             <button
               type="button"
               onClick={() => addRow('inversion_roles', { cantidad: 1, actividad: '', inversion: 0 })}

@@ -317,6 +317,7 @@ function calcularCostos(costosRaw) {
 
 const PROPIEDADES_PROPUESTA_META = [
   'moneda_facturacion',
+  'limite_total_final',
   'cierre_propuesta',
   'cierre_propuesta_at',
   'cierre_propuesta_nota',
@@ -543,6 +544,42 @@ function borradorVacio() {
   };
 }
 
+function limiteTotalFinalPropuesta(propuesta) {
+  let lim = num(propuesta?.limite_total_final);
+  if (lim <= 0) lim = num(propuesta?.totales?.total_inversion);
+  return lim;
+}
+
+function totalFinalPropuestaParaTope(propuesta) {
+  const tInv = num(propuesta?.totales?.total_inversion);
+  const tDet = num(propuesta?.totales?.detalle_final);
+  return Math.max(tInv, tDet);
+}
+
+function validarPropuestaComercialNoSuperaLimite(propuesta) {
+  const limite = limiteTotalFinalPropuesta(propuesta);
+  if (limite <= 0) {
+    throw new Error(
+      'Aún no hay monto tope: el equipo de elaboración debe guardar la propuesta antes de que comercial ajuste cuadros.'
+    );
+  }
+  const total = totalFinalPropuestaParaTope(propuesta);
+  if (total > limite + 0.02) {
+    throw new Error(
+      `El total final (${total}) supera el límite autorizado (${limite}). Reduce montos o reparte pagos dentro del tope.`
+    );
+  }
+  return true;
+}
+
+function aplicarLimiteDesdeElaboracion(propuesta) {
+  const total = num(propuesta?.totales?.total_inversion);
+  if (total > 0) {
+    return { ...propuesta, limite_total_final: total };
+  }
+  return propuesta;
+}
+
 module.exports = {
   calcularCotizacion,
   borradorVacio,
@@ -550,5 +587,9 @@ module.exports = {
   TIPOS_ESTRUCTURA,
   DEFAULT_HORAS_MES,
   DEFAULT_IGV,
-  DEFAULT_MARKUPS
+  DEFAULT_MARKUPS,
+  limiteTotalFinalPropuesta,
+  totalFinalPropuestaParaTope,
+  validarPropuestaComercialNoSuperaLimite,
+  aplicarLimiteDesdeElaboracion
 };

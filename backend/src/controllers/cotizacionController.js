@@ -192,9 +192,23 @@ exports.guardarBorrador = async (req, res) => {
     if (!cot) return;
 
     if (req.cotizacionModoAcceso === 'comercial_equipo' || req.cotizacionModoAcceso === 'comercial') {
-      return res.status(403).json({
-        success: false,
-        mensaje: 'Use adjuntos para documentos. El cierre comercial lo registran Magali, Enrique o administración.'
+      if (!req.body?.propuesta) {
+        return res.status(400).json({
+          success: false,
+          mensaje: 'Envía solo la sección propuesta para guardar ajustes comerciales.'
+        });
+      }
+      const detalle = await Cotizacion.actualizarPropuestaComercial(id, req.body.propuesta, {
+        usuarioId: req.usuario.id
+      });
+      return res.json({
+        success: true,
+        data: {
+          ...detalle,
+          acceso_modo: req.cotizacionModoAcceso,
+          puede_gestionar_cierre_comercial: false
+        },
+        mensaje: 'Propuesta comercial guardada (dentro del monto tope).'
       });
     }
 

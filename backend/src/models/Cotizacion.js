@@ -1,5 +1,10 @@
 const { pool } = require('../config/database');
-const { calcularCotizacion, borradorVacio } = require('../services/cotizacionCalculoService');
+const {
+  calcularCotizacion,
+  borradorVacio,
+  validarPropuestaComercialNoSuperaLimite,
+  aplicarLimiteDesdeElaboracion
+} = require('../services/cotizacionCalculoService');
 const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
 const {
   estructuraDesdeTipoProyecto,
@@ -606,7 +611,16 @@ class Cotizacion {
       tipo_estructura: estructuraDesdeTipoProyecto(tipoRefUpd)
     };
 
-    const borrador = calcularCotizacion(merged);
+    let borrador = calcularCotizacion(merged);
+    if (opts.soloPropuestaComercial) {
+      validarPropuestaComercialNoSuperaLimite(borrador.propuesta);
+      borrador.propuesta.limite_total_final = prev.propuesta?.limite_total_final ?? borrador.propuesta.limite_total_final;
+    } else {
+      borrador = {
+        ...borrador,
+        propuesta: aplicarLimiteDesdeElaboracion(borrador.propuesta)
+      };
+    }
     this.validarGeneral(borrador.general);
     const sync = this.syncFromBorrador(borrador);
 
@@ -634,6 +648,35 @@ class Cotizacion {
       await this.registrarVersionSiCambio(id, borrador, opts.usuarioId, comentarioVersion);
     }
     return this.obtenerDetalle(id);
+  }
+
+  static async actualizarPropuestaComercial(id, propuestaPatch, opts = {}) {
+    const prev = parseJson((await this.buscarPorId(id))?.borrador_json, borradorVacio());
+    const keep = prev.propuesta || {};
+    const incoming = { ...(propuestaPatch || {}) };
+    delete incoming.limite_total_final;
+    delete incoming.cierre_propuesta;
+    delete incoming.cierre_propuesta_at;
+    delete incoming.cierre_propuesta_nota;
+    delete incoming.cierre_comercial_estado;
+    delete incoming.cierre_comercial_cerrado_at;
+    delete incoming.cierre_comercial_cerrado_por;
+    if (keep.igv_pct != null) incoming.igv_pct = keep.igv_pct;
+    if (keep.moneda_facturacion != null) incoming.moneda_facturacion = keep.moneda_facturacion;
+
+    return this.actualizarBorrador(
+      id,
+      {
+        propuesta: {
+          ...keep,
+          ...incoming,
+          limite_total_final: keep.limite_total_final,
+          igv_pct: keep.igv_pct ?? incoming.igv_pct,
+          moneda_facturacion: keep.moneda_facturacion ?? incoming.moneda_facturacion
+        }
+      },
+      { ...opts, soloPropuestaComercial: true }
+    );
   }
 
   static async publicarVersion(id, comentario, usuarioId) {
