@@ -419,6 +419,9 @@ function calcularCotizacion(data) {
       : 'borrador',
     nombre_proyecto: String(generalNorm?.nombre_proyecto || generalNorm?.proyecto || '').trim(),
     cliente: String(generalNorm?.cliente || '').trim(),
+    ruc_cliente: String(generalNorm?.ruc_cliente || '')
+      .trim()
+      .replace(/[^\d-]/g, ''),
     tipo_proyecto_codigo: String(generalNorm?.tipo_proyecto_codigo || '').trim(),
     tipo_proyecto: String(generalNorm?.tipo_proyecto || '').trim(),
     responsable_ids: resp.responsable_ids,
