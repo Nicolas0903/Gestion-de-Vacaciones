@@ -76,8 +76,12 @@ const CotizacionesPropuesta = ({
   onGuardarCierreComercial,
   onCerrarCierreComercial,
   onReabrirCierreComercial,
-  accionesCierreCargando = false
+  accionesCierreCargando = false,
+  codigoCotizacion = '',
+  clienteCotizacion = '',
+  proyectoCotizacion = ''
 }) => {
+  const [exportandoExcel, setExportandoExcel] = useState(false);
   const cierreCerrado = cierreComercialEstado === 'cerrado';
   const cierreEditable = puedeGestionarCierreComercial && !cierreCerrado;
   const bloqueaMontos = soloLectura || (soloMontosLectura && !edicionComercialConLimite);
