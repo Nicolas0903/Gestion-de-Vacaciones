@@ -88,8 +88,8 @@ const CotizacionesPropuesta = ({
   const cierreCerrado = cierreComercialEstado === 'cerrado';
   const cierreEditable = puedeGestionarCierreComercial && !cierreCerrado;
   const bloqueaMontos = soloLectura || (soloMontosLectura && !edicionComercialConLimite);
-  const bloqueaParametrosPresales = edicionComercialConLimite || ocultarSyncCostos;
   const puedeEditarCuadros = !bloqueaMontos;
+  const puedeEditarParametros = puedeEditarCuadros || (!bloqueaMontos && !soloLectura);
   const moneda = monedaFacturacionPropuesta(propuesta, costos);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
   const igvPct = propuesta?.igv_pct ?? costos?.parametros?.igv_pct ?? 18;
@@ -113,8 +113,6 @@ const CotizacionesPropuesta = ({
     const keys = Object.keys(patch || {});
     if (edicionComercialConLimite) {
       const reservadoPresales = [
-        'igv_pct',
-        'moneda_facturacion',
         'limite_total_final',
         'cierre_propuesta',
         'cierre_propuesta_at',
@@ -235,8 +233,8 @@ const CotizacionesPropuesta = ({
               : 'bg-indigo-50 border-indigo-200 text-indigo-950'
           }`}
         >
-          Tope comercial (total final máximo): <strong>{fmt(limiteEfectivo || 0)}</strong>. Puedes repartir filas y
-          pagos; el IGV lo fija presales.
+          Tope comercial (total final máximo): <strong>{fmt(limiteEfectivo || 0)}</strong>. Puedes editar moneda,
+          IGV y todos los cuadros como en Excel; el total final no debe superar ese tope.
           {excedeLimite && (
             <span className="block mt-1 font-medium">Total actual {fmt(calc.totales.total_inversion)} — supera el tope.</span>
           )}
@@ -267,51 +265,36 @@ const CotizacionesPropuesta = ({
           </button>
         </div>
       </div>
-      <div className="flex flex-wrap items-stretch gap-3 text-sm mb-2">
-        {bloqueaParametrosPresales ? (
-          <div className="flex flex-wrap gap-4 rounded-lg border border-amber-200 bg-amber-50/90 px-4 py-2.5 text-amber-950">
-            <span>
-              <span className="text-amber-800">Moneda facturación:</span>{' '}
-              <strong>{moneda === 'USD' ? 'USD ($)' : 'PEN (S/)'}</strong>
-            </span>
-            <span>
-              <span className="text-amber-800">IGV:</span> <strong>{igvPct}%</strong>
-            </span>
-            <span className="text-xs text-amber-800 self-center">(solo presales — comercial edita los cuadros abajo)</span>
-          </div>
-        ) : (
-          !bloqueaMontos && (
-            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2">
-              <label className="flex items-center gap-2">
-                Moneda facturación
-                <select
-                  value={moneda}
-                  onChange={(e) => setProp({ moneda_facturacion: e.target.value })}
-                  className="rounded border border-slate-400 bg-white px-2 py-1"
-                >
-                  <option value="PEN">PEN (S/)</option>
-                  <option value="USD">USD ($)</option>
-                </select>
-              </label>
-              <label className="flex items-center gap-2">
-                IGV (%)
-                <input
-                  type="number"
-                  step="0.01"
-                  value={igvPct}
-                  onChange={(e) => setProp({ igv_pct: Number(e.target.value) })}
-                  className="w-20 rounded border border-slate-400 bg-white px-2 py-1"
-                />
-              </label>
-            </div>
-          )
-        )}
-        {bloqueaMontos && !bloqueaParametrosPresales && (
-          <span className="text-sm text-slate-600 self-center">
-            Moneda: {moneda === 'USD' ? 'USD ($)' : 'PEN (S/)'} · IGV: {igvPct}%
-          </span>
-        )}
-      </div>
+      {puedeEditarParametros && (
+        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm mb-2">
+          <label className="flex items-center gap-2">
+            Moneda facturación
+            <select
+              value={moneda}
+              onChange={(e) => setProp({ moneda_facturacion: e.target.value })}
+              className="rounded border border-slate-400 bg-white px-2 py-1.5 shadow-sm"
+            >
+              <option value="PEN">PEN (S/)</option>
+              <option value="USD">USD ($)</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
+            IGV (%)
+            <input
+              type="number"
+              step="0.01"
+              value={igvPct}
+              onChange={(e) => setProp({ igv_pct: Number(e.target.value) })}
+              className="w-24 rounded border border-slate-400 bg-white px-2 py-1.5 shadow-sm"
+            />
+          </label>
+        </div>
+      )}
+      {!puedeEditarParametros && !soloLectura && (
+        <p className="text-sm text-slate-600 mb-2">
+          Moneda: {moneda === 'USD' ? 'USD ($)' : 'PEN (S/)'} · IGV: {igvPct}%
+        </p>
+      )}
 
       {/* Cuadro 1: Inversión por roles */}
       <section>

@@ -428,7 +428,7 @@ const Cotizaciones = () => {
 
         {modoEdicionPropuestaComercial && (
           <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-sm text-indigo-950">
-            <strong>Edición comercial.</strong> Puedes ajustar cuadros de propuesta y adjuntos. El{' '}
+            <strong>Edición comercial.</strong> Puedes editar moneda, IGV, cuadros y adjuntos. El{' '}
             <strong>total final no puede superar</strong>{' '}
             {fmt(limiteTotalFinalPropuesta(borrador?.propuesta) || 0) || '—'} (tope fijado por presales al guardar).
             {excedeLimiteComercial && (

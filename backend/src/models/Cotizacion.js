@@ -661,8 +661,6 @@ class Cotizacion {
     delete incoming.cierre_comercial_estado;
     delete incoming.cierre_comercial_cerrado_at;
     delete incoming.cierre_comercial_cerrado_por;
-    if (keep.igv_pct != null) incoming.igv_pct = keep.igv_pct;
-    if (keep.moneda_facturacion != null) incoming.moneda_facturacion = keep.moneda_facturacion;
 
     return this.actualizarBorrador(
       id,
@@ -670,9 +668,7 @@ class Cotizacion {
         propuesta: {
           ...keep,
           ...incoming,
-          limite_total_final: keep.limite_total_final,
-          igv_pct: keep.igv_pct ?? incoming.igv_pct,
-          moneda_facturacion: keep.moneda_facturacion ?? incoming.moneda_facturacion
+          limite_total_final: keep.limite_total_final
         }
       },
       { ...opts, soloPropuestaComercial: true }
