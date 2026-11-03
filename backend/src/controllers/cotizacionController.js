@@ -44,12 +44,7 @@ async function accesoCotizacion(req, id) {
   }
 
   if (empleado && esEmailEquipoComercial(empleado.email)) {
-    const tieneSolicitud =
-      tieneAccesoEfectivoModulo(empleado, 'solicitud-cotizacion') ||
-      tieneAccesoEfectivoModulo(empleado, 'cotizaciones');
-    if (tieneSolicitud) {
-      return { ok: true, cot, modo: 'comercial_equipo' };
-    }
+    return { ok: true, cot, modo: 'comercial_equipo' };
   }
 
   const esSolicitante = await Cotizacion.usuarioEsSolicitanteComercial(id, uid);

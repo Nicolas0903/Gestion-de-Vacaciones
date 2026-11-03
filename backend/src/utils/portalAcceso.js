@@ -1,5 +1,6 @@
 const { MODULOS_PORTAL } = require('../constants/portalModulos');
 const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
+const { esEmailEquipoComercial } = require('../constants/cotizacionEquipoComercial');
 
 const EMAILS_MODULO_COTIZACIONES = COTIZACION_RESPONSABLES_EMAILS.map((x) =>
   String(x).trim().toLowerCase()
@@ -103,6 +104,9 @@ function tieneAccesoEfectivoModulo(empleado, moduloId) {
     return true;
   }
   if (moduloId === 'consumo-fabric' && EMAILS_MODULO_CONSUMO_FABRIC.includes(e)) {
+    return true;
+  }
+  if (moduloId === 'solicitud-cotizacion' && esEmailEquipoComercial(e)) {
     return true;
   }
   // Admin siempre puede acceder a Rendición de Presupuesto (es quien aprueba).

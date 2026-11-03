@@ -7,6 +7,7 @@ import NotificacionesDropdown from '../components/NotificacionesDropdown';
 import PortalResumenDashboard from '../components/PortalResumenDashboard';
 import GuiaModuloUso from '../components/GuiaModuloUso';
 import PortalFlujoCotizacionAyuda from '../components/PortalFlujoCotizacionAyuda';
+import { buildAccesoPortalOpts, puedeAccederVistaCotizaciones } from '../utils/accesoPortal';
 import CambiarPasswordModal from '../components/CambiarPasswordModal';
 import {
   CalendarDaysIcon,
@@ -212,6 +213,11 @@ const Portal = () => {
   const subAccesoRendicionCaja = puedeAccederModuloPortal('caja-rendicion');
   const subAccesoSolicitudCot = puedeAccederModuloPortal('solicitud-cotizacion');
   const subAccesoCotizaciones = puedeAccederModuloPortal('cotizaciones');
+  const accesoPortalOpts = useMemo(() => buildAccesoPortalOpts(usuario), [usuario]);
+  const puedeVerVistaCotizaciones = useMemo(
+    () => puedeAccederVistaCotizaciones(usuario, accesoPortalOpts),
+    [usuario, accesoPortalOpts]
+  );
 
   const modulos = [];
 
@@ -403,7 +409,9 @@ const Portal = () => {
         ...(subAccesoCotizaciones
           ? [{ to: '/cotizaciones', label: 'Me asignaron elaborar → Paso 2' }]
           : []),
-        { to: '/cotizaciones', label: 'Ver propuesta y adjuntos de mis pedidos' }
+        ...(puedeVerVistaCotizaciones
+          ? [{ to: '/cotizaciones', label: 'Ver propuesta y adjuntos (cotizaciones)' }]
+          : [])
       ]
     });
   }

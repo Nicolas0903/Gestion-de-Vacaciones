@@ -34,6 +34,20 @@ export const EMAILS_MODULO_COTIZACIONES = [
   'ricardo.martinez@prayaga.biz'
 ];
 
+/** Equipo comercial: ver propuesta/adjuntos de todas las cotizaciones (no elaborar costos). */
+export const EMAILS_EQUIPO_COMERCIAL_COTIZACION = [
+  'luis.hurtado@prayaga.biz',
+  'alessandro.morales@prayaga.biz',
+  'rc.comercial@prayaga.biz'
+];
+
+export function esEquipoComercialCotizacion(email) {
+  const e = String(email || '')
+    .trim()
+    .toLowerCase();
+  return EMAILS_EQUIPO_COMERCIAL_COTIZACION.includes(e);
+}
+
 const EMAILS_REPORTE_ASISTENCIA = [
   'rocio.picon@prayaga.biz',
   'enrique.prayaga@prayaga.biz',
@@ -98,6 +112,10 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
     return true;
   }
 
+  if (moduloId === 'solicitud-cotizacion' && esEquipoComercialCotizacion(em)) {
+    return true;
+  }
+
   if (moduloId === 'rendicion-presupuesto' && esAdmin()) return true;
   if (moduloId === 'proveedores' && esAdmin()) return true;
   if (moduloId === 'comisiones-por-pagar' && esAdmin()) return true;
@@ -152,6 +170,7 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
 
 /** Ver propuesta/adjuntos (comercial) o elaboración completa (equipo). */
 export function puedeAccederVistaCotizaciones(usuario, opts) {
+  if (esEquipoComercialCotizacion(usuario?.email)) return true;
   return (
     evaluarAccesoModuloPortal(usuario, 'cotizaciones', opts) ||
     evaluarAccesoModuloPortal(usuario, 'solicitud-cotizacion', opts)
