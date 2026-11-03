@@ -781,10 +781,10 @@ const Cotizaciones = () => {
                       actividades={borrador.actividades}
                       soloLectura={false}
                       soloMontosLectura={modoGestorCierre}
-                      edicionComercialConLimite={modoEdicionPropuestaComercial}
+                      edicionComercialConLimite={modoEdicionPropuestaComercial || esEquipoComercialSinPresales}
                       montoLimiteFinal={limiteTotalFinalPropuesta(borrador?.propuesta)}
                       ocultarCierreComercial={modoEdicionPropuestaComercial || modoGestorCierre}
-                      ocultarSyncCostos={modoEdicionPropuestaComercial}
+                      ocultarSyncCostos={modoEdicionPropuestaComercial || esEquipoComercialSinPresales}
                       puedeGestionarCierreComercial={puedeGestionarCierre}
                       cierreComercialEstado={borrador.propuesta?.cierre_comercial_estado || 'borrador'}
                       onGuardarCierreComercial={guardarCierreComercial}

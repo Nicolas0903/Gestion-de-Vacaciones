@@ -15,7 +15,10 @@ import {
 
 const TH = 'bg-emerald-800 text-white font-semibold text-sm px-3 py-2 border border-emerald-900';
 const TD = 'border border-slate-300 px-2 py-1.5 text-sm';
-const inp = 'w-full bg-transparent border-none outline-none focus:ring-1 focus:ring-teal-400 rounded px-1';
+/** Celdas editables tipo Excel (comercial y elaboración). */
+const inpExcel =
+  'w-full min-w-0 border border-slate-400 bg-white px-2 py-1.5 text-sm rounded-sm shadow-sm focus:border-teal-600 focus:ring-1 focus:ring-teal-500';
+const inp = inpExcel;
 
 const calcPropuestaLocal = (propuesta, igvPctDefault = 18) => {
   const igvPct = Number(propuesta?.igv_pct ?? igvPctDefault) / 100;
@@ -85,6 +88,8 @@ const CotizacionesPropuesta = ({
   const cierreCerrado = cierreComercialEstado === 'cerrado';
   const cierreEditable = puedeGestionarCierreComercial && !cierreCerrado;
   const bloqueaMontos = soloLectura || (soloMontosLectura && !edicionComercialConLimite);
+  const bloqueaParametrosPresales = edicionComercialConLimite || ocultarSyncCostos;
+  const puedeEditarCuadros = !bloqueaMontos;
   const moneda = monedaFacturacionPropuesta(propuesta, costos);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
   const igvPct = propuesta?.igv_pct ?? costos?.parametros?.igv_pct ?? 18;
@@ -105,8 +110,22 @@ const CotizacionesPropuesta = ({
 
   const setProp = (patch) => {
     if (soloLectura) return;
-    if (soloMontosLectura) {
-      const keys = Object.keys(patch || {});
+    const keys = Object.keys(patch || {});
+    if (edicionComercialConLimite) {
+      const reservadoPresales = [
+        'igv_pct',
+        'moneda_facturacion',
+        'limite_total_final',
+        'cierre_propuesta',
+        'cierre_propuesta_at',
+        'cierre_propuesta_nota',
+        'cierre_comercial_estado',
+        'cierre_comercial_cerrado_at',
+        'cierre_comercial_cerrado_por'
+      ];
+      if (keys.some((k) => reservadoPresales.includes(k))) return;
+    }
+    if (soloMontosLectura && !edicionComercialConLimite) {
       const soloComercial = keys.every((k) =>
         ['cierre_propuesta', 'cierre_propuesta_at', 'cierre_propuesta_nota'].includes(k)
       );
@@ -123,23 +142,24 @@ const CotizacionesPropuesta = ({
 
   const updateList = (key, idx, patch) => {
     if (soloLectura) return;
-    if (soloMontosLectura) {
+    if (soloMontosLectura && !edicionComercialConLimite) {
       const campos = Object.keys(patch || {});
       const soloTexto = campos.every((f) => ['actividad', 'descripcion', 'entregable'].includes(f));
       if (!soloTexto) return;
     }
+    if (!puedeEditarCuadros) return;
     const list = [...(propuesta[key] || [])];
     list[idx] = { ...list[idx], ...patch };
     setProp({ [key]: list });
   };
 
   const addRow = (key, defaults) => {
-    if (bloqueaMontos) return;
+    if (!puedeEditarCuadros) return;
     setProp({ [key]: [...(propuesta[key] || []), defaults] });
   };
 
   const removeRow = (key, idx) => {
-    if (bloqueaMontos) return;
+    if (!puedeEditarCuadros) return;
     setProp({ [key]: (propuesta[key] || []).filter((_, i) => i !== idx) });
   };
 
@@ -235,42 +255,59 @@ const CotizacionesPropuesta = ({
             Cuadros alineados al formato Excel · Moneda: {moneda === 'USD' ? 'Dólares ($)' : 'Soles (S/)'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={exportarExcel}
-          disabled={exportandoExcel}
-          className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-800 bg-white hover:bg-emerald-50 disabled:opacity-50"
-        >
-          <ArrowDownTrayIcon className="w-4 h-4" />
-          {exportandoExcel ? 'Exportando…' : 'Exportar Excel'}
-        </button>
-        {!bloqueaMontos && !edicionComercialConLimite && (
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <label className="flex items-center gap-2">
-            Moneda facturación
-            <select
-              value={moneda}
-              onChange={(e) => setProp({ moneda_facturacion: e.target.value })}
-              className="rounded border px-2 py-1"
-            >
-              <option value="PEN">PEN (S/)</option>
-              <option value="USD">USD ($)</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2">
-            IGV (%)
-            <input
-              type="number"
-              step="0.01"
-              value={igvPct}
-              onChange={(e) => setProp({ igv_pct: Number(e.target.value) })}
-              className="w-20 rounded border px-2 py-1"
-            />
-          </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={exportarExcel}
+            disabled={exportandoExcel}
+            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-800 bg-white hover:bg-emerald-50 disabled:opacity-50"
+          >
+            <ArrowDownTrayIcon className="w-4 h-4" />
+            {exportandoExcel ? 'Exportando…' : 'Exportar Excel'}
+          </button>
         </div>
+      </div>
+      <div className="flex flex-wrap items-stretch gap-3 text-sm mb-2">
+        {bloqueaParametrosPresales ? (
+          <div className="flex flex-wrap gap-4 rounded-lg border border-amber-200 bg-amber-50/90 px-4 py-2.5 text-amber-950">
+            <span>
+              <span className="text-amber-800">Moneda facturación:</span>{' '}
+              <strong>{moneda === 'USD' ? 'USD ($)' : 'PEN (S/)'}</strong>
+            </span>
+            <span>
+              <span className="text-amber-800">IGV:</span> <strong>{igvPct}%</strong>
+            </span>
+            <span className="text-xs text-amber-800 self-center">(solo presales — comercial edita los cuadros abajo)</span>
+          </div>
+        ) : (
+          !bloqueaMontos && (
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2">
+              <label className="flex items-center gap-2">
+                Moneda facturación
+                <select
+                  value={moneda}
+                  onChange={(e) => setProp({ moneda_facturacion: e.target.value })}
+                  className="rounded border border-slate-400 bg-white px-2 py-1"
+                >
+                  <option value="PEN">PEN (S/)</option>
+                  <option value="USD">USD ($)</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2">
+                IGV (%)
+                <input
+                  type="number"
+                  step="0.01"
+                  value={igvPct}
+                  onChange={(e) => setProp({ igv_pct: Number(e.target.value) })}
+                  className="w-20 rounded border border-slate-400 bg-white px-2 py-1"
+                />
+              </label>
+            </div>
+          )
         )}
-        {(bloqueaMontos || edicionComercialConLimite) && (
-          <span className="text-sm text-slate-600">
+        {bloqueaMontos && !bloqueaParametrosPresales && (
+          <span className="text-sm text-slate-600 self-center">
             Moneda: {moneda === 'USD' ? 'USD ($)' : 'PEN (S/)'} · IGV: {igvPct}%
           </span>
         )}
@@ -280,7 +317,7 @@ const CotizacionesPropuesta = ({
       <section>
         <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
           <h4 className="font-medium text-slate-700">Inversión por recursos / roles</h4>
-          {!bloqueaMontos && (
+          {puedeEditarCuadros && (
           <div className="flex gap-2">
             {!ocultarSyncCostos && (
             <button
@@ -370,13 +407,15 @@ const CotizacionesPropuesta = ({
       <section>
         <div className="flex justify-between items-center mb-2">
           <h4 className="font-medium text-slate-700">Pagos vs entregables</h4>
-          <button
-            type="button"
-            onClick={() => addRow('pagos_entregables', { descripcion: '', porcentaje: 0.25 })}
-            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
-          >
-            <PlusIcon className="w-3 h-3" /> Fila
-          </button>
+          {puedeEditarCuadros && (
+            <button
+              type="button"
+              onClick={() => addRow('pagos_entregables', { descripcion: '', porcentaje: 0.25 })}
+              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
+            >
+              <PlusIcon className="w-3 h-3" /> Fila
+            </button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[560px]">
@@ -430,21 +469,25 @@ const CotizacionesPropuesta = ({
         <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
           <h4 className="font-medium text-slate-700">Detalle de propuesta</h4>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={syncDetalleHoras}
-              className="text-xs px-2 py-1 rounded border border-teal-300 text-teal-700 hover:bg-teal-50"
-              title={`Horas totales del proyecto: ${horasProyecto}`}
-            >
-              Usar horas del proyecto ({horasProyecto.toFixed(1)} h)
-            </button>
-            <button
-              type="button"
-              onClick={() => addRow('detalle', { actividad: '', horas: 0, precio: 0 })}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
-            >
-              <PlusIcon className="w-3 h-3" /> Fila
-            </button>
+            {!ocultarSyncCostos && (
+              <button
+                type="button"
+                onClick={syncDetalleHoras}
+                className="text-xs px-2 py-1 rounded border border-teal-300 text-teal-700 hover:bg-teal-50"
+                title={`Horas totales del proyecto: ${horasProyecto}`}
+              >
+                Usar horas del proyecto ({horasProyecto.toFixed(1)} h)
+              </button>
+            )}
+            {puedeEditarCuadros && (
+              <button
+                type="button"
+                onClick={() => addRow('detalle', { actividad: '', horas: 0, precio: 0 })}
+                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
+              >
+                <PlusIcon className="w-3 h-3" /> Fila
+              </button>
+            )}
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -530,13 +573,15 @@ const CotizacionesPropuesta = ({
       <section>
         <div className="flex justify-between items-center mb-2">
           <h4 className="font-medium text-slate-700">Forma de pago</h4>
-          <button
-            type="button"
-            onClick={() => addRow('pagos_forma', { descripcion: '', porcentaje: 0.25 })}
-            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
-          >
-            <PlusIcon className="w-3 h-3" /> Fila
-          </button>
+          {puedeEditarCuadros && (
+            <button
+              type="button"
+              onClick={() => addRow('pagos_forma', { descripcion: '', porcentaje: 0.25 })}
+              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
+            >
+              <PlusIcon className="w-3 h-3" /> Fila
+            </button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[560px]">
