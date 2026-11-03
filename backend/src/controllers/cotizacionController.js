@@ -6,6 +6,14 @@ const { borradorVacio, calcularCotizacion } = require('../services/cotizacionCal
 const { obtenerTipoCambioSunat } = require('../services/sunatTipoCambioService');
 const { notificarCotizacionEnvioAprobacion } = require('../services/emailService');
 const { esEmailEquipoComercial } = require('../constants/cotizacionEquipoComercial');
+const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
+
+function esResponsablePresalesElaboracion(email) {
+  const e = String(email || '')
+    .trim()
+    .toLowerCase();
+  return COTIZACION_RESPONSABLES_EMAILS.some((x) => String(x).trim().toLowerCase() === e);
+}
 const {
   esAutorizadoCierreComercial,
   puedeGestionarCierreComercial
@@ -34,13 +42,21 @@ async function accesoCotizacion(req, id) {
     return { ok: true, cot, modo: 'elaborador' };
   }
 
-  const puedeElaborarModulo = empleado && tieneAccesoEfectivoModulo(empleado, 'cotizaciones');
-  if (puedeElaborarModulo && Cotizacion.usuarioTieneAcceso(cot, borrador, uid)) {
-    return { ok: true, cot, modo: 'elaborador' };
+  if (
+    empleado &&
+    esEmailEquipoComercial(empleado.email) &&
+    !esResponsablePresalesElaboracion(empleado.email)
+  ) {
+    return { ok: true, cot, modo: 'comercial_equipo' };
   }
 
   if (empleado && esAutorizadoCierreComercial(empleado.email)) {
     return { ok: true, cot, modo: 'gestor_cierre' };
+  }
+
+  const puedeElaborarModulo = empleado && tieneAccesoEfectivoModulo(empleado, 'cotizaciones');
+  if (puedeElaborarModulo && Cotizacion.usuarioTieneAcceso(cot, borrador, uid)) {
+    return { ok: true, cot, modo: 'elaborador' };
   }
 
   if (empleado && esEmailEquipoComercial(empleado.email)) {

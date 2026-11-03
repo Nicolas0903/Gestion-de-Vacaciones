@@ -14,6 +14,7 @@ import {
 import { cotizacionSolicitudesService, cotizacionesService } from '../services/api';
 import { formatoMontoRendicion } from '../utils/monedaRendicion';
 import { monedaFacturacionPropuesta } from '../utils/cotizacionPropuestaInversion';
+import { esEquipoComercialCotizacion, EMAILS_MODULO_COTIZACIONES } from '../utils/accesoPortal';
 import {
   limiteTotalFinalPropuesta,
   propuestaComercialExcedeLimite
@@ -76,7 +77,11 @@ const Cotizaciones = () => {
   const modoComercial = accesoModo === 'comercial';
   const modoComercialEquipo = accesoModo === 'comercial_equipo';
   const modoGestorCierre = accesoModo === 'gestor_cierre';
-  const modoEdicionPropuestaComercial = modoComercial || modoComercialEquipo;
+  const emUsuario = (usuario?.email || '').toLowerCase().trim();
+  const esEquipoComercialSinPresales =
+    esEquipoComercialCotizacion(emUsuario) && !EMAILS_MODULO_COTIZACIONES.includes(emUsuario) && !esAdmin;
+  const modoEdicionPropuestaComercial =
+    modoComercial || modoComercialEquipo || esEquipoComercialSinPresales;
   const modoVistaComercial = modoEdicionPropuestaComercial || modoGestorCierre;
   const [puedeGestionarCierre, setPuedeGestionarCierre] = useState(false);
   const [cierreAccionesLoading, setCierreAccionesLoading] = useState(false);
@@ -134,12 +139,24 @@ const Cotizaciones = () => {
       const modo = data.data.acceso_modo || 'elaborador';
       setAccesoModo(modo);
       setPuedeGestionarCierre(!!data.data.puede_gestionar_cierre_comercial);
-      setTab(modo === 'comercial' || modo === 'comercial_equipo' || modo === 'gestor_cierre' ? 'propuesta' : 'general');
+      const em = (usuario?.email || '').toLowerCase().trim();
+      const equipoComercialPropuesta =
+        esEquipoComercialCotizacion(em) &&
+        !EMAILS_MODULO_COTIZACIONES.includes(em) &&
+        usuario?.rol_nombre !== 'admin';
+      setTab(
+        modo === 'comercial' ||
+          modo === 'comercial_equipo' ||
+          modo === 'gestor_cierre' ||
+          equipoComercialPropuesta
+          ? 'propuesta'
+          : 'general'
+      );
     } catch {
       toast.error('No se pudo cargar la cotización');
       setSelId(null);
     }
-  }, []);
+  }, [usuario?.email, usuario?.rol_nombre]);
 
   useEffect(() => {
     cargarLista();
