@@ -315,7 +315,31 @@ function calcularCostos(costosRaw) {
   };
 }
 
-function calcularPropuesta(propuestaRaw, costosResumen) {
+const PROPIEDADES_PROPUESTA_META = [
+  'moneda_facturacion',
+  'cierre_propuesta',
+  'cierre_propuesta_at',
+  'cierre_propuesta_nota',
+  'cierre_comercial_estado',
+  'cierre_comercial_cerrado_at',
+  'cierre_comercial_cerrado_por'
+];
+
+function metaPropuestaDesdeRaw(propuestaRaw, costosParametros) {
+  const meta = {};
+  const monedaRaw =
+    propuestaRaw?.moneda_facturacion ?? propuestaRaw?.moneda ?? costosParametros?.moneda ?? 'PEN';
+  meta.moneda_facturacion = String(monedaRaw).toUpperCase() === 'USD' ? 'USD' : 'PEN';
+  const raw = propuestaRaw || {};
+  for (const k of PROPIEDADES_PROPUESTA_META) {
+    if (k === 'moneda_facturacion') continue;
+    if (Object.prototype.hasOwnProperty.call(raw, k)) meta[k] = raw[k];
+  }
+  return meta;
+}
+
+function calcularPropuesta(propuestaRaw, costosResumen, costosParametros) {
+  const meta = metaPropuestaDesdeRaw(propuestaRaw, costosParametros);
   const igvPct = num(propuestaRaw?.igv_pct ?? costosResumen?.igv_pct ?? DEFAULT_IGV) / 100;
 
   const inversion_roles = (
@@ -380,6 +404,7 @@ function calcularPropuesta(propuestaRaw, costosResumen) {
     total_inversion > 0 ? total_inversion : detalle_final > 0 ? detalle_final : costosResumen.costo_total_con_igv;
 
   return {
+    ...meta,
     igv_pct: igvPct * 100,
     inversion_roles,
     pagos_entregables,
@@ -432,7 +457,8 @@ function calcularCotizacion(data) {
   const actividades = calcularActividades(data?.actividades || {});
   const costosInput = syncCostosRecursosDesdePerfiles(actividades, data?.costos || {});
   const costos = calcularCostos(costosInput);
-  const propuesta = calcularPropuesta(data?.propuesta || {}, costos.resumen);
+  const propuesta = calcularPropuesta(data?.propuesta || {}, costos.resumen, costos.parametros);
+  costos.parametros = { ...costos.parametros, moneda: propuesta.moneda_facturacion };
 
   const calculados = {
     total_horas: actividades.total_horas,
@@ -488,6 +514,7 @@ function borradorVacio() {
     },
     propuesta: {
       igv_pct: DEFAULT_IGV,
+      moneda_facturacion: 'PEN',
       cierre_propuesta: null,
       cierre_propuesta_at: null,
       cierre_propuesta_nota: '',

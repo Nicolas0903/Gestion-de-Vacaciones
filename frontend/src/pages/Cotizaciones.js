@@ -12,7 +12,8 @@ import {
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import { cotizacionSolicitudesService, cotizacionesService } from '../services/api';
-import { formatoMontoRendicion, normalizarMonedaRendicion } from '../utils/monedaRendicion';
+import { formatoMontoRendicion } from '../utils/monedaRendicion';
+import { monedaFacturacionPropuesta } from '../utils/cotizacionPropuestaInversion';
 import ModalPortal from '../components/ModalPortal';
 import NuevaCotizacionModal from '../components/cotizaciones/NuevaCotizacionModal';
 import CotizacionGeneralForm from '../components/cotizaciones/CotizacionGeneralForm';
@@ -159,7 +160,7 @@ const Cotizaciones = () => {
 
   const cot = detalle?.cotizacion;
   const versiones = detalle?.versiones || [];
-  const moneda = normalizarMonedaRendicion(borrador?.costos?.parametros?.moneda);
+  const moneda = monedaFacturacionPropuesta(borrador?.propuesta, borrador?.costos);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
 
   const validacionActividades = React.useMemo(

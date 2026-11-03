@@ -1,6 +1,11 @@
 import React, { useMemo } from 'react';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { formatoMontoRendicion, normalizarMonedaRendicion } from '../../utils/monedaRendicion';
+import { formatoMontoRendicion } from '../../utils/monedaRendicion';
+import { costosConRecursosDesdePerfiles } from '../../utils/cotizacionTiposProyecto';
+import {
+  inversionRolesDesdeCostos,
+  monedaFacturacionPropuesta
+} from '../../utils/cotizacionPropuestaInversion';
 
 const TH = 'bg-emerald-800 text-white font-semibold text-sm px-3 py-2 border border-emerald-900';
 const TD = 'border border-slate-300 px-2 py-1.5 text-sm';
@@ -67,7 +72,7 @@ const CotizacionesPropuesta = ({
   const cierreCerrado = cierreComercialEstado === 'cerrado';
   const cierreEditable = puedeGestionarCierreComercial && !cierreCerrado;
   const bloqueaMontos = soloLectura || soloMontosLectura;
-  const moneda = normalizarMonedaRendicion(costos?.parametros?.moneda);
+  const moneda = monedaFacturacionPropuesta(propuesta, costos);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
   const igvPct = propuesta?.igv_pct ?? costos?.parametros?.igv_pct ?? 18;
 
@@ -125,17 +130,25 @@ const CotizacionesPropuesta = ({
 
   const syncInversionDesdeCostos = () => {
     if (bloqueaMontos) return;
-    const recursos = (costos?.recursos || []).filter((r) => !r.es_informativo);
-    if (!recursos.length) return;
-    const hm = Number(costos?.parametros?.horas_mes) || 160;
-    const roles = recursos.map((r) => {
-      const horas = Number(r.horas_asignadas ?? r.horas) || 0;
-      const salario = Number(r.salario) || 0;
-      const cantidad = Number(r.cantidad) || 1;
-      const sobrecosto = Number(r.sobrecosto) || 1;
-      const inversion = Math.round((salario / hm) * horas * cantidad * sobrecosto * 100) / 100;
-      return { cantidad, actividad: r.rol || 'Recurso', inversion };
-    });
+    const costosSync = costosConRecursosDesdePerfiles(actividades, costos);
+    const roles = inversionRolesDesdeCostos(costosSync);
+    if (!roles.length) {
+      window.alert(
+        'No hay recursos en Costos para sincronizar. Revisa salarios, horas y la proyección activa en la pestaña Costos.'
+      );
+      return;
+    }
+    const filasConDatos = (propuesta?.inversion_roles || []).some(
+      (r) => String(r.actividad || '').trim() || Number(r.inversion) > 0
+    );
+    if (
+      filasConDatos &&
+      !window.confirm(
+        'Se reemplazarán las filas de inversión con la proyección actual de Costos. ¿Continuar?'
+      )
+    ) {
+      return;
+    }
     setProp({ inversion_roles: roles });
   };
 
@@ -172,19 +185,34 @@ const CotizacionesPropuesta = ({
           </p>
         </div>
         {!bloqueaMontos && (
-        <label className="text-sm flex items-center gap-2">
-          IGV (%)
-          <input
-            type="number"
-            step="0.01"
-            value={igvPct}
-            onChange={(e) => setProp({ igv_pct: Number(e.target.value) })}
-            className="w-20 rounded border px-2 py-1"
-          />
-        </label>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-2">
+            Moneda facturación
+            <select
+              value={moneda}
+              onChange={(e) => setProp({ moneda_facturacion: e.target.value })}
+              className="rounded border px-2 py-1"
+            >
+              <option value="PEN">PEN (S/)</option>
+              <option value="USD">USD ($)</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
+            IGV (%)
+            <input
+              type="number"
+              step="0.01"
+              value={igvPct}
+              onChange={(e) => setProp({ igv_pct: Number(e.target.value) })}
+              className="w-20 rounded border px-2 py-1"
+            />
+          </label>
+        </div>
         )}
         {bloqueaMontos && (
-          <span className="text-sm text-slate-600">IGV: {igvPct}%</span>
+          <span className="text-sm text-slate-600">
+            Moneda: {moneda === 'USD' ? 'USD ($)' : 'PEN (S/)'} · IGV: {igvPct}%
+          </span>
         )}
       </div>
 

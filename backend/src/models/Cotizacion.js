@@ -424,7 +424,10 @@ class Cotizacion {
       tipo_proyecto: borrador.general.tipo_proyecto,
       tipo_proyecto_codigo: borrador.general.tipo_proyecto_codigo || null,
       notas_internas: borrador.general.notas_internas || null,
-      moneda: borrador.costos?.parametros?.moneda || 'PEN',
+      moneda:
+        borrador.propuesta?.moneda_facturacion ||
+        borrador.costos?.parametros?.moneda ||
+        'PEN',
       responsable_id: borrador.general.responsable_id,
       estado: borrador.general.estado || 'borrador'
     };
