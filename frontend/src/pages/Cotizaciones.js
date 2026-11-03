@@ -69,7 +69,9 @@ const Cotizaciones = () => {
   const esAdmin = usuario?.rol_nombre === 'admin';
   const [accesoModo, setAccesoModo] = useState('elaborador');
   const modoComercial = accesoModo === 'comercial';
-  const tabsVisibles = modoComercial ? TABS_COMERCIAL : TABS_ELABORADOR;
+  const modoComercialEquipo = accesoModo === 'comercial_equipo';
+  const modoVistaComercial = modoComercial || modoComercialEquipo;
+  const tabsVisibles = modoVistaComercial ? TABS_COMERCIAL : TABS_ELABORADOR;
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selId, setSelId] = useState(null);
@@ -122,7 +124,7 @@ const Cotizaciones = () => {
       setBorrador(data.data.borrador);
       const modo = data.data.acceso_modo || 'elaborador';
       setAccesoModo(modo);
-      setTab(modo === 'comercial' ? 'propuesta' : 'general');
+      setTab(modo === 'comercial' || modo === 'comercial_equipo' ? 'propuesta' : 'general');
     } catch {
       toast.error('No se pudo cargar la cotización');
       setSelId(null);
@@ -168,12 +170,17 @@ const Cotizaciones = () => {
     setGuardando(true);
     try {
       const versionAntes = cot?.version_actual;
-      const payload = borradorConSyncPerfilesCostos(borrador);
+      const payload = modoComercialEquipo
+        ? { propuesta: borrador.propuesta }
+        : borradorConSyncPerfilesCostos(borrador);
       const { data } = await cotizacionesService.guardarBorrador(selId, payload);
       setDetalle(data.data);
       setBorrador(data.data.borrador);
+      if (data.data.acceso_modo) setAccesoModo(data.data.acceso_modo);
       const versionDespues = data.data.cotizacion?.version_actual;
-      if (versionDespues != null && versionDespues !== versionAntes) {
+      if (modoComercialEquipo) {
+        toast.success(data.mensaje || 'Datos comerciales guardados');
+      } else if (versionDespues != null && versionDespues !== versionAntes) {
         toast.success(`Guardado. Versión ${versionDespues} registrada (editado por ti).`);
       } else {
         toast.success('Cambios guardados (sin cambios respecto a la versión actual).');
@@ -309,14 +316,20 @@ const Cotizaciones = () => {
           puedeIrCotizaciones={false}
         />
 
-        {modoComercial && (
+        {modoComercial && !modoComercialEquipo && (
           <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-sm text-indigo-950">
             <strong>Vista comercial.</strong> Puedes consultar la propuesta y subir adjuntos. El cierre comercial
             (ganada / perdida) lo registra el equipo de elaboración.
           </div>
         )}
+        {modoComercialEquipo && (
+          <div className="mb-4 rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm text-violet-950">
+            <strong>Equipo comercial.</strong> Ves todas las cotizaciones. Puedes cerrar la oportunidad (standby /
+            ganada / perdida), notas y adjuntos. Los importes de la propuesta los mantiene presales.
+          </div>
+        )}
 
-        {solicitudesPendientes.length > 0 && !modoComercial && (
+        {solicitudesPendientes.length > 0 && !modoVistaComercial && (
           <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/80 p-4">
             <h2 className="font-semibold text-indigo-900 text-sm">
               Solicitudes para elaborar (comercial → responsable)
@@ -481,7 +494,7 @@ const Cotizaciones = () => {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {!modoComercial && (
+                    {(!modoVistaComercial || modoComercialEquipo) && (
                     <>
                     <button
                       type="button"
@@ -496,6 +509,8 @@ const Cotizaciones = () => {
                     >
                       Guardar
                     </button>
+                    {!modoVistaComercial && (
+                    <>
                     <button
                       type="button"
                       onClick={() => setModalPublicar(true)}
@@ -517,6 +532,8 @@ const Cotizaciones = () => {
                     >
                       <TrashIcon className="w-4 h-4" /> Eliminar
                     </button>
+                    </>
+                    )}
                     </>
                     )}
                   </div>
@@ -624,7 +641,7 @@ const Cotizaciones = () => {
                     <CotizacionesAdjuntos
                       cotizacionId={selId}
                       codigo={cot?.codigo}
-                      permitirEnviarAprobacion={!modoComercial}
+                      permitirEnviarAprobacion={!modoVistaComercial}
                       onSolicitudEnviada={(data) => {
                         if (data) {
                           setDetalle(data);
@@ -640,8 +657,9 @@ const Cotizaciones = () => {
                       propuesta={borrador.propuesta}
                       costos={borrador.costos}
                       actividades={borrador.actividades}
-                      soloLectura={modoComercial}
-                      ocultarCierreComercial={modoComercial}
+                      soloLectura={modoComercial && !modoComercialEquipo}
+                      soloMontosLectura={modoComercialEquipo}
+                      ocultarCierreComercial={modoComercial && !modoComercialEquipo}
                       onChange={(propuesta) => setBorrador((p) => ({ ...p, propuesta }))}
                     />
                   )}

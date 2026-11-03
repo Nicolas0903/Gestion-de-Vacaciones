@@ -55,8 +55,10 @@ const CotizacionesPropuesta = ({
   actividades,
   onChange,
   soloLectura = false,
+  soloMontosLectura = false,
   ocultarCierreComercial = false
 }) => {
+  const bloqueaMontos = soloLectura || soloMontosLectura;
   const moneda = normalizarMonedaRendicion(costos?.parametros?.moneda);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
   const igvPct = propuesta?.igv_pct ?? costos?.parametros?.igv_pct ?? 18;
@@ -75,28 +77,40 @@ const CotizacionesPropuesta = ({
 
   const setProp = (patch) => {
     if (soloLectura) return;
+    if (soloMontosLectura) {
+      const keys = Object.keys(patch || {});
+      const soloComercial = keys.every((k) =>
+        ['cierre_propuesta', 'cierre_propuesta_at', 'cierre_propuesta_nota'].includes(k)
+      );
+      if (!soloComercial) return;
+    }
     onChange({ ...propuesta, ...patch });
   };
 
   const updateList = (key, idx, patch) => {
     if (soloLectura) return;
+    if (soloMontosLectura) {
+      const campos = Object.keys(patch || {});
+      const soloTexto = campos.every((f) => ['actividad', 'descripcion', 'entregable'].includes(f));
+      if (!soloTexto) return;
+    }
     const list = [...(propuesta[key] || [])];
     list[idx] = { ...list[idx], ...patch };
     setProp({ [key]: list });
   };
 
   const addRow = (key, defaults) => {
-    if (soloLectura) return;
+    if (bloqueaMontos) return;
     setProp({ [key]: [...(propuesta[key] || []), defaults] });
   };
 
   const removeRow = (key, idx) => {
-    if (soloLectura) return;
+    if (bloqueaMontos) return;
     setProp({ [key]: (propuesta[key] || []).filter((_, i) => i !== idx) });
   };
 
   const syncInversionDesdeCostos = () => {
-    if (soloLectura) return;
+    if (bloqueaMontos) return;
     const recursos = (costos?.recursos || []).filter((r) => !r.es_informativo);
     if (!recursos.length) return;
     const hm = Number(costos?.parametros?.horas_mes) || 160;
@@ -112,7 +126,7 @@ const CotizacionesPropuesta = ({
   };
 
   const syncDetalleHoras = () => {
-    if (soloLectura || !horasProyecto) return;
+    if (bloqueaMontos || !horasProyecto) return;
     const det = [...(propuesta?.detalle || [])];
     if (det.length === 0) {
       det.push({ actividad: 'Construcción de la solución analítica', horas: horasProyecto, precio: 0 });
@@ -130,6 +144,12 @@ const CotizacionesPropuesta = ({
           acceso.
         </p>
       )}
+      {soloMontosLectura && !soloLectura && (
+        <p className="text-sm text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+          Equipo comercial: puedes registrar el <strong>cierre</strong> (standby / ganada / perdida), notas y textos
+          descriptivos. Los <strong>montos e IGV</strong> los define presales; no se guardan cambios numéricos.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">Propuesta económica</h3>
@@ -137,7 +157,7 @@ const CotizacionesPropuesta = ({
             Cuadros alineados al formato Excel · Moneda: {moneda === 'USD' ? 'Dólares ($)' : 'Soles (S/)'}
           </p>
         </div>
-        {!soloLectura && (
+        {!bloqueaMontos && (
         <label className="text-sm flex items-center gap-2">
           IGV (%)
           <input
@@ -149,7 +169,7 @@ const CotizacionesPropuesta = ({
           />
         </label>
         )}
-        {soloLectura && (
+        {bloqueaMontos && (
           <span className="text-sm text-slate-600">IGV: {igvPct}%</span>
         )}
       </div>
@@ -158,6 +178,7 @@ const CotizacionesPropuesta = ({
       <section>
         <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
           <h4 className="font-medium text-slate-700">Inversión por recursos / roles</h4>
+          {!bloqueaMontos && (
           <div className="flex gap-2">
             <button
               type="button"
@@ -174,6 +195,7 @@ const CotizacionesPropuesta = ({
               <PlusIcon className="w-3 h-3" /> Fila
             </button>
           </div>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[640px]">

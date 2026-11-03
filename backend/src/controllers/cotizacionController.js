@@ -5,6 +5,39 @@ const { tieneAccesoEfectivoModulo } = require('../utils/portalAcceso');
 const { borradorVacio, calcularCotizacion } = require('../services/cotizacionCalculoService');
 const { obtenerTipoCambioSunat } = require('../services/sunatTipoCambioService');
 const { notificarCotizacionEnvioAprobacion } = require('../services/emailService');
+const { esEmailEquipoComercial } = require('../constants/cotizacionEquipoComercial');
+
+/** Comercial de equipo: solo cierre/notas y textos; montos siempre del servidor. */
+function mergePropuestaEquipoComercial(servidor, cliente) {
+  const s = servidor && typeof servidor === 'object' ? servidor : {};
+  const c = cliente && typeof cliente === 'object' ? cliente : {};
+  const out = JSON.parse(JSON.stringify(s));
+
+  out.cierre_propuesta = c.cierre_propuesta !== undefined ? c.cierre_propuesta : s.cierre_propuesta;
+  out.cierre_propuesta_at =
+    c.cierre_propuesta_at !== undefined ? c.cierre_propuesta_at : s.cierre_propuesta_at;
+  out.cierre_propuesta_nota =
+    c.cierre_propuesta_nota !== undefined ? c.cierre_propuesta_nota : s.cierre_propuesta_nota;
+
+  const mergeTextoEnFilas = (key, camposTexto) => {
+    const sl = Array.isArray(s[key]) ? s[key] : [];
+    const cl = Array.isArray(c[key]) ? c[key] : [];
+    out[key] = sl.map((row, i) => {
+      const patch = cl[i] || {};
+      const next = { ...row };
+      for (const f of camposTexto) {
+        if (typeof patch[f] === 'string') next[f] = patch[f];
+      }
+      return next;
+    });
+  };
+  mergeTextoEnFilas('inversion_roles', ['actividad']);
+  mergeTextoEnFilas('pagos_entregables', ['descripcion', 'entregable']);
+  mergeTextoEnFilas('pagos_forma', ['descripcion']);
+  mergeTextoEnFilas('detalle', ['actividad']);
+
+  return out;
+}
 
 function esAdmin(req) {
   return req.usuario?.rol_nombre === 'admin';
@@ -32,6 +65,15 @@ async function accesoCotizacion(req, id) {
   const puedeElaborarModulo = empleado && tieneAccesoEfectivoModulo(empleado, 'cotizaciones');
   if (puedeElaborarModulo && Cotizacion.usuarioTieneAcceso(cot, borrador, uid)) {
     return { ok: true, cot, modo: 'elaborador' };
+  }
+
+  if (empleado && esEmailEquipoComercial(empleado.email)) {
+    const tieneSolicitud =
+      tieneAccesoEfectivoModulo(empleado, 'solicitud-cotizacion') ||
+      tieneAccesoEfectivoModulo(empleado, 'cotizaciones');
+    if (tieneSolicitud) {
+      return { ok: true, cot, modo: 'comercial_equipo' };
+    }
   }
 
   const esSolicitante = await Cotizacion.usuarioEsSolicitanteComercial(id, uid);
@@ -118,13 +160,16 @@ exports.listarResponsables = async (req, res) => {
 
 exports.listar = async (req, res) => {
   try {
+    const empleado = await empleadoReq(req);
+    const veTodas =
+      esAdmin(req) || (empleado && esEmailEquipoComercial(empleado.email));
     const lista = await Cotizacion.listar({
       q: req.query.q,
       ruc: req.query.ruc,
       estado: req.query.estado,
       desde: req.query.desde,
       hasta: req.query.hasta,
-      soloAccesoUsuarioId: esAdmin(req) ? null : req.usuario.id
+      soloAccesoUsuarioId: veTodas ? null : req.usuario.id
     });
     res.json({ success: true, data: lista });
   } catch (e) {
@@ -164,15 +209,42 @@ exports.crear = async (req, res) => {
 
 exports.guardarBorrador = async (req, res) => {
   try {
-    const cot = await verificarElaboracionCotizacion(req, res, req.params.id);
+    const id = req.params.id;
+    const cot = await verificarAccesoCotizacion(req, res, id);
     if (!cot) return;
+
+    if (req.cotizacionModoAcceso === 'comercial_equipo') {
+      const detallePrev = await Cotizacion.obtenerDetalle(id);
+      const propuesta = mergePropuestaEquipoComercial(
+        detallePrev.borrador?.propuesta,
+        req.body?.propuesta || req.body?.borrador?.propuesta
+      );
+      const detalle = await Cotizacion.actualizarBorrador(
+        id,
+        { ...detallePrev.borrador, propuesta },
+        { usuarioId: null }
+      );
+      return res.json({
+        success: true,
+        data: { ...detalle, acceso_modo: 'comercial_equipo' },
+        mensaje: 'Datos comerciales guardados (montos de propuesta no modificados)'
+      });
+    }
+
+    if (req.cotizacionModoAcceso !== 'elaborador') {
+      return res.status(403).json({
+        success: false,
+        mensaje: 'Solo el equipo de elaboración puede modificar esta cotización'
+      });
+    }
+
     const body = { ...(req.body || {}) };
     if (!esAdmin(req) && body.general) {
       body.general = { ...body.general };
       delete body.general.responsable_ids;
       delete body.general.responsable_id;
     }
-    const detalle = await Cotizacion.actualizarBorrador(req.params.id, body, {
+    const detalle = await Cotizacion.actualizarBorrador(id, body, {
       usuarioId: req.usuario.id
     });
     res.json({ success: true, data: detalle });
