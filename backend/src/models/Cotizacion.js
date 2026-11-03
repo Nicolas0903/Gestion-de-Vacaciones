@@ -579,6 +579,22 @@ class Cotizacion {
       costos: clean.costos != null ? clean.costos : prev.costos,
       propuesta: clean.propuesta != null ? clean.propuesta : prev.propuesta
     };
+    if (prev.propuesta?.cierre_comercial_estado === 'cerrado' && clean.propuesta != null) {
+      const locked = [
+        'cierre_propuesta',
+        'cierre_propuesta_at',
+        'cierre_propuesta_nota',
+        'cierre_comercial_estado',
+        'cierre_comercial_cerrado_at',
+        'cierre_comercial_cerrado_por'
+      ];
+      for (const k of locked) {
+        if (prev.propuesta[k] !== undefined) merged.propuesta[k] = prev.propuesta[k];
+      }
+    }
+    if (merged.propuesta && !merged.propuesta.cierre_comercial_estado) {
+      merged.propuesta.cierre_comercial_estado = 'borrador';
+    }
     merged.general.codigo = cot.codigo;
     merged.general = normalizarGeneralTipoProyecto(merged.general);
     const tipoRefUpd = merged.general.tipo_proyecto_codigo || merged.general.tipo_proyecto;
@@ -637,6 +653,75 @@ class Cotizacion {
       comentario || `Restaurada desde versión ${versionNum}`,
       usuarioId
     );
+  }
+
+  static async persistirPropuesta(id, propuesta) {
+    const detalle = await this.obtenerDetalle(id);
+    const borrador = { ...detalle.borrador, propuesta };
+    const borradorCalc = calcularCotizacion(borrador);
+    await pool.query(
+      `UPDATE cotizaciones SET borrador_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [JSON.stringify(borradorCalc), id]
+    );
+    return this.obtenerDetalle(id);
+  }
+
+  static async guardarCierreComercialBorrador(id, patch) {
+    const detalle = await this.obtenerDetalle(id);
+    const p = { ...(detalle.borrador?.propuesta || {}) };
+    if (p.cierre_comercial_estado === 'cerrado') {
+      throw new Error('El cierre comercial está cerrado. Reábralo para modificarlo.');
+    }
+    const next = {
+      ...p,
+      cierre_comercial_estado: p.cierre_comercial_estado || 'borrador',
+      cierre_propuesta:
+        patch.cierre_propuesta !== undefined ? patch.cierre_propuesta : p.cierre_propuesta,
+      cierre_propuesta_at:
+        patch.cierre_propuesta_at !== undefined
+          ? patch.cierre_propuesta_at
+          : patch.cierre_propuesta
+            ? new Date().toISOString()
+            : p.cierre_propuesta_at,
+      cierre_propuesta_nota:
+        patch.cierre_propuesta_nota !== undefined ? patch.cierre_propuesta_nota : p.cierre_propuesta_nota
+    };
+    return this.persistirPropuesta(id, next);
+  }
+
+  static async cerrarCierreComercial(id, usuarioId) {
+    const detalle = await this.obtenerDetalle(id);
+    const p = { ...(detalle.borrador?.propuesta || {}) };
+    if (p.cierre_comercial_estado === 'cerrado') {
+      throw new Error('El cierre comercial ya está cerrado.');
+    }
+    const estado = p.cierre_propuesta;
+    if (!estado || !['standby', 'ganada', 'perdida'].includes(String(estado))) {
+      throw new Error('Seleccione Standby, Ganada o Perdida antes de cerrar.');
+    }
+    const next = {
+      ...p,
+      cierre_comercial_estado: 'cerrado',
+      cierre_comercial_cerrado_at: new Date().toISOString(),
+      cierre_comercial_cerrado_por: usuarioId,
+      cierre_propuesta_at: p.cierre_propuesta_at || new Date().toISOString()
+    };
+    return this.persistirPropuesta(id, next);
+  }
+
+  static async reabrirCierreComercial(id) {
+    const detalle = await this.obtenerDetalle(id);
+    const p = { ...(detalle.borrador?.propuesta || {}) };
+    if (p.cierre_comercial_estado !== 'cerrado') {
+      throw new Error('El cierre comercial no está cerrado.');
+    }
+    const next = {
+      ...p,
+      cierre_comercial_estado: 'borrador',
+      cierre_comercial_cerrado_at: null,
+      cierre_comercial_cerrado_por: null
+    };
+    return this.persistirPropuesta(id, next);
   }
 
   /**

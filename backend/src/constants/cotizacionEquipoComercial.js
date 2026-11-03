@@ -1,4 +1,4 @@
-/** Equipo comercial: ve todas las cotizaciones, edita cierre/notas y adjuntos, no montos de propuesta. */
+/** Equipo comercial: ve todas las cotizaciones, adjuntos; propuesta sin montos (cierre solo Magali/Enrique/admin). */
 const COTIZACION_EQUIPO_COMERCIAL_EMAILS = [
   'luis.hurtado@prayaga.biz',
   'alessandro.morales@prayaga.biz',

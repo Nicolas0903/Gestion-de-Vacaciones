@@ -56,8 +56,16 @@ const CotizacionesPropuesta = ({
   onChange,
   soloLectura = false,
   soloMontosLectura = false,
-  ocultarCierreComercial = false
+  ocultarCierreComercial = false,
+  puedeGestionarCierreComercial = false,
+  cierreComercialEstado = 'borrador',
+  onGuardarCierreComercial,
+  onCerrarCierreComercial,
+  onReabrirCierreComercial,
+  accionesCierreCargando = false
 }) => {
+  const cierreCerrado = cierreComercialEstado === 'cerrado';
+  const cierreEditable = puedeGestionarCierreComercial && !cierreCerrado;
   const bloqueaMontos = soloLectura || soloMontosLectura;
   const moneda = normalizarMonedaRendicion(costos?.parametros?.moneda);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
@@ -83,6 +91,12 @@ const CotizacionesPropuesta = ({
         ['cierre_propuesta', 'cierre_propuesta_at', 'cierre_propuesta_nota'].includes(k)
       );
       if (!soloComercial) return;
+    }
+    if (!cierreEditable) {
+      const keys = Object.keys(patch || {});
+      if (keys.some((k) => ['cierre_propuesta', 'cierre_propuesta_at', 'cierre_propuesta_nota'].includes(k))) {
+        return;
+      }
     }
     onChange({ ...propuesta, ...patch });
   };
@@ -146,8 +160,8 @@ const CotizacionesPropuesta = ({
       )}
       {soloMontosLectura && !soloLectura && (
         <p className="text-sm text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
-          Equipo comercial: puedes registrar el <strong>cierre</strong> (standby / ganada / perdida), notas y textos
-          descriptivos. Los <strong>montos e IGV</strong> los define presales; no se guardan cambios numéricos.
+          Los <strong>montos e IGV</strong> los define presales. El <strong>cierre comercial</strong> (ganada / perdida)
+          lo registran Magali, Enrique o administración.
         </p>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -495,17 +509,25 @@ const CotizacionesPropuesta = ({
       <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h4 className="font-semibold text-slate-800">Cierre de propuesta</h4>
+            <h4 className="font-semibold text-slate-800">Cierre comercial de la propuesta</h4>
             <p className="text-xs text-slate-500 mt-0.5">
-              Estado comercial (standby, ganada o perdida). Más adelante podrá vincularse al cierre de negocio.
+              Como un período de caja chica: edición en borrador, luego <strong>cerrar</strong>. Solo Magali, Enrique o
+              admin pueden cerrar o reabrir.
             </p>
           </div>
-          {propuesta?.cierre_propuesta && (
-            <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700 capitalize">
-              {propuesta.cierre_propuesta}
-            </span>
-          )}
+          <span
+            className={`text-xs px-2 py-1 rounded-full font-medium ${
+              cierreCerrado ? 'bg-slate-200 text-slate-800' : 'bg-amber-100 text-amber-900'
+            }`}
+          >
+            {cierreCerrado ? 'Cerrado' : 'Borrador'}
+          </span>
         </div>
+        {propuesta?.cierre_propuesta && (
+          <p className="text-sm text-slate-700 capitalize">
+            Resultado: <strong>{propuesta.cierre_propuesta}</strong>
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           {[
             { id: 'standby', label: 'Standby', active: 'bg-amber-100 border-amber-300 text-amber-950' },
@@ -515,6 +537,7 @@ const CotizacionesPropuesta = ({
             <button
               key={opt.id}
               type="button"
+              disabled={!cierreEditable}
               onClick={() =>
                 setProp({
                   cierre_propuesta: propuesta?.cierre_propuesta === opt.id ? null : opt.id,
@@ -522,7 +545,7 @@ const CotizacionesPropuesta = ({
                     propuesta?.cierre_propuesta === opt.id ? null : new Date().toISOString()
                 })
               }
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-60 ${
                 propuesta?.cierre_propuesta === opt.id
                   ? opt.active
                   : 'border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -536,12 +559,63 @@ const CotizacionesPropuesta = ({
           Notas de cierre (opcional)
           <textarea
             rows={2}
+            readOnly={!cierreEditable}
             value={propuesta?.cierre_propuesta_nota ?? ''}
             onChange={(e) => setProp({ cierre_propuesta_nota: e.target.value })}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className={`mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm ${
+              !cierreEditable ? 'bg-slate-50' : ''
+            }`}
             placeholder="Motivo, competidor, fecha estimada de decisión…"
           />
         </label>
+        {puedeGestionarCierreComercial && (
+          <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+            {!cierreCerrado && (
+              <>
+                <button
+                  type="button"
+                  disabled={accionesCierreCargando}
+                  onClick={() =>
+                    onGuardarCierreComercial?.({
+                      cierre_propuesta: propuesta?.cierre_propuesta ?? null,
+                      cierre_propuesta_at: propuesta?.cierre_propuesta_at ?? null,
+                      cierre_propuesta_nota: propuesta?.cierre_propuesta_nota ?? ''
+                    })
+                  }
+                  className="px-3 py-1.5 rounded-lg border text-sm hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Guardar borrador cierre
+                </button>
+                <button
+                  type="button"
+                  disabled={accionesCierreCargando}
+                  onClick={() =>
+                    onCerrarCierreComercial?.({
+                      cierre_propuesta: propuesta?.cierre_propuesta ?? null,
+                      cierre_propuesta_nota: propuesta?.cierre_propuesta_nota ?? ''
+                    })
+                  }
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-sm disabled:opacity-50"
+                >
+                  Cerrar cierre comercial
+                </button>
+              </>
+            )}
+            {cierreCerrado && (
+              <button
+                type="button"
+                disabled={accionesCierreCargando}
+                onClick={() => onReabrirCierreComercial?.()}
+                className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-950 text-sm disabled:opacity-50"
+              >
+                Reabrir para corrección
+              </button>
+            )}
+          </div>
+        )}
+        {!puedeGestionarCierreComercial && (
+          <p className="text-xs text-slate-500">Solo lectura. Contacte a Magali, Enrique o administración para cambios.</p>
+        )}
       </section>
       )}
 

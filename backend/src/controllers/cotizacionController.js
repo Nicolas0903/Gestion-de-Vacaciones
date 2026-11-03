@@ -6,38 +6,10 @@ const { borradorVacio, calcularCotizacion } = require('../services/cotizacionCal
 const { obtenerTipoCambioSunat } = require('../services/sunatTipoCambioService');
 const { notificarCotizacionEnvioAprobacion } = require('../services/emailService');
 const { esEmailEquipoComercial } = require('../constants/cotizacionEquipoComercial');
-
-/** Comercial de equipo: solo cierre/notas y textos; montos siempre del servidor. */
-function mergePropuestaEquipoComercial(servidor, cliente) {
-  const s = servidor && typeof servidor === 'object' ? servidor : {};
-  const c = cliente && typeof cliente === 'object' ? cliente : {};
-  const out = JSON.parse(JSON.stringify(s));
-
-  out.cierre_propuesta = c.cierre_propuesta !== undefined ? c.cierre_propuesta : s.cierre_propuesta;
-  out.cierre_propuesta_at =
-    c.cierre_propuesta_at !== undefined ? c.cierre_propuesta_at : s.cierre_propuesta_at;
-  out.cierre_propuesta_nota =
-    c.cierre_propuesta_nota !== undefined ? c.cierre_propuesta_nota : s.cierre_propuesta_nota;
-
-  const mergeTextoEnFilas = (key, camposTexto) => {
-    const sl = Array.isArray(s[key]) ? s[key] : [];
-    const cl = Array.isArray(c[key]) ? c[key] : [];
-    out[key] = sl.map((row, i) => {
-      const patch = cl[i] || {};
-      const next = { ...row };
-      for (const f of camposTexto) {
-        if (typeof patch[f] === 'string') next[f] = patch[f];
-      }
-      return next;
-    });
-  };
-  mergeTextoEnFilas('inversion_roles', ['actividad']);
-  mergeTextoEnFilas('pagos_entregables', ['descripcion', 'entregable']);
-  mergeTextoEnFilas('pagos_forma', ['descripcion']);
-  mergeTextoEnFilas('detalle', ['actividad']);
-
-  return out;
-}
+const {
+  esAutorizadoCierreComercial,
+  puedeGestionarCierreComercial
+} = require('../constants/cotizacionCierreComercial');
 
 function esAdmin(req) {
   return req.usuario?.rol_nombre === 'admin';
@@ -65,6 +37,10 @@ async function accesoCotizacion(req, id) {
   const puedeElaborarModulo = empleado && tieneAccesoEfectivoModulo(empleado, 'cotizaciones');
   if (puedeElaborarModulo && Cotizacion.usuarioTieneAcceso(cot, borrador, uid)) {
     return { ok: true, cot, modo: 'elaborador' };
+  }
+
+  if (empleado && esAutorizadoCierreComercial(empleado.email)) {
+    return { ok: true, cot, modo: 'gestor_cierre' };
   }
 
   if (empleado && esEmailEquipoComercial(empleado.email)) {
@@ -162,7 +138,9 @@ exports.listar = async (req, res) => {
   try {
     const empleado = await empleadoReq(req);
     const veTodas =
-      esAdmin(req) || (empleado && esEmailEquipoComercial(empleado.email));
+      esAdmin(req) ||
+      (empleado && esEmailEquipoComercial(empleado.email)) ||
+      (empleado && esAutorizadoCierreComercial(empleado.email));
     const lista = await Cotizacion.listar({
       q: req.query.q,
       ruc: req.query.ruc,
@@ -182,10 +160,15 @@ exports.obtener = async (req, res) => {
   try {
     const cot = await verificarAccesoCotizacion(req, res, req.params.id);
     if (!cot) return;
+    const empleado = await empleadoReq(req);
     const detalle = await Cotizacion.obtenerDetalle(req.params.id);
     res.json({
       success: true,
-      data: { ...detalle, acceso_modo: req.cotizacionModoAcceso || 'elaborador' }
+      data: {
+        ...detalle,
+        acceso_modo: req.cotizacionModoAcceso || 'elaborador',
+        puede_gestionar_cierre_comercial: puedeGestionarCierreComercial(req, empleado)
+      }
     });
   } catch (e) {
     console.error('cotizaciones obtener:', e);
@@ -213,21 +196,10 @@ exports.guardarBorrador = async (req, res) => {
     const cot = await verificarAccesoCotizacion(req, res, id);
     if (!cot) return;
 
-    if (req.cotizacionModoAcceso === 'comercial_equipo') {
-      const detallePrev = await Cotizacion.obtenerDetalle(id);
-      const propuesta = mergePropuestaEquipoComercial(
-        detallePrev.borrador?.propuesta,
-        req.body?.propuesta || req.body?.borrador?.propuesta
-      );
-      const detalle = await Cotizacion.actualizarBorrador(
-        id,
-        { ...detallePrev.borrador, propuesta },
-        { usuarioId: null }
-      );
-      return res.json({
-        success: true,
-        data: { ...detalle, acceso_modo: 'comercial_equipo' },
-        mensaje: 'Datos comerciales guardados (montos de propuesta no modificados)'
+    if (req.cotizacionModoAcceso === 'comercial_equipo' || req.cotizacionModoAcceso === 'comercial') {
+      return res.status(403).json({
+        success: false,
+        mensaje: 'Use adjuntos para documentos. El cierre comercial lo registran Magali, Enrique o administración.'
       });
     }
 
@@ -243,6 +215,22 @@ exports.guardarBorrador = async (req, res) => {
       body.general = { ...body.general };
       delete body.general.responsable_ids;
       delete body.general.responsable_id;
+    }
+    const empleado = await empleadoReq(req);
+    if (body.propuesta && !puedeGestionarCierreComercial(req, empleado)) {
+      const prev = await Cotizacion.obtenerDetalle(id);
+      body.propuesta = { ...body.propuesta };
+      const keep = prev.borrador?.propuesta || {};
+      [
+        'cierre_propuesta',
+        'cierre_propuesta_at',
+        'cierre_propuesta_nota',
+        'cierre_comercial_estado',
+        'cierre_comercial_cerrado_at',
+        'cierre_comercial_cerrado_por'
+      ].forEach((k) => {
+        body.propuesta[k] = keep[k];
+      });
     }
     const detalle = await Cotizacion.actualizarBorrador(id, body, {
       usuarioId: req.usuario.id
@@ -437,5 +425,80 @@ exports.solicitarAprobacion = async (req, res) => {
   } catch (e) {
     console.error('cotizaciones solicitarAprobacion:', e);
     res.status(400).json({ success: false, mensaje: e.message || 'Error al solicitar aprobación' });
+  }
+};
+
+async function respuestaDetalleConMeta(req, detalle) {
+  const empleado = await empleadoReq(req);
+  return {
+    ...detalle,
+    acceso_modo: req.cotizacionModoAcceso || 'elaborador',
+    puede_gestionar_cierre_comercial: puedeGestionarCierreComercial(req, empleado)
+  };
+}
+
+exports.guardarCierreComercial = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const cot = await verificarAccesoCotizacion(req, res, id);
+    if (!cot) return;
+    const empleado = await empleadoReq(req);
+    if (!puedeGestionarCierreComercial(req, empleado)) {
+      return res.status(403).json({
+        success: false,
+        mensaje: 'Solo Magali, Enrique o un administrador pueden registrar el cierre comercial.'
+      });
+    }
+    const detalle = await Cotizacion.guardarCierreComercialBorrador(id, req.body || {});
+    res.json({
+      success: true,
+      data: await respuestaDetalleConMeta(req, detalle),
+      mensaje: 'Borrador de cierre comercial guardado'
+    });
+  } catch (e) {
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al guardar cierre' });
+  }
+};
+
+exports.cerrarCierreComercial = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const cot = await verificarAccesoCotizacion(req, res, id);
+    if (!cot) return;
+    const empleado = await empleadoReq(req);
+    if (!puedeGestionarCierreComercial(req, empleado)) {
+      return res.status(403).json({ success: false, mensaje: 'Sin permiso para cerrar' });
+    }
+    if (req.body?.cierre_propuesta) {
+      await Cotizacion.guardarCierreComercialBorrador(id, req.body);
+    }
+    const detalle = await Cotizacion.cerrarCierreComercial(id, req.usuario.id);
+    res.json({
+      success: true,
+      data: await respuestaDetalleConMeta(req, detalle),
+      mensaje: 'Cierre comercial cerrado (como un período de caja chica). Reábralo solo para correcciones.'
+    });
+  } catch (e) {
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al cerrar' });
+  }
+};
+
+exports.reabrirCierreComercial = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const cot = await verificarAccesoCotizacion(req, res, id);
+    if (!cot) return;
+    const empleado = await empleadoReq(req);
+    if (!puedeGestionarCierreComercial(req, empleado)) {
+      return res.status(403).json({ success: false, mensaje: 'Sin permiso para reabrir' });
+    }
+    const detalle = await Cotizacion.reabrirCierreComercial(id);
+    res.json({
+      success: true,
+      data: await respuestaDetalleConMeta(req, detalle),
+      mensaje: 'Cierre comercial reabierto en borrador. Puede corregir y volver a cerrar.'
+    });
+  } catch (e) {
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al reabrir' });
   }
 };

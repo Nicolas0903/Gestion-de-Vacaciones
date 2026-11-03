@@ -424,7 +424,10 @@ export const cotizacionesService = {
     `${API_URL}/cotizaciones/${id}/adjuntos/${adjuntoId}/descargar`,
   eliminarAdjunto: (id, adjuntoId) => api.delete(`/cotizaciones/${id}/adjuntos/${adjuntoId}`),
   solicitarAprobacion: (id, body) => api.post(`/cotizaciones/${id}/solicitar-aprobacion`, body || {}),
-  asignarAccesoResponsables: (id, body) => api.put(`/cotizaciones/${id}/acceso-responsables`, body)
+  asignarAccesoResponsables: (id, body) => api.put(`/cotizaciones/${id}/acceso-responsables`, body),
+  guardarCierreComercial: (id, body) => api.put(`/cotizaciones/${id}/cierre-comercial`, body),
+  cerrarCierreComercial: (id, body) => api.post(`/cotizaciones/${id}/cierre-comercial/cerrar`, body || {}),
+  reabrirCierreComercial: (id) => api.post(`/cotizaciones/${id}/cierre-comercial/reabrir`)
 };
 
 export const comisionesPorPagarService = {

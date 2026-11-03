@@ -488,6 +488,9 @@ function borradorVacio() {
       cierre_propuesta: null,
       cierre_propuesta_at: null,
       cierre_propuesta_nota: '',
+      cierre_comercial_estado: 'borrador',
+      cierre_comercial_cerrado_at: null,
+      cierre_comercial_cerrado_por: null,
       inversion_roles: [
         { cantidad: 1, actividad: 'Jefe Proyecto', inversion: 0 },
         { cantidad: 1, actividad: 'Consultor Senior Power BI', inversion: 0 },

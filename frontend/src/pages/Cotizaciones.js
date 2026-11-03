@@ -70,7 +70,10 @@ const Cotizaciones = () => {
   const [accesoModo, setAccesoModo] = useState('elaborador');
   const modoComercial = accesoModo === 'comercial';
   const modoComercialEquipo = accesoModo === 'comercial_equipo';
-  const modoVistaComercial = modoComercial || modoComercialEquipo;
+  const modoGestorCierre = accesoModo === 'gestor_cierre';
+  const modoVistaComercial = modoComercial || modoComercialEquipo || modoGestorCierre;
+  const [puedeGestionarCierre, setPuedeGestionarCierre] = useState(false);
+  const [cierreAccionesLoading, setCierreAccionesLoading] = useState(false);
   const tabsVisibles = modoVistaComercial ? TABS_COMERCIAL : TABS_ELABORADOR;
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +127,8 @@ const Cotizaciones = () => {
       setBorrador(data.data.borrador);
       const modo = data.data.acceso_modo || 'elaborador';
       setAccesoModo(modo);
-      setTab(modo === 'comercial' || modo === 'comercial_equipo' ? 'propuesta' : 'general');
+      setPuedeGestionarCierre(!!data.data.puede_gestionar_cierre_comercial);
+      setTab(modo === 'comercial' || modo === 'comercial_equipo' || modo === 'gestor_cierre' ? 'propuesta' : 'general');
     } catch {
       toast.error('No se pudo cargar la cotización');
       setSelId(null);
@@ -170,17 +174,16 @@ const Cotizaciones = () => {
     setGuardando(true);
     try {
       const versionAntes = cot?.version_actual;
-      const payload = modoComercialEquipo
-        ? { propuesta: borrador.propuesta }
-        : borradorConSyncPerfilesCostos(borrador);
+      const payload = borradorConSyncPerfilesCostos(borrador);
       const { data } = await cotizacionesService.guardarBorrador(selId, payload);
       setDetalle(data.data);
       setBorrador(data.data.borrador);
       if (data.data.acceso_modo) setAccesoModo(data.data.acceso_modo);
+      if (data.data.puede_gestionar_cierre_comercial != null) {
+        setPuedeGestionarCierre(data.data.puede_gestionar_cierre_comercial);
+      }
       const versionDespues = data.data.cotizacion?.version_actual;
-      if (modoComercialEquipo) {
-        toast.success(data.mensaje || 'Datos comerciales guardados');
-      } else if (versionDespues != null && versionDespues !== versionAntes) {
+      if (versionDespues != null && versionDespues !== versionAntes) {
         toast.success(`Guardado. Versión ${versionDespues} registrada (editado por ti).`);
       } else {
         toast.success('Cambios guardados (sin cambios respecto a la versión actual).');
@@ -195,6 +198,64 @@ const Cotizaciones = () => {
       toast.error(e.response?.data?.mensaje || 'Error al guardar');
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const aplicarDetalleRespuesta = (data) => {
+    const d = data.data || data;
+    setDetalle(d);
+    setBorrador(d.borrador);
+    if (d.acceso_modo) setAccesoModo(d.acceso_modo);
+    if (d.puede_gestionar_cierre_comercial != null) setPuedeGestionarCierre(d.puede_gestionar_cierre_comercial);
+  };
+
+  const guardarCierreComercial = async (body) => {
+    if (!selId) return;
+    setCierreAccionesLoading(true);
+    try {
+      const { data } = await cotizacionesService.guardarCierreComercial(selId, body);
+      aplicarDetalleRespuesta(data);
+      toast.success(data.mensaje || 'Cierre guardado');
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'Error al guardar cierre');
+    } finally {
+      setCierreAccionesLoading(false);
+    }
+  };
+
+  const cerrarCierreComercial = async (body) => {
+    if (!selId) return;
+    if (!window.confirm('¿Cerrar el cierre comercial? Quedará bloqueado hasta reabrir (como caja chica).')) return;
+    setCierreAccionesLoading(true);
+    try {
+      const { data } = await cotizacionesService.cerrarCierreComercial(selId, body);
+      aplicarDetalleRespuesta(data);
+      toast.success(data.mensaje || 'Cierre cerrado');
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'Error al cerrar');
+    } finally {
+      setCierreAccionesLoading(false);
+    }
+  };
+
+  const reabrirCierreComercial = async () => {
+    if (!selId) return;
+    if (
+      !window.confirm(
+        '¿Reabrir el cierre comercial en borrador? Solo para correcciones excepcionales; luego debe cerrarse de nuevo.'
+      )
+    ) {
+      return;
+    }
+    setCierreAccionesLoading(true);
+    try {
+      const { data } = await cotizacionesService.reabrirCierreComercial(selId);
+      aplicarDetalleRespuesta(data);
+      toast.success(data.mensaje || 'Cierre reabierto');
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'Error al reabrir');
+    } finally {
+      setCierreAccionesLoading(false);
     }
   };
 
@@ -324,8 +385,14 @@ const Cotizaciones = () => {
         )}
         {modoComercialEquipo && (
           <div className="mb-4 rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm text-violet-950">
-            <strong>Equipo comercial.</strong> Ves todas las cotizaciones. Puedes cerrar la oportunidad (standby /
-            ganada / perdida), notas y adjuntos. Los importes de la propuesta los mantiene presales.
+            <strong>Equipo comercial.</strong> Ves todas las cotizaciones, propuesta (montos en lectura) y adjuntos.
+            El cierre comercial lo registran Magali, Enrique o administración.
+          </div>
+        )}
+        {modoGestorCierre && (
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950">
+            <strong>Gestión de cierre comercial.</strong> Puede registrar standby/ganada/perdida, cerrar el registro y
+            reabrirlo si hace falta corregir (igual que caja chica).
           </div>
         )}
 
@@ -494,7 +561,7 @@ const Cotizaciones = () => {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {(!modoVistaComercial || modoComercialEquipo) && (
+                    {!modoVistaComercial && (
                     <>
                     <button
                       type="button"
@@ -657,9 +724,15 @@ const Cotizaciones = () => {
                       propuesta={borrador.propuesta}
                       costos={borrador.costos}
                       actividades={borrador.actividades}
-                      soloLectura={modoComercial && !modoComercialEquipo}
-                      soloMontosLectura={modoComercialEquipo}
-                      ocultarCierreComercial={modoComercial && !modoComercialEquipo}
+                      soloLectura={modoComercial}
+                      soloMontosLectura={modoComercialEquipo || modoGestorCierre}
+                      ocultarCierreComercial={modoComercial || modoComercialEquipo}
+                      puedeGestionarCierreComercial={puedeGestionarCierre}
+                      cierreComercialEstado={borrador.propuesta?.cierre_comercial_estado || 'borrador'}
+                      onGuardarCierreComercial={guardarCierreComercial}
+                      onCerrarCierreComercial={cerrarCierreComercial}
+                      onReabrirCierreComercial={reabrirCierreComercial}
+                      accionesCierreCargando={cierreAccionesLoading}
                       onChange={(propuesta) => setBorrador((p) => ({ ...p, propuesta }))}
                     />
                   )}
