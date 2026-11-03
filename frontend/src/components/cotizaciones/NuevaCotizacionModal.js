@@ -17,6 +17,7 @@ const NuevaCotizacionModal = ({ open, onClose, onCreada }) => {
     estado: 'borrador',
     nombre_proyecto: '',
     cliente: '',
+    ruc_cliente: '',
     tipo_proyecto: '',
     tipo_proyecto_codigo: '',
     responsable_ids: [],
@@ -31,8 +32,9 @@ const NuevaCotizacionModal = ({ open, onClose, onCreada }) => {
       estado: 'borrador',
       nombre_proyecto: '',
       cliente: '',
+      ruc_cliente: '',
       tipo_proyecto: '',
-    tipo_proyecto_codigo: '',
+      tipo_proyecto_codigo: '',
       responsable_ids: [],
       responsable_id: null,
       notas_internas: ''

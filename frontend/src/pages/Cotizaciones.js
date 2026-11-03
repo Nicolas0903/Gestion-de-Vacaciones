@@ -630,6 +630,7 @@ const Cotizaciones = () => {
                         estado: borrador.general?.estado || cot?.estado,
                         nombre_proyecto: borrador.general?.nombre_proyecto || cot?.proyecto,
                         cliente: borrador.general?.cliente || cot?.cliente,
+                        ruc_cliente: borrador.general?.ruc_cliente ?? cot?.ruc_cliente ?? '',
                         tipo_proyecto: borrador.general?.tipo_proyecto || cot?.tipo_proyecto,
                         tipo_proyecto_codigo:
                           borrador.general?.tipo_proyecto_codigo || cot?.tipo_proyecto_codigo,
