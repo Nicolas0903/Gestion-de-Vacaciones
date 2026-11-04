@@ -85,6 +85,7 @@ const Cotizaciones = () => {
   const modoVistaComercial = modoEdicionPropuestaComercial || modoGestorCierre;
   const puedeEnviarAprobacion = !modoGestorCierre;
   const [puedeGestionarCierre, setPuedeGestionarCierre] = useState(false);
+  const [puedeAprobarCotizacion, setPuedeAprobarCotizacion] = useState(false);
   const [cierreAccionesLoading, setCierreAccionesLoading] = useState(false);
   const tabsVisibles = modoVistaComercial ? TABS_COMERCIAL : TABS_ELABORADOR;
   const [lista, setLista] = useState([]);
@@ -143,6 +144,7 @@ const Cotizaciones = () => {
       const modo = data.data.acceso_modo || 'elaborador';
       setAccesoModo(modo);
       setPuedeGestionarCierre(!!data.data.puede_gestionar_cierre_comercial);
+      setPuedeAprobarCotizacion(!!data.data.puede_aprobar_cotizacion);
       const em = (usuario?.email || '').toLowerCase().trim();
       const equipoComercialPropuesta =
         esEquipoComercialCotizacion(em) &&
@@ -216,6 +218,10 @@ const Cotizaciones = () => {
 
   const cot = detalle?.cotizacion;
   const versiones = detalle?.versiones || [];
+  const pendientesAprobacion = React.useMemo(
+    () => (lista || []).filter((c) => c.estado === 'en_revision'),
+    [lista]
+  );
   const moneda = monedaFacturacionPropuesta(borrador?.propuesta, borrador?.costos);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
 
@@ -245,6 +251,23 @@ const Cotizaciones = () => {
       detalle_final: detFinal
     });
   }, [modoEdicionPropuestaComercial, borrador?.propuesta, borrador?.costos?.parametros?.igv_pct]);
+
+  const aprobarCotizacionActual = async () => {
+    if (!selId) return;
+    if (!window.confirm('¿Marcar esta cotización como aprobada por Magali/Enrique?')) return;
+    setGuardando(true);
+    try {
+      const { data } = await cotizacionesService.aprobarCotizacion(selId, {});
+      setDetalle(data.data);
+      setBorrador(data.data.borrador);
+      toast.success(data.mensaje || 'Aprobada');
+      cargarLista();
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'No se pudo aprobar');
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const guardar = async () => {
     if (!selId || !borrador) return;
@@ -290,6 +313,7 @@ const Cotizaciones = () => {
     setBorrador(d.borrador);
     if (d.acceso_modo) setAccesoModo(d.acceso_modo);
     if (d.puede_gestionar_cierre_comercial != null) setPuedeGestionarCierre(d.puede_gestionar_cierre_comercial);
+    if (d.puede_aprobar_cotizacion != null) setPuedeAprobarCotizacion(d.puede_aprobar_cotizacion);
   };
 
   const guardarCierreComercial = async (body) => {
@@ -480,6 +504,33 @@ const Cotizaciones = () => {
           </div>
         )}
 
+        {pendientesAprobacion.length > 0 && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/90 p-4">
+            <h2 className="font-semibold text-amber-950 text-sm flex items-center gap-2">
+              <ClockIcon className="w-4 h-4" /> Pendientes de aprobación (Magali / Enrique)
+            </h2>
+            <p className="text-xs text-amber-900/80 mt-1 mb-2">
+              Cotizaciones en <strong>En revisión</strong> que aún no fueron aprobadas.
+            </p>
+            <ul className="space-y-1.5 max-h-40 overflow-y-auto">
+              {pendientesAprobacion.slice(0, 12).map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelId(c.id)}
+                    className="w-full text-left text-sm px-3 py-2 rounded-lg border bg-white hover:border-amber-300"
+                  >
+                    <strong>{c.codigo}</strong> · {c.cliente} · {c.proyecto}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {pendientesAprobacion.length > 12 && (
+              <p className="text-xs text-amber-800 mt-2">+ {pendientesAprobacion.length - 12} más (filtre por estado).</p>
+            )}
+          </div>
+        )}
+
         {solicitudesPendientes.length > 0 && !modoVistaComercial && (
           <div className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/80 p-4">
             <h2 className="font-semibold text-indigo-900 text-sm">
@@ -593,6 +644,16 @@ const Cotizaciones = () => {
                 </div>
                 <button
                   type="button"
+                  onClick={() => {
+                    setBusqueda((b) => ({ ...b, estado: 'en_revision' }));
+                    setFiltrosApi((p) => ({ ...p, estado: 'en_revision' }));
+                  }}
+                  className="w-full py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-950 text-xs font-medium"
+                >
+                  Pendientes aprobación ({pendientesAprobacion.length})
+                </button>
+                <button
+                  type="button"
                   onClick={aplicarBusqueda}
                   className="w-full py-1.5 rounded-lg bg-teal-600 text-white text-xs font-medium"
                 >
@@ -651,6 +712,17 @@ const Cotizaciones = () => {
                     )}
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {puedeAprobarCotizacion &&
+                      (borrador?.general?.estado === 'en_revision' || cot?.estado === 'en_revision') && (
+                        <button
+                          type="button"
+                          onClick={aprobarCotizacionActual}
+                          disabled={guardando}
+                          className="px-3 py-1.5 text-sm rounded-lg bg-amber-600 text-white disabled:opacity-50"
+                        >
+                          Aprobar cotización
+                        </button>
+                      )}
                     {(!modoVistaComercial || modoEdicionPropuestaComercial) && (
                     <>
                     <button
@@ -792,6 +864,18 @@ const Cotizaciones = () => {
                       costos={borrador.costos}
                       codigo={cot?.codigo}
                       versionActual={cot?.version_actual}
+                      cotizacionId={selId}
+                      codigoCotizacion={cot?.codigo}
+                      clienteCotizacion={cot?.cliente || borrador.general?.cliente}
+                      propuesta={borrador.propuesta}
+                      mostrarEnviarAprobacion={puedeEnviarAprobacion}
+                      onSolicitudAprobacionEnviada={(data) => {
+                        if (data) {
+                          setDetalle(data);
+                          setBorrador(data.borrador);
+                        }
+                        cargarLista();
+                      }}
                       onChange={(costos) =>
                         setBorrador((p) => borradorConSyncPerfilesCostos({ ...p, costos }))
                       }

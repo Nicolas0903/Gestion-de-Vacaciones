@@ -110,6 +110,7 @@ export function costosConRecursosDesdePerfiles(actividades, costos) {
 
   for (const p of perfiles) {
     const nombre = String(p.perfil || '').trim();
+    const consultor = String(p.consultor_nombre || '').trim();
     if (!nombre || !p.id) continue;
     idsPerfilActivos.add(p.id);
     const horas = Number(p.horas) || 0;
@@ -129,6 +130,7 @@ export function costosConRecursosDesdePerfiles(actividades, costos) {
       recursos[idx] = {
         ...recursos[idx],
         rol: nombre,
+        consultor_nombre: consultor,
         horas_asignadas: horas,
         perfil_actividad_id: p.id
       };
@@ -136,6 +138,7 @@ export function costosConRecursosDesdePerfiles(actividades, costos) {
       recursos.push({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         rol: nombre,
+        consultor_nombre: consultor,
         cantidad: 1,
         salario: 0,
         horas_asignadas: horas,

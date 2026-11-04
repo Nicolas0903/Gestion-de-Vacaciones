@@ -4,7 +4,8 @@ import { parcheGeneralTipoProyectoDesdeNombre } from '../../utils/cotizacionTipo
 
 export const ESTADOS_COTIZACION = [
   { value: 'borrador', label: 'Borrador' },
-  { value: 'en_revision', label: 'En revisión' },
+  { value: 'en_revision', label: 'En revisión (pendiente aprobación)' },
+  { value: 'aprobada', label: 'Aprobada (Magali/Enrique)' },
   { value: 'enviada', label: 'Enviada' },
   { value: 'ganada', label: 'Ganada' },
   { value: 'perdida', label: 'Perdida' }

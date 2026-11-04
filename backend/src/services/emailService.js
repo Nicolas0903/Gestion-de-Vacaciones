@@ -2393,7 +2393,7 @@ async function notificarCotizacionEnvioAprobacion({
       <div class="info-row"><span class="info-label">Estado:</span><span class="info-value">En revisión</span></div>
       ${comentario ? `<div class="info-row"><span class="info-label">Comentario:</span><span class="info-value">${escapeHtml(comentario)}</span></div>` : ''}
     </div>
-    <p><strong>Archivos:</strong></p>
+    <p><strong>Archivos adjuntos</strong> (incluye captura de propuesta si se generó en el portal):</p>
     ${listaAdj}
     <p style="text-align: center; margin: 25px 0;">
       <a href="${urlPortal}" style="display: inline-block; background: #0d9488; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold;">

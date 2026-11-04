@@ -29,6 +29,7 @@ export function inversionRolesDesdeCostos(costosRaw) {
     const roles = participantes.map((r, i) => ({
       cantidad: Number(r.cantidad) || 1,
       actividad: r.rol || 'Recurso',
+      consultor_nombre: String(r.consultor_nombre || '').trim(),
       inversion: Math.round((bases[i] / baseTotal) * objetivo * 100) / 100
     }));
     const sum = roles.reduce((s, row) => s + row.inversion, 0);
@@ -46,7 +47,12 @@ export function inversionRolesDesdeCostos(costosRaw) {
     const cantidad = Number(r.cantidad) || 1;
     const sobrecosto = Number(r.sobrecosto) || 1;
     const inversion = Math.round((salario / hm) * horas * cantidad * sobrecosto * 100) / 100;
-    return { cantidad, actividad: r.rol || 'Recurso', inversion };
+    return {
+      cantidad,
+      actividad: r.rol || 'Recurso',
+      consultor_nombre: String(r.consultor_nombre || '').trim(),
+      inversion
+    };
   });
 }
 

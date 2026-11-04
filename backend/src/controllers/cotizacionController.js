@@ -187,6 +187,10 @@ exports.obtener = async (req, res) => {
         ...detalle,
         acceso_modo: req.cotizacionModoAcceso || 'elaborador',
         puede_gestionar_cierre_comercial: puedeGestionarCierreComercial(req, empleado),
+        puede_aprobar_cotizacion: require('../constants/cotizacionAprobacion').puedeAprobarCotizacion(
+          req,
+          empleado
+        ),
         solicitud_comercial: sol
           ? {
               id: sol.id,
@@ -507,12 +511,32 @@ exports.solicitarAprobacion = async (req, res) => {
     if (comentario) {
       borrador.general.notas_aprobacion = comentario;
     }
-    const detalle = await Cotizacion.actualizarBorrador(id, borrador, { usuarioId: req.usuario.id });
+    const detalle = await Cotizacion.actualizarBorrador(id, borrador, {
+      usuarioId: req.usuario.id,
+      registrarVersion: false
+    });
     const adjuntos = await CotizacionAdjunto.listarPorCotizacion(id);
     const archivos = adjuntos.map((a) => ({
       path: CotizacionAdjunto.rutaAbsoluta(id, a.nombre_archivo),
       filename: a.nombre_original
     }));
+    const b64 = req.body?.captura_propuesta_base64;
+    if (b64) {
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      try {
+        const buf = Buffer.from(String(b64).replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        const tmp = path.join(os.tmpdir(), `cot-propuesta-${id}-${Date.now()}.png`);
+        fs.writeFileSync(tmp, buf);
+        archivos.unshift({
+          path: tmp,
+          filename: `propuesta-${detalle.cotizacion?.codigo || id}.png`
+        });
+      } catch (_) {
+        /* omit captura */
+      }
+    }
     await notificarCotizacionEnvioAprobacion({
       cotizacion: detalle.cotizacion,
       borrador: detalle.borrador,
@@ -531,12 +555,55 @@ exports.solicitarAprobacion = async (req, res) => {
   }
 };
 
+exports.aprobarCotizacion = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const cot = await verificarAccesoCotizacion(req, res, id);
+    if (!cot) return;
+    const empleado = await empleadoReq(req);
+    const { puedeAprobarCotizacion } = require('../constants/cotizacionAprobacion');
+    if (!puedeAprobarCotizacion(req, empleado)) {
+      return res.status(403).json({
+        success: false,
+        mensaje: 'Solo Magali, Enrique o administración pueden aprobar la cotización.'
+      });
+    }
+    const detalleAntes = await Cotizacion.obtenerDetalle(id);
+    const borrador = detalleAntes.borrador;
+    borrador.general = {
+      ...borrador.general,
+      estado: 'aprobada',
+      aprobacion_at: new Date().toISOString(),
+      aprobado_por_id: req.usuario.id,
+      aprobado_por_nombre:
+        [req.usuario?.nombres, req.usuario?.apellidos].filter(Boolean).join(' ') || req.usuario?.email
+    };
+    const comentario = String(req.body?.comentario || '').trim();
+    if (comentario) borrador.general.notas_aprobacion = comentario;
+    const detalle = await Cotizacion.actualizarBorrador(id, borrador, {
+      usuarioId: req.usuario.id,
+      registrarVersion: true,
+      comentarioVersion: comentario || 'Aprobación Magali/Enrique'
+    });
+    res.json({
+      success: true,
+      data: detalle,
+      mensaje: 'Cotización marcada como aprobada.'
+    });
+  } catch (e) {
+    console.error('cotizaciones aprobarCotizacion:', e);
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al aprobar' });
+  }
+};
+
 async function respuestaDetalleConMeta(req, detalle) {
   const empleado = await empleadoReq(req);
+  const { puedeAprobarCotizacion } = require('../constants/cotizacionAprobacion');
   return {
     ...detalle,
     acceso_modo: req.cotizacionModoAcceso || 'elaborador',
-    puede_gestionar_cierre_comercial: puedeGestionarCierreComercial(req, empleado)
+    puede_gestionar_cierre_comercial: puedeGestionarCierreComercial(req, empleado),
+    puede_aprobar_cotizacion: puedeAprobarCotizacion(req, empleado)
   };
 }
 

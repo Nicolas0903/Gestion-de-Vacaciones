@@ -8,6 +8,7 @@ import {
   inversionRolesDesdeCostos,
   monedaFacturacionPropuesta
 } from '../../utils/cotizacionPropuestaInversion';
+import { detalleDesdeInversionCalc } from '../../utils/detalleDesdeInversionPropuesta';
 import {
   limiteTotalFinalPropuesta,
   propuestaComercialExcedeLimite
@@ -103,17 +104,6 @@ const CotizacionesPropuesta = ({
   const calc = useMemo(() => calcPropuestaLocal(propuesta, igvPct), [propuesta, igvPct]);
   const limiteEfectivo = montoLimiteFinal || limiteTotalFinalPropuesta(propuesta);
   const excedeLimite = edicionComercialConLimite && propuestaComercialExcedeLimite(propuesta, calc.totales);
-  const horasProyecto = useMemo(() => {
-    if (actividades?.total_horas != null) return Number(actividades.total_horas);
-    let total = 0;
-    for (const b of actividades?.bloques || []) {
-      for (const a of b.actividades || []) {
-        total += Number(a.horas || 0) + Number(a.holgura_horas || 0);
-      }
-    }
-    return total;
-  }, [actividades]);
-
   const setProp = (patch) => {
     if (soloLectura) return;
     const keys = Object.keys(patch || {});
@@ -188,7 +178,27 @@ const CotizacionesPropuesta = ({
     ) {
       return;
     }
-    setProp({ inversion_roles: roles });
+    const calcSync = calcPropuestaLocal({ ...propuesta, inversion_roles: roles }, igvPct);
+    setProp({
+      inversion_roles: roles,
+      detalle: detalleDesdeInversionCalc(calcSync.inversion_roles)
+    });
+  };
+
+  const syncDetalleDesdeInversion = () => {
+    if (bloqueaMontos) return;
+    const det = detalleDesdeInversionCalc(calc.inversion_roles);
+    if (!det.length) {
+      window.alert('Primero complete el cuadro de inversión por recursos.');
+      return;
+    }
+    if (
+      (propuesta?.detalle || []).some((d) => String(d.actividad || '').trim() || Number(d.precio) > 0) &&
+      !window.confirm('Se reemplazará el detalle de propuesta según el cuadro de inversión. ¿Continuar?')
+    ) {
+      return;
+    }
+    setProp({ detalle: det });
   };
 
   const exportarExcel = () => {
@@ -212,16 +222,6 @@ const CotizacionesPropuesta = ({
     }
   };
 
-  const syncDetalleHoras = () => {
-    if (bloqueaMontos || !horasProyecto) return;
-    const det = [...(propuesta?.detalle || [])];
-    if (det.length === 0) {
-      det.push({ actividad: 'Construcción de la solución analítica', horas: horasProyecto, precio: 0 });
-    } else {
-      det[0] = { ...det[0], horas: horasProyecto };
-    }
-    setProp({ detalle: det });
-  };
 
   return (
     <div className="space-y-8">
@@ -458,20 +458,20 @@ const CotizacionesPropuesta = ({
         <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
           <h4 className="font-medium text-slate-700">Detalle de propuesta</h4>
           <div className="flex gap-2">
-            {!ocultarSyncCostos && (
+            {puedeEditarCuadros && (
               <button
                 type="button"
-                onClick={syncDetalleHoras}
+                onClick={syncDetalleDesdeInversion}
                 className="text-xs px-2 py-1 rounded border border-teal-300 text-teal-700 hover:bg-teal-50"
-                title={`Horas totales del proyecto: ${horasProyecto}`}
               >
-                Usar horas del proyecto ({horasProyecto.toFixed(1)} h)
+                Sincronizar desde inversión
               </button>
             )}
             {puedeEditarCuadros && (
               <button
                 type="button"
                 onClick={() => addRow('detalle', { actividad: '', horas: 0, precio: 0 })}
+                title="Sincroniza desde inversión para alinear filas y precios"
                 className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
               >
                 <PlusIcon className="w-3 h-3" /> Fila
@@ -484,7 +484,6 @@ const CotizacionesPropuesta = ({
             <thead>
               <tr>
                 <th className={TH}>Detalle de propuesta</th>
-                <th className={`${TH} w-28`}>Tiempo (Horas)</th>
                 <th className={`${TH} w-36`}>Precio Total</th>
                 <th className={`${TH} w-10`} />
               </tr>
@@ -497,16 +496,6 @@ const CotizacionesPropuesta = ({
                       value={row.actividad || ''}
                       onChange={(e) => updateList('detalle', idx, { actividad: e.target.value })}
                       className={inp}
-                    />
-                  </td>
-                  <td className={TD}>
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      value={row.horas ?? 0}
-                      onChange={(e) => updateList('detalle', idx, { horas: Number(e.target.value) })}
-                      className={`${inp} text-right`}
                     />
                   </td>
                   <td className={TD}>
@@ -528,26 +517,19 @@ const CotizacionesPropuesta = ({
               <tr className="bg-emerald-800 text-white font-semibold">
                 <td className={`${TD} bg-emerald-800 text-white`}>TOTAL GENERAL</td>
                 <td className={`${TD} bg-emerald-800 text-white text-right tabular-nums`}>
-                  {calc.detalle.reduce((s, d) => s + (Number(d.horas) || 0), 0).toFixed(1)} h
-                </td>
-                <td className={`${TD} bg-emerald-800 text-white text-right tabular-nums`}>
                   {fmt(calc.totales.detalle_total)}
                 </td>
                 <td className={`${TD} bg-emerald-800`} />
               </tr>
               <tr className="bg-emerald-700 text-white font-semibold">
-                <td className={`${TD} bg-emerald-700 text-white`} colSpan={2}>
-                  IGV {Number(igvPct).toFixed(0)}%
-                </td>
+                <td className={`${TD} bg-emerald-700 text-white`}>IGV {Number(igvPct).toFixed(0)}%</td>
                 <td className={`${TD} bg-emerald-700 text-white text-right tabular-nums`}>
                   {fmt(calc.totales.detalle_igv)}
                 </td>
                 <td className={`${TD} bg-emerald-700`} />
               </tr>
               <tr className="bg-emerald-900 text-white font-bold">
-                <td className={`${TD} bg-emerald-900 text-white`} colSpan={2}>
-                  TOTAL FINAL
-                </td>
+                <td className={`${TD} bg-emerald-900 text-white`}>TOTAL FINAL</td>
                 <td className={`${TD} bg-emerald-900 text-white text-right tabular-nums text-base`}>
                   {fmt(calc.totales.detalle_final)}
                 </td>
@@ -761,6 +743,10 @@ const CotizacionesPropuesta = ({
           <CotizacionNotificarComercial cotizacionId={cotizacionId} solicitanteComercial={solicitanteComercial} />
           <CotizacionEnviarAprobacion
             cotizacionId={cotizacionId}
+            codigoCotizacion={codigoCotizacion}
+            clienteCotizacion={clienteCotizacion}
+            propuesta={propuesta}
+            costos={costos}
             onSolicitudEnviada={onSolicitudAprobacionEnviada}
           />
         </div>

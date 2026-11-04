@@ -481,7 +481,7 @@ function calcularCotizacion(data) {
   const resp = normalizarResponsableIds(generalNorm);
   const general = {
     codigo: String(generalNorm?.codigo || '').trim(),
-    estado: ['borrador', 'en_revision', 'enviada', 'ganada', 'perdida'].includes(generalNorm?.estado)
+    estado: ['borrador', 'en_revision', 'aprobada', 'enviada', 'ganada', 'perdida'].includes(generalNorm?.estado)
       ? generalNorm.estado
       : 'borrador',
     nombre_proyecto: String(generalNorm?.nombre_proyecto || generalNorm?.proyecto || '').trim(),

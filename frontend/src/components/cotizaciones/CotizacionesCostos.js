@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { formatoMontoRendicion } from '../../utils/monedaRendicion';
 import { calcCostosLocal, tarifaGarantiaReferencia } from '../../utils/cotizacionCostosCalc';
 import { cotizacionesService } from '../../services/api';
+import CotizacionEnviarAprobacion from './CotizacionEnviarAprobacion';
 
 const DEFAULT_MARKUPS = [1.9, 1.6, 1.7, 1.43];
 const fmtPen = (n) => formatoMontoRendicion(n, 'PEN');
@@ -20,7 +21,18 @@ const TD = 'border border-slate-300 px-2 py-1.5 text-sm';
 const TDnum = `${TD} text-right tabular-nums`;
 const inp = 'w-full rounded border border-slate-200 px-1.5 py-1 text-sm';
 
-const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
+const CotizacionesCostos = ({
+  costos,
+  codigo,
+  versionActual,
+  onChange,
+  cotizacionId,
+  codigoCotizacion,
+  clienteCotizacion,
+  propuesta,
+  mostrarEnviarAprobacion = false,
+  onSolicitudAprobacionEnviada
+}) => {
   const params = costos?.parametros || {};
   const { recursos, markups, proyActiva, monedaProy, monedaRec, resumen: res } = useMemo(
     () => calcCostosLocal(costos),
@@ -111,6 +123,7 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
           <thead>
             <tr>
               <th className={TH}>Recurso</th>
+              <th className={`${TH} w-32`}>Consultor</th>
               <th className={`${TH} w-16`}>Cantidad</th>
               <th className={`${TH} w-24`}>Salario ({symRec})</th>
               <th className={`${TH} w-24`}>Horas asignadas</th>
@@ -123,7 +136,7 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
           <tbody>
             {recursos.length === 0 && (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-slate-500">
+                <td colSpan={9} className="py-8 text-center text-slate-500">
                   Agrega perfiles en la pestaña <strong>Actividades</strong> para generar este cuadro.
                 </td>
               </tr>
@@ -132,6 +145,14 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
               <tr key={r.id || idx} className="bg-emerald-50/40">
                 <td className={TD}>
                   <span className="block px-1 text-slate-800">{r.rol || '—'}</span>
+                </td>
+                <td className={TD}>
+                  <input
+                    value={r.consultor_nombre ?? ''}
+                    onChange={(e) => updateRecurso(idx, { consultor_nombre: e.target.value })}
+                    placeholder="Consultor"
+                    className={`${inp} text-slate-800`}
+                  />
                 </td>
                 <td className={TD}>
                   <input
@@ -647,6 +668,17 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
           </table>
         </div>
       </div>
+
+      {mostrarEnviarAprobacion && cotizacionId && (
+        <CotizacionEnviarAprobacion
+          cotizacionId={cotizacionId}
+          codigoCotizacion={codigoCotizacion || codigo}
+          clienteCotizacion={clienteCotizacion}
+          propuesta={propuesta}
+          costos={costos}
+          onSolicitudEnviada={onSolicitudAprobacionEnviada}
+        />
+      )}
 
       <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50">
         <h4 className="font-semibold text-slate-700 mb-3 text-sm">Parámetros</h4>

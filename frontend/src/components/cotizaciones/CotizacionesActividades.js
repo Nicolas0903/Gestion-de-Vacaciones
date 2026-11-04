@@ -73,6 +73,7 @@ const CotizacionesActividades = ({
       {
         id: mkId(),
         perfil: '',
+        consultor_nombre: '',
         horas: 0,
         participacion_pct: 0,
         orden: perfilesRaw.length + 1
@@ -217,6 +218,7 @@ const CotizacionesActividades = ({
               <tr className="text-left text-slate-500 border-b">
                 <th className="py-2 px-3 w-12">#</th>
                 <th className="py-2 px-3">Perfil</th>
+                <th className="py-2 px-3 w-36">Consultor</th>
                 <th className="py-2 px-3 w-28">Horas</th>
                 <th className="py-2 px-3 w-32">% participación</th>
                 <th className="py-2 px-3 w-16" />
@@ -225,7 +227,7 @@ const CotizacionesActividades = ({
             <tbody>
               {perfiles.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-slate-400 text-sm">
+                  <td colSpan={6} className="py-6 text-center text-slate-400 text-sm">
                     Agrega perfiles (ej. Arquitecto, Data Engineer…)
                   </td>
                 </tr>
@@ -238,6 +240,14 @@ const CotizacionesActividades = ({
                       value={p.perfil || ''}
                       onChange={(e) => updatePerfil(idx, { perfil: e.target.value })}
                       placeholder="Nombre del perfil"
+                      className="w-full rounded border border-slate-200 px-2 py-1"
+                    />
+                  </td>
+                  <td className="py-2 px-3">
+                    <input
+                      value={p.consultor_nombre || ''}
+                      onChange={(e) => updatePerfil(idx, { consultor_nombre: e.target.value })}
+                      placeholder="Nombre consultor"
                       className="w-full rounded border border-slate-200 px-2 py-1"
                     />
                   </td>
@@ -269,7 +279,7 @@ const CotizacionesActividades = ({
             {perfiles.length > 0 && (
               <tfoot>
                 <tr className="bg-slate-50 font-medium text-slate-700">
-                  <td colSpan={2} className="py-2 px-3 text-right">
+                  <td colSpan={3} className="py-2 px-3 text-right">
                     Totales
                   </td>
                   <td className="py-2 px-3">
