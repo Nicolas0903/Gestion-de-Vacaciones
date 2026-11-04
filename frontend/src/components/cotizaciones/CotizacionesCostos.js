@@ -123,7 +123,6 @@ const CotizacionesCostos = ({
           <thead>
             <tr>
               <th className={TH}>Recurso</th>
-              <th className={`${TH} w-32`}>Consultor</th>
               <th className={`${TH} w-16`}>Cantidad</th>
               <th className={`${TH} w-24`}>Salario ({symRec})</th>
               <th className={`${TH} w-24`}>Horas asignadas</th>
@@ -136,7 +135,7 @@ const CotizacionesCostos = ({
           <tbody>
             {recursos.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-8 text-center text-slate-500">
+                <td colSpan={8} className="py-8 text-center text-slate-500">
                   Agrega perfiles en la pestaña <strong>Actividades</strong> para generar este cuadro.
                 </td>
               </tr>
@@ -145,14 +144,6 @@ const CotizacionesCostos = ({
               <tr key={r.id || idx} className="bg-emerald-50/40">
                 <td className={TD}>
                   <span className="block px-1 text-slate-800">{r.rol || '—'}</span>
-                </td>
-                <td className={TD}>
-                  <input
-                    value={r.consultor_nombre ?? ''}
-                    onChange={(e) => updateRecurso(idx, { consultor_nombre: e.target.value })}
-                    placeholder="Consultor"
-                    className={`${inp} text-slate-800`}
-                  />
                 </td>
                 <td className={TD}>
                   <input
@@ -498,14 +489,6 @@ const CotizacionesCostos = ({
                 </tr>
               </thead>
               <tbody>
-                <tr className="bg-white">
-                  <td className={`${TD} font-medium`}>Costo del proyecto</td>
-                  {markups.map((_, i) => (
-                    <td key={i} className={`${TDnum} font-medium`}>
-                      {i === 0 ? fmtProy(res.costo_base_proyeccion) : ''}
-                    </td>
-                  ))}
-                </tr>
                 <tr className="bg-emerald-50/60">
                   <td className={`${TD} font-medium`}>Markup</td>
                   {markups.map((m, i) => (
