@@ -8,15 +8,20 @@ function resolverIndicesGarantia(params) {
   return Number.isFinite(one) ? [one] : [0];
 }
 
-function tarifaGarantiaReferencia(recursos, indices, horasMes) {
+/** Suma del costo/hora de cada recurso marcado (no promedio). */
+export function tarifaGarantiaReferencia(recursos, indices, horasMes) {
   const hm = horasMes || 160;
   const rates = indices
     .map((i) => recursos[i])
     .filter(Boolean)
-    .map((r) => (hm > 0 ? (Number(r.salario) || 0) / hm : 0))
+    .map((r) => {
+      const ch = Number(r.costo_hora);
+      if (Number.isFinite(ch) && ch > 0) return ch;
+      return hm > 0 ? Math.round(((Number(r.salario) || 0) / hm) * 100) / 100 : 0;
+    })
     .filter((t) => t > 0);
   if (!rates.length) return 0;
-  return Math.round((rates.reduce((a, b) => a + b, 0) / rates.length) * 100) / 100;
+  return Math.round(rates.reduce((a, b) => a + b, 0) * 100) / 100;
 }
 
 /** Misma lógica que la pestaña Costos (alineada al backend). */

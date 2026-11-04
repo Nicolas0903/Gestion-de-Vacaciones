@@ -185,13 +185,17 @@ function tarifaGarantiaReferencia(recursos, indices, horasMes) {
   const rates = indices
     .map((i) => recursos[i])
     .filter(Boolean)
-    .map((r) => (hm > 0 ? num(r.salario) / hm : 0))
+    .map((r) => {
+      const ch = num(r.costo_hora);
+      if (ch > 0) return round2(ch);
+      return hm > 0 ? round2(num(r.salario) / hm) : 0;
+    })
     .filter((t) => t > 0);
   if (!rates.length) return 0;
-  return round2(rates.reduce((a, b) => a + b, 0) / rates.length);
+  return round2(rates.reduce((a, b) => a + b, 0));
 }
 
-/** Excel: tarifa definida (col. salario) × horas (col. costo/hora). Si no hay tarifa, promedio ref(s). */
+/** Excel: tarifa (suma costo/h de recursos elegidos, o manual) × horas garantía. */
 function calcularGarantia(parametros, recursos) {
   const horas = num(parametros.horas_garantia);
   if (horas <= 0) {

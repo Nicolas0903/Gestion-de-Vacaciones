@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatoMontoRendicion } from '../../utils/monedaRendicion';
-import { calcCostosLocal } from '../../utils/cotizacionCostosCalc';
+import { calcCostosLocal, tarifaGarantiaReferencia } from '../../utils/cotizacionCostosCalc';
 import { cotizacionesService } from '../../services/api';
 
 const DEFAULT_MARKUPS = [1.9, 1.6, 1.7, 1.43];
@@ -13,17 +13,6 @@ function resolverIndicesGarantia(params) {
   }
   const one = Number(params?.recurso_garantia_idx);
   return Number.isFinite(one) ? [one] : [0];
-}
-
-function tarifaGarantiaReferencia(recursos, indices, horasMes) {
-  const hm = horasMes || 160;
-  const rates = indices
-    .map((i) => recursos[i])
-    .filter(Boolean)
-    .map((r) => (hm > 0 ? (Number(r.salario) || 0) / hm : 0))
-    .filter((t) => t > 0);
-  if (!rates.length) return 0;
-  return Math.round((rates.reduce((a, b) => a + b, 0) / rates.length) * 100) / 100;
 }
 
 const TH = 'bg-emerald-800 text-white font-semibold text-xs px-2 py-2 border border-emerald-900 whitespace-nowrap';
@@ -323,9 +312,18 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
                             </span>
                           </label>
                         ))}
-                        {indicesGarantia.length > 1 && (
+                        {indicesGarantia.length > 0 && (
                           <p className="px-3 py-2 text-xs text-slate-600 bg-orange-50">
-                            Tarifa aplicada (promedio): <strong>{fmtRec(tarifaRefGarantia)}</strong>/h
+                            {indicesGarantia.length > 1 ? (
+                              <>
+                                Total costo/hora (suma de {indicesGarantia.length} recursos):{' '}
+                                <strong>{fmtRec(tarifaRefGarantia)}</strong>/h
+                              </>
+                            ) : (
+                              <>
+                                Costo/hora del recurso: <strong>{fmtRec(tarifaRefGarantia)}</strong>/h
+                              </>
+                            )}
                           </p>
                         )}
                       </div>
