@@ -181,19 +181,46 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
                 <td className={`${TDnum} font-medium`}>{fmtRec(r.costo_final)}</td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
 
-            <tr className="bg-orange-100">
+      <section className="mt-8 space-y-2" aria-labelledby="costos-garantia-titulo">
+        <div className="flex flex-wrap items-end justify-between gap-2 border-b border-orange-200 pb-2">
+          <div>
+            <h4 id="costos-garantia-titulo" className="text-sm font-semibold text-orange-950">
+              Garantía de servicio
+            </h4>
+            <p className="text-xs text-orange-900/70 mt-0.5">
+              Bloque aparte de los recursos (mismo cálculo y suma en el costo total).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPanelGarantia((v) => !v)}
+            className="text-xs text-orange-800 underline hover:text-orange-950 shrink-0"
+          >
+            {panelGarantia ? 'Ocultar opciones' : 'Seleccionar / modificar'}
+          </button>
+        </div>
+        <div className="overflow-x-auto rounded-lg border-2 border-orange-200 bg-orange-50/30 shadow-sm">
+          <table className="w-full border-collapse min-w-[900px] text-sm">
+            <thead>
+              <tr>
+                <th className={`${TH} bg-orange-800 border-orange-900`}>Concepto</th>
+                <th className={`${TH} w-16 bg-orange-800 border-orange-900`}>Cantidad</th>
+                <th className={`${TH} w-24 bg-orange-800 border-orange-900`}>Tarifa ({symRec})</th>
+                <th className={`${TH} w-24 bg-orange-800 border-orange-900`}>Descripción / plazo</th>
+                <th className={`${TH} w-24 bg-orange-800 border-orange-900`}>Horas</th>
+                <th className={`${TH} w-28 bg-orange-800 border-orange-900`}>Importe</th>
+                <th className={`${TH} w-20 bg-orange-800 border-orange-900`}>Factor</th>
+                <th className={`${TH} w-28 bg-orange-800 border-orange-900`}>Costo final</th>
+              </tr>
+            </thead>
+            <tbody>
+            <tr className="bg-orange-100/90">
               <td className={`${TD} font-medium text-orange-900`}>
-                <div className="flex flex-col gap-1">
-                  <span>Garantía</span>
-                  <button
-                    type="button"
-                    onClick={() => setPanelGarantia((v) => !v)}
-                    className="text-left text-xs font-normal text-orange-800 underline hover:text-orange-950"
-                  >
-                    {panelGarantia ? 'Ocultar opciones' : 'Seleccionar / modificar'}
-                  </button>
-                </div>
+                <span>Garantía</span>
               </td>
               <td className={`${TD} text-center text-orange-700/60`}>—</td>
               <td className={TD}>
@@ -324,7 +351,14 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
                 </td>
               </tr>
             )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
+      <div className="mt-4 overflow-x-auto rounded-lg border border-slate-300">
+        <table className="w-full border-collapse min-w-[900px] text-sm">
+          <tbody>
             <tr className="bg-blue-100">
               <td className={`${TD} font-medium text-blue-900`} colSpan={3}>
                 Comisión o Gastos Administrativos
@@ -535,7 +569,7 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
             />
           </label>
           <p className="col-span-2 md:col-span-4 text-xs text-slate-500 -mt-1 mb-1">
-            Garantía: usa <strong>Seleccionar / modificar</strong> en la fila naranja (recursos o tarifa manual).
+            Garantía: bloque naranja debajo de recursos → <strong>Seleccionar / modificar</strong> (por recursos o tarifa manual).
             La moneda de la propuesta al cliente se define en la pestaña <strong>Propuesta</strong>.
           </p>
         </div>

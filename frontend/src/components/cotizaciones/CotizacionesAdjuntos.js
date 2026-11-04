@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowDownTrayIcon, PaperAirplaneIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { cotizacionesService } from '../../services/api';
 
 const fmtBytes = (n) => {
@@ -10,16 +10,10 @@ const fmtBytes = (n) => {
   return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const CotizacionesAdjuntos = ({
-  cotizacionId,
-  codigo,
-  onSolicitudEnviada,
-  permitirEnviarAprobacion = true
-}) => {
+const CotizacionesAdjuntos = ({ cotizacionId, codigo }) => {
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
-  const [comentarioEnvio, setComentarioEnvio] = useState('');
   const [comentarioArchivo, setComentarioArchivo] = useState('');
 
   const cargar = useCallback(async () => {
@@ -84,32 +78,13 @@ const CotizacionesAdjuntos = ({
     }
   };
 
-  const enviarAprobacion = async () => {
-    if (!window.confirm('¿Enviar a aprobación? Se notificará por correo a los responsables (aprobador).')) {
-      return;
-    }
-    setSubiendo(true);
-    try {
-      const { data } = await cotizacionesService.solicitarAprobacion(cotizacionId, {
-        comentario: comentarioEnvio.trim()
-      });
-      toast.success(data.mensaje || 'Enviado a aprobación');
-      setComentarioEnvio('');
-      onSolicitudEnviada?.(data.data);
-    } catch (err) {
-      toast.error(err.response?.data?.mensaje || 'Error al enviar');
-    } finally {
-      setSubiendo(false);
-    }
-  };
-
   return (
     <div className="space-y-5 p-1">
       <div>
         <h3 className="text-lg font-semibold text-slate-800">Adjuntos</h3>
         <p className="text-sm text-slate-500 mt-1">
-          {codigo} · PDF, Excel, Word, imágenes o ZIP (máx. 15 MB c/u). Al enviar a aprobación, los responsables
-          reciben correo con los archivos (hasta ~8 MB total en el mail).
+          {codigo} · PDF, Excel, Word, imágenes o ZIP (máx. 15 MB c/u). Al enviar a aprobación desde{' '}
+          <strong>Propuesta</strong>, Magali recibe correo con estos archivos (hasta ~8 MB total en el mail).
         </p>
       </div>
 
@@ -164,30 +139,6 @@ const CotizacionesAdjuntos = ({
         ))}
       </div>
 
-      {permitirEnviarAprobacion && (
-      <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
-        <h4 className="font-semibold text-amber-950 text-sm">Enviar a aprobación</h4>
-        <p className="text-xs text-amber-900/80">
-          Cambia el estado a <strong>En revisión</strong> y envía correo a los demás responsables de la cotización
-          (aprobador).
-        </p>
-        <textarea
-          rows={2}
-          value={comentarioEnvio}
-          onChange={(e) => setComentarioEnvio(e.target.value)}
-          placeholder="Mensaje para el aprobador (opcional)"
-          className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm bg-white"
-        />
-        <button
-          type="button"
-          disabled={subiendo}
-          onClick={enviarAprobacion}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium disabled:opacity-50"
-        >
-          <PaperAirplaneIcon className="w-4 h-4" /> Notificar aprobador
-        </button>
-      </div>
-      )}
     </div>
   );
 };

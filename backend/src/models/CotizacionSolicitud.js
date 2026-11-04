@@ -328,6 +328,28 @@ class CotizacionSolicitud {
     return rows[0] || null;
   }
 
+  /** Solicitud comercial vinculada a una cotización (si existe). */
+  static async obtenerPorCotizacionId(cotizacionId, solicitudIdFk = null) {
+    if (!cotizacionId) return null;
+    const [rows] = await pool.query(
+      `SELECT s.*,
+              CONCAT(e.nombres, ' ', e.apellidos) AS solicitante_nombre,
+              e.email AS solicitante_email
+       FROM cotizacion_solicitudes s
+       JOIN empleados e ON e.id = s.solicitante_id
+       WHERE s.cotizacion_id = ?
+       ORDER BY s.updated_at DESC, s.id DESC
+       LIMIT 1`,
+      [cotizacionId]
+    );
+    if (rows[0]) return rows[0];
+    if (solicitudIdFk) {
+      const porId = await this.obtener(solicitudIdFk);
+      if (porId && Number(porId.cotizacion_id) === Number(cotizacionId)) return porId;
+    }
+    return null;
+  }
+
   static async obtener(id) {
     await this.reconciliarEstadoHuerfana(id);
     const [rows] = await pool.query(

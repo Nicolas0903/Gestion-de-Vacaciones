@@ -83,6 +83,7 @@ const Cotizaciones = () => {
   const modoEdicionPropuestaComercial =
     modoComercial || modoComercialEquipo || esEquipoComercialSinPresales;
   const modoVistaComercial = modoEdicionPropuestaComercial || modoGestorCierre;
+  const puedeEnviarAprobacion = !modoGestorCierre;
   const [puedeGestionarCierre, setPuedeGestionarCierre] = useState(false);
   const [cierreAccionesLoading, setCierreAccionesLoading] = useState(false);
   const tabsVisibles = modoVistaComercial ? TABS_COMERCIAL : TABS_ELABORADOR;
@@ -757,22 +758,21 @@ const Cotizaciones = () => {
                   )}
 
                   {tab === 'adjuntos' && selId && (
-                    <CotizacionesAdjuntos
+                    <CotizacionesAdjuntos cotizacionId={selId} codigo={cot?.codigo} />
+                  )}
+
+                  {tab === 'propuesta' && borrador && (
+                    <CotizacionesPropuesta
                       cotizacionId={selId}
-                      codigo={cot?.codigo}
-                      permitirEnviarAprobacion={!modoVistaComercial}
-                      onSolicitudEnviada={(data) => {
+                      mostrarEnviarAprobacion={puedeEnviarAprobacion}
+                      onSolicitudAprobacionEnviada={(data) => {
                         if (data) {
                           setDetalle(data);
                           setBorrador(data.borrador);
                         }
                         cargarLista();
                       }}
-                    />
-                  )}
-
-                  {tab === 'propuesta' && borrador && (
-                    <CotizacionesPropuesta
+                      solicitanteComercial={detalle?.solicitud_comercial}
                       codigoCotizacion={cot?.codigo}
                       clienteCotizacion={cot?.cliente || borrador.general?.cliente}
                       proyectoCotizacion={cot?.proyecto || borrador.general?.nombre_proyecto}

@@ -2283,6 +2283,77 @@ async function notificarNuevaSolicitudCotizacion(solicitud) {
   }
 }
 
+async function notificarCotizacionPropuestaListaComercial({
+  cotizacion,
+  borrador,
+  enviadoPor,
+  comentario = '',
+  solicitante
+}) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('📧 Email no configurado - Aviso comercial propuesta omitido');
+    return false;
+  }
+  const dest = String(solicitante?.email || solicitante?.solicitante_email || '').trim().toLowerCase();
+  if (!dest) return false;
+
+  const general = borrador?.general || {};
+  const calc = borrador?.propuesta?.totales || {};
+  const monto =
+    Number(calc.total_inversion) > 0
+      ? calc.total_inversion
+      : Number(calc.detalle_final) > 0
+        ? calc.detalle_final
+        : borrador?.propuesta?.monto_propuesta;
+  const moneda =
+    borrador?.propuesta?.moneda_facturacion || borrador?.costos?.parametros?.moneda || 'USD';
+  const simbolo = String(moneda).toUpperCase() === 'PEN' ? 'S/' : '$';
+  const montoTxt =
+    monto != null && Number.isFinite(Number(monto))
+      ? `${simbolo} ${Number(monto).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : '—';
+
+  const urlPortal = `${FRONTEND_URL}/cotizaciones`;
+  const nombreDest =
+    solicitante?.nombre ||
+    solicitante?.solicitante_nombre ||
+    dest;
+  const nombreEnv =
+    [enviadoPor?.nombres, enviadoPor?.apellidos].filter(Boolean).join(' ') || enviadoPor?.email || '—';
+
+  const contenido = `
+    <p>Hola <strong>${escapeHtml(nombreDest)}</strong>,</p>
+    <p><strong>${escapeHtml(nombreEnv)}</strong> indica que la <strong>propuesta económica</strong> de la cotización <strong>${escapeHtml(cotizacion?.codigo || '')}</strong> ya está lista para que la revises en el portal.</p>
+    <div class="info-box">
+      <div class="info-row"><span class="info-label">Proyecto:</span><span class="info-value">${escapeHtml(general.nombre_proyecto || cotizacion?.proyecto || '—')}</span></div>
+      <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value">${escapeHtml(general.cliente || cotizacion?.cliente || '—')}</span></div>
+      <div class="info-row"><span class="info-label">Monto propuesta (referencial):</span><span class="info-value">${escapeHtml(montoTxt)}</span></div>
+      ${solicitante?.codigo ? `<div class="info-row"><span class="info-label">Tu solicitud:</span><span class="info-value">${escapeHtml(solicitante.codigo)}</span></div>` : ''}
+      ${comentario ? `<div class="info-row"><span class="info-label">Mensaje:</span><span class="info-value">${escapeHtml(comentario)}</span></div>` : ''}
+    </div>
+    <p style="text-align: center; margin: 25px 0;">
+      <a href="${urlPortal}" style="display: inline-block; background: #0d9488; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+        Abrir cotización en el portal
+      </a>
+    </p>
+  `;
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: remitente('portal'),
+      to: dest,
+      subject: `Propuesta lista — ${cotizacion?.codigo || 'cotización'} (${general.cliente || cotizacion?.cliente || 'cliente'})`,
+      html: plantillaEmail(contenido, 'Propuesta económica lista', 'portal')
+    });
+    console.log(`📧 Propuesta lista → comercial solicitante ${dest}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error email propuesta lista comercial:', error.message);
+    return false;
+  }
+}
+
 async function notificarCotizacionEnvioAprobacion({
   cotizacion,
   borrador,
@@ -2294,32 +2365,16 @@ async function notificarCotizacionEnvioAprobacion({
     console.log('📧 Email no configurado - Aprobación cotización omitida');
     return false;
   }
-  const { pool } = require('../config/database');
-  const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
-  const Cotizacion = require('../models/Cotizacion');
+  const {
+    COTIZACION_APROBACION_PARA,
+    COTIZACION_APROBACION_COPIA
+  } = require('../constants/cotizacionAprobacion');
 
   const general = borrador?.general || {};
-  const ids = Cotizacion.responsableIdsFromGeneral(general, cotizacion?.responsable_id);
-  const enviadoId = Number(enviadoPor?.id);
-  let destIds = ids.filter((id) => id !== enviadoId);
-  if (!destIds.length) destIds = ids;
-
-  let destinatarios = [];
-  if (destIds.length) {
-    const ph = destIds.map(() => '?').join(',');
-    const [rows] = await pool.query(
-      `SELECT LOWER(TRIM(email)) AS email, nombres, apellidos FROM empleados WHERE activo = 1 AND id IN (${ph})`,
-      destIds
-    );
-    destinatarios = rows.map((r) => r.email).filter(Boolean);
-  }
-  if (!destinatarios.length) {
-    destinatarios = [...new Set(COTIZACION_RESPONSABLES_EMAILS.map((e) => e.toLowerCase()))];
-    const em = String(enviadoPor?.email || '').toLowerCase();
-    destinatarios = destinatarios.filter((d) => d !== em);
-  }
-  destinatarios = [...new Set(destinatarios)];
-  if (!destinatarios.length) return false;
+  const destinatarios = [COTIZACION_APROBACION_PARA.toLowerCase()];
+  const copia = [...new Set(COTIZACION_APROBACION_COPIA.map((e) => String(e).trim().toLowerCase()))].filter(
+    (e) => e && e !== destinatarios[0]
+  );
 
   const urlPortal = `${FRONTEND_URL}/cotizaciones`;
   const nombreEnv =
@@ -2368,11 +2423,14 @@ async function notificarCotizacionEnvioAprobacion({
     await transporter.sendMail({
       from: remitente('portal'),
       to: destinatarios.join(', '),
+      cc: copia.length ? copia.join(', ') : undefined,
       subject: `Cotización ${cotizacion?.codigo || ''} — revisión (${general.cliente || 'cliente'})`,
       html: plantillaEmail(contenido, 'Cotización para aprobación', 'portal'),
       attachments
     });
-    console.log(`📧 Cotización aprobación → ${destinatarios.join(', ')} (${attachments.length} adj.)`);
+    console.log(
+      `📧 Cotización aprobación → ${destinatarios.join(', ')}${copia.length ? ` (cc: ${copia.join(', ')})` : ''} (${attachments.length} adj.)`
+    );
     return true;
   } catch (error) {
     console.error('❌ Error email cotización aprobación:', error.message);
@@ -2410,6 +2468,7 @@ module.exports = {
   enviarRespaldoArchivo,
   notificarNuevaSolicitudCotizacion,
   notificarCotizacionEnvioAprobacion,
+  notificarCotizacionPropuestaListaComercial,
   notificarSolicitudPresupuestoPendiente,
   notificarSolicitudPresupuestoCopia
 };

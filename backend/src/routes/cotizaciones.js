@@ -67,6 +67,7 @@ router.post('/:id/adjuntos', uploadAdjuntoCotizacion.single('archivo'), ctrl.sub
 router.get('/:id/adjuntos/:adjuntoId/descargar', ctrl.descargarAdjunto);
 router.delete('/:id/adjuntos/:adjuntoId', ctrl.eliminarAdjunto);
 router.post('/:id/solicitar-aprobacion', ctrl.solicitarAprobacion);
+router.post('/:id/notificar-comercial-propuesta', ctrl.notificarComercialPropuestaLista);
 router.put('/:id/acceso-responsables', ctrl.asignarAccesoResponsables);
 router.put('/:id/cierre-comercial', ctrl.guardarCierreComercial);
 router.post('/:id/cierre-comercial/cerrar', ctrl.cerrarCierreComercial);

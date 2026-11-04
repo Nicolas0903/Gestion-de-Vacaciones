@@ -12,6 +12,8 @@ import {
   limiteTotalFinalPropuesta,
   propuestaComercialExcedeLimite
 } from '../../utils/cotizacionPropuestaLimite';
+import CotizacionEnviarAprobacion from './CotizacionEnviarAprobacion';
+import CotizacionNotificarComercial from './CotizacionNotificarComercial';
 
 const TH = 'bg-emerald-800 text-white font-semibold text-sm px-3 py-2 border border-emerald-900';
 const TD = 'border border-slate-300 px-2 py-1.5 text-sm';
@@ -80,9 +82,13 @@ const CotizacionesPropuesta = ({
   onCerrarCierreComercial,
   onReabrirCierreComercial,
   accionesCierreCargando = false,
+  cotizacionId,
   codigoCotizacion = '',
   clienteCotizacion = '',
-  proyectoCotizacion = ''
+  proyectoCotizacion = '',
+  mostrarEnviarAprobacion = false,
+  onSolicitudAprobacionEnviada,
+  solicitanteComercial = null
 }) => {
   const [exportandoExcel, setExportandoExcel] = useState(false);
   const cierreCerrado = cierreComercialEstado === 'cerrado';
@@ -749,6 +755,16 @@ const CotizacionesPropuesta = ({
           )}
         </div>
       </div>
+
+      {mostrarEnviarAprobacion && cotizacionId && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <CotizacionNotificarComercial cotizacionId={cotizacionId} solicitanteComercial={solicitanteComercial} />
+          <CotizacionEnviarAprobacion
+            cotizacionId={cotizacionId}
+            onSolicitudEnviada={onSolicitudAprobacionEnviada}
+          />
+        </div>
+      )}
     </div>
   );
 };

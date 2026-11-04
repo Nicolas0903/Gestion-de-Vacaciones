@@ -1,10 +1,14 @@
 const Cotizacion = require('../models/Cotizacion');
 const CotizacionAdjunto = require('../models/CotizacionAdjunto');
+const CotizacionSolicitud = require('../models/CotizacionSolicitud');
 const { Empleado } = require('../models');
 const { tieneAccesoEfectivoModulo } = require('../utils/portalAcceso');
 const { borradorVacio, calcularCotizacion } = require('../services/cotizacionCalculoService');
 const { obtenerTipoCambioSunat } = require('../services/sunatTipoCambioService');
-const { notificarCotizacionEnvioAprobacion } = require('../services/emailService');
+const {
+  notificarCotizacionEnvioAprobacion,
+  notificarCotizacionPropuestaListaComercial
+} = require('../services/emailService');
 const { esEmailEquipoComercial } = require('../constants/cotizacionEquipoComercial');
 const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
 
@@ -173,12 +177,24 @@ exports.obtener = async (req, res) => {
     if (!cot) return;
     const empleado = await empleadoReq(req);
     const detalle = await Cotizacion.obtenerDetalle(req.params.id);
+    const sol = await CotizacionSolicitud.obtenerPorCotizacionId(
+      req.params.id,
+      detalle?.cotizacion?.solicitud_id
+    );
     res.json({
       success: true,
       data: {
         ...detalle,
         acceso_modo: req.cotizacionModoAcceso || 'elaborador',
-        puede_gestionar_cierre_comercial: puedeGestionarCierreComercial(req, empleado)
+        puede_gestionar_cierre_comercial: puedeGestionarCierreComercial(req, empleado),
+        solicitud_comercial: sol
+          ? {
+              id: sol.id,
+              codigo: sol.codigo,
+              solicitante_nombre: sol.solicitante_nombre,
+              solicitante_email: sol.solicitante_email
+            }
+          : null
       }
     });
   } catch (e) {
@@ -417,11 +433,64 @@ exports.eliminarAdjunto = async (req, res) => {
   }
 };
 
+exports.notificarComercialPropuestaLista = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const cot = await verificarAccesoCotizacion(req, res, id);
+    if (!cot) return;
+    if (req.cotizacionModoAcceso === 'gestor_cierre') {
+      return res.status(403).json({
+        success: false,
+        mensaje: 'Use esta acción desde elaboración o comercial, no desde gestión de cierre.'
+      });
+    }
+    const sol = await CotizacionSolicitud.obtenerPorCotizacionId(id, cot.solicitud_id);
+    const emailSol = String(sol?.solicitante_email || '').trim();
+    if (!sol || !emailSol) {
+      return res.status(400).json({
+        success: false,
+        mensaje:
+          'Esta cotización no tiene una solicitud comercial vinculada. Créela desde Solicitud de cotización o vincúlela al atender la solicitud.'
+      });
+    }
+    const detalle = await Cotizacion.obtenerDetalle(id);
+    const borradorCalc = calcularCotizacion(detalle.borrador);
+    const comentario = String(req.body?.comentario || '').trim();
+    const ok = await notificarCotizacionPropuestaListaComercial({
+      cotizacion: detalle.cotizacion,
+      borrador: borradorCalc,
+      enviadoPor: req.usuario,
+      comentario,
+      solicitante: sol
+    }).catch(() => false);
+    if (!ok) {
+      return res.status(502).json({
+        success: false,
+        mensaje: 'No se pudo enviar el correo al comercial solicitante (revise SMTP o el email del solicitante).'
+      });
+    }
+    res.json({
+      success: true,
+      mensaje: `Se notificó a ${sol.solicitante_nombre || emailSol} que la propuesta está lista para revisar.`
+    });
+  } catch (e) {
+    console.error('cotizaciones notificarComercialPropuestaLista:', e);
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al notificar al comercial' });
+  }
+};
+
 exports.solicitarAprobacion = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const cot = await verificarElaboracionCotizacion(req, res, id);
+    const cot = await verificarAccesoCotizacion(req, res, id);
     if (!cot) return;
+    const modo = req.cotizacionModoAcceso;
+    if (modo === 'gestor_cierre') {
+      return res.status(403).json({
+        success: false,
+        mensaje: 'Use esta acción desde elaboración comercial o presales, no desde gestión de cierre.'
+      });
+    }
     const detalleAntes = await Cotizacion.obtenerDetalle(id);
     const borrador = detalleAntes.borrador;
     borrador.general = { ...borrador.general, estado: 'en_revision' };
@@ -445,7 +514,7 @@ exports.solicitarAprobacion = async (req, res) => {
     res.json({
       success: true,
       data: detalle,
-      mensaje: 'Cotización enviada a aprobación. Se notificó a los responsables.'
+      mensaje: 'Cotización enviada a aprobación. Se notificó a Magali (copia a Enrique).'
     });
   } catch (e) {
     console.error('cotizaciones solicitarAprobacion:', e);
