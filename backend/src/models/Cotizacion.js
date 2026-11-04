@@ -644,7 +644,7 @@ class Cotizacion {
       ]
     );
 
-    if (opts.usuarioId) {
+    if (opts.registrarVersion && opts.usuarioId) {
       await this.registrarVersionSiCambio(id, borrador, opts.usuarioId, comentarioVersion);
     }
     return this.obtenerDetalle(id);

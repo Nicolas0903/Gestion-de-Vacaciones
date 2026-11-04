@@ -88,12 +88,36 @@ export function calcCostosLocal(costosRaw) {
   const costoBaseProy = monedaProy === 'PEN' ? costoEnPen : costoEnUsd;
 
   const proyActiva = Math.min(Math.max(Number(params.proyeccion_activa) || 0, 0), proyecciones.length - 1);
-  const proyeccionSel = proyecciones[proyActiva] ?? 0;
-  const igvPct = Number(params.igv_pct ?? 18);
-  const igvProy = Math.round(proyeccionSel * (igvPct / 100) * 100) / 100;
-  const precioFinal = Math.round((proyeccionSel + igvProy) * 100) / 100;
+  const proyeccionAuto = proyecciones[proyActiva] ?? 0;
+  const manualTotal = params.total_general_manual;
+  const totalGeneral =
+    manualTotal != null && manualTotal !== '' && Number.isFinite(Number(manualTotal))
+      ? Math.round(Number(manualTotal) * 100) / 100
+      : Math.round(proyeccionAuto * 100) / 100;
+  const impTipo = String(params.impuesto_tipo || 'igv').toLowerCase();
+  const impPct = Number(params.impuesto_pct ?? params.igv_pct ?? 18);
+  let impuestoEtiqueta = 'IGV';
+  if (impTipo === 'renta') impuestoEtiqueta = 'Imp. a la renta';
+  if (impTipo === 'otros') {
+    impuestoEtiqueta = String(params.impuesto_otros_etiqueta || '').trim() || 'Otros impuestos';
+  }
+  let impuestoAuto = 0;
+  if (impTipo === 'igv' || impTipo === 'renta') {
+    impuestoAuto = Math.round(totalGeneral * (impPct / 100) * 100) / 100;
+  }
+  const impManual = params.impuesto_monto;
+  const impuestoMonto =
+    impManual != null && impManual !== '' && Number.isFinite(Number(impManual))
+      ? Math.round(Number(impManual) * 100) / 100
+      : impuestoAuto;
+  const proyeccionSel = totalGeneral;
+  const igvPct = impTipo === 'igv' ? impPct : Number(params.igv_pct ?? 18);
+  const igvProy = impuestoMonto;
+  const precioFinal = Math.round((totalGeneral + impuestoMonto) * 100) / 100;
   const margen =
-    proyeccionSel > 0 ? Math.round(((proyeccionSel - costoBaseProy) / proyeccionSel) * 10000) / 100 : 0;
+    totalGeneral > 0
+      ? Math.round(((totalGeneral - costoBaseProy) / totalGeneral) * 10000) / 100
+      : 0;
 
   return {
     recursos,
@@ -115,7 +139,14 @@ export function calcCostosLocal(costosRaw) {
       proyecciones,
       proyecciones_usd: proyeccionesUsd,
       proyecciones_pen: proyeccionesPen,
+      proyeccion_auto: Math.round(proyeccionAuto * 100) / 100,
       proyeccion_seleccionada: proyeccionSel,
+      total_general: totalGeneral,
+      impuesto_tipo: impTipo,
+      impuesto_etiqueta: impuestoEtiqueta,
+      impuesto_pct: impPct,
+      impuesto_monto: impuestoMonto,
+      impuesto_monto_auto: impuestoAuto,
       igv_proyeccion: igvProy,
       precio_final_cliente: precioFinal,
       margen_pct: margen,

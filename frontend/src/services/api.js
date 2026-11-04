@@ -413,11 +413,12 @@ export const cotizacionesService = {
   restaurarVersion: (id, versionNum, body) =>
     api.post(`/cotizaciones/${id}/restaurar-version/${versionNum}`, body),
   eliminar: (id) => api.delete(`/cotizaciones/${id}`),
-  listarAdjuntos: (id) => api.get(`/cotizaciones/${id}/adjuntos`),
-  subirAdjunto: (id, file, comentario) => {
+  listarAdjuntos: (id, params) => api.get(`/cotizaciones/${id}/adjuntos`, { params: params || {} }),
+  subirAdjunto: (id, file, comentario, tipo) => {
     const fd = new FormData();
     fd.append('archivo', file);
     if (comentario) fd.append('comentario', comentario);
+    if (tipo) fd.append('tipo', tipo);
     return api.post(`/cotizaciones/${id}/adjuntos`, fd);
   },
   descargarAdjuntoUrl: (id, adjuntoId) =>

@@ -11,6 +11,7 @@ import {
   perfilesConParticipacionAutomatica,
   validarActividadesDimensionamiento
 } from '../../utils/cotizacionActividadesValidacion';
+import CotizacionEvidenciaActividades from './CotizacionEvidenciaActividades';
 
 const mkId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -36,7 +37,13 @@ const sumTotales = (bloques) => {
   return { base, holgura, efectivas };
 };
 
-const CotizacionesActividades = ({ actividades, onChange, tipoProyecto = '', tipoProyectoCodigo = '' }) => {
+const CotizacionesActividades = ({
+  actividades,
+  onChange,
+  tipoProyecto = '',
+  tipoProyectoCodigo = '',
+  cotizacionId
+}) => {
   const tipo = actividades?.tipo_estructura || 'analitica';
   const bloques = actividades?.bloques || [];
   const perfilesRaw = actividades?.perfiles || [];
@@ -183,6 +190,10 @@ const CotizacionesActividades = ({ actividades, onChange, tipoProyecto = '', tip
           Dimensionamiento cuadrado: perfiles, participación y horas de actividades coinciden.
         </div>
       )}
+
+      <div className="mb-6">
+        <CotizacionEvidenciaActividades cotizacionId={cotizacionId} />
+      </div>
 
       <div className="mb-6 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-slate-50 border-b">

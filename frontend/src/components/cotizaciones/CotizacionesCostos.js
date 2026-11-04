@@ -386,6 +386,22 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
               </td>
               <td className={`${TDnum} text-slate-900 text-base`}>{fmtRec(res.costo_total)}</td>
             </tr>
+            {monedaRec === 'PEN' && (
+              <tr className="bg-slate-100">
+                <td className={`${TD} text-slate-700`} colSpan={7}>
+                  Costo del proyecto (US$) — comparación
+                </td>
+                <td className={`${TDnum} text-slate-800 font-semibold`}>{fmtUsd(res.costo_total_usd)}</td>
+              </tr>
+            )}
+            {monedaRec === 'USD' && (
+              <tr className="bg-slate-100">
+                <td className={`${TD} text-slate-700`} colSpan={7}>
+                  Costo del proyecto (S/) — comparación
+                </td>
+                <td className={`${TDnum} text-slate-800 font-semibold`}>{fmtPen(res.costo_total_pen)}</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -522,12 +538,100 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
           <table className="w-full border-collapse text-sm">
             <tbody>
               <tr className="bg-white">
-                <td className={`${TD} font-medium w-40`}>TOTAL GENERAL</td>
-                <td className={`${TDnum} font-bold text-base`}>{fmtProy(res.proyeccion_seleccionada)}</td>
+                <td className={`${TD} font-medium w-40 align-top pt-2`}>
+                  TOTAL GENERAL
+                  <p className="text-[11px] font-normal text-slate-500 mt-0.5">
+                    Calculado: {fmtProy(res.proyeccion_auto)}
+                  </p>
+                </td>
+                <td className={TD}>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className={`${inp} text-right font-bold text-base`}
+                    value={
+                      params.total_general_manual != null && params.total_general_manual !== ''
+                        ? params.total_general_manual
+                        : res.total_general ?? ''
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setParams({
+                        total_general_manual: v === '' ? null : Number(v)
+                      });
+                    }}
+                    title="Editable para redondeo; por defecto usa la proyección activa"
+                  />
+                </td>
               </tr>
               <tr className="bg-white">
-                <td className={TD}>IGV {res.igv_pct}%</td>
-                <td className={TDnum}>{fmtProy(res.igv_proyeccion)}</td>
+                <td className={`${TD} align-top`}>
+                  <div className="space-y-1.5">
+                    <select
+                      value={params.impuesto_tipo || 'igv'}
+                      onChange={(e) => {
+                        const t = e.target.value;
+                        const patch = { impuesto_tipo: t, impuesto_monto: null };
+                        if (t === 'igv') patch.igv_pct = params.impuesto_pct ?? params.igv_pct ?? 18;
+                        setParams(patch);
+                      }}
+                      className="w-full rounded border px-2 py-1 text-sm bg-white"
+                    >
+                      <option value="igv">IGV</option>
+                      <option value="renta">Impuesto a la renta</option>
+                      <option value="otros">Otros</option>
+                    </select>
+                    {(params.impuesto_tipo || 'igv') !== 'otros' && (
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="w-full rounded border px-2 py-1 text-sm"
+                        value={params.impuesto_pct ?? params.igv_pct ?? 18}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          const patch = { impuesto_pct: n, impuesto_monto: null };
+                          if ((params.impuesto_tipo || 'igv') === 'igv') patch.igv_pct = n;
+                          setParams(patch);
+                        }}
+                        placeholder="%"
+                      />
+                    )}
+                    {(params.impuesto_tipo || 'igv') === 'otros' && (
+                      <input
+                        type="text"
+                        className="w-full rounded border px-2 py-1 text-sm"
+                        value={params.impuesto_otros_etiqueta ?? ''}
+                        onChange={(e) => setParams({ impuesto_otros_etiqueta: e.target.value })}
+                        placeholder="Nombre del impuesto"
+                      />
+                    )}
+                  </div>
+                </td>
+                <td className={TD}>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className={`${inp} text-right`}
+                    value={
+                      params.impuesto_monto != null && params.impuesto_monto !== ''
+                        ? params.impuesto_monto
+                        : res.impuesto_monto ?? ''
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setParams({ impuesto_monto: v === '' ? null : Number(v) });
+                    }}
+                    title={`Sugerido: ${fmtProy(res.impuesto_monto_auto ?? 0)}`}
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1 text-right">
+                    {res.impuesto_etiqueta || 'Impuesto'}
+                    {(params.impuesto_tipo || 'igv') !== 'otros' && res.impuesto_pct != null
+                      ? ` ${res.impuesto_pct}%`
+                      : ''}
+                  </p>
+                </td>
               </tr>
               <tr className="bg-emerald-800 text-white">
                 <td className="border border-emerald-900 px-3 py-2 font-bold">TOTAL FINAL</td>
@@ -557,15 +661,45 @@ const CotizacionesCostos = ({ costos, codigo, versionActual, onChange }) => {
             />
           </label>
           <label>
-            IGV (%)
-            <input
-              type="number"
-              step="0.01"
-              value={params.igv_pct ?? 18}
-              onChange={(e) => setParams({ igv_pct: Number(e.target.value) })}
-              className="mt-1 w-full rounded border px-2 py-1.5"
-            />
+            Impuesto (precio cliente)
+            <select
+              value={params.impuesto_tipo || 'igv'}
+              onChange={(e) => setParams({ impuesto_tipo: e.target.value, impuesto_monto: null })}
+              className="mt-1 w-full rounded border px-2 py-1.5 bg-white"
+            >
+              <option value="igv">IGV</option>
+              <option value="renta">Impuesto a la renta</option>
+              <option value="otros">Otros</option>
+            </select>
           </label>
+          {(params.impuesto_tipo || 'igv') !== 'otros' ? (
+            <label>
+              {(params.impuesto_tipo || 'igv') === 'renta' ? 'Imp. renta (%)' : 'IGV (%)'}
+              <input
+                type="number"
+                step="0.01"
+                value={params.impuesto_pct ?? params.igv_pct ?? 18}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  const patch = { impuesto_pct: n, impuesto_monto: null };
+                  if ((params.impuesto_tipo || 'igv') === 'igv') patch.igv_pct = n;
+                  setParams(patch);
+                }}
+                className="mt-1 w-full rounded border px-2 py-1.5"
+              />
+            </label>
+          ) : (
+            <label>
+              Etiqueta impuesto
+              <input
+                type="text"
+                value={params.impuesto_otros_etiqueta ?? ''}
+                onChange={(e) => setParams({ impuesto_otros_etiqueta: e.target.value })}
+                className="mt-1 w-full rounded border px-2 py-1.5"
+                placeholder="Otros impuestos"
+              />
+            </label>
+          )}
           <p className="col-span-2 md:col-span-4 text-xs text-slate-500 -mt-1 mb-1">
             Garantía: bloque naranja debajo de recursos → <strong>Seleccionar / modificar</strong> (por recursos o tarifa manual).
             La moneda de la propuesta al cliente se define en la pestaña <strong>Propuesta</strong>.

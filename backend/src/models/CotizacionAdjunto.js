@@ -15,16 +15,19 @@ class CotizacionAdjunto {
     return asegurarDir(cotizacionId);
   }
 
-  static async listarPorCotizacion(cotizacionId) {
-    const [rows] = await pool.query(
-      `SELECT a.*,
+  static async listarPorCotizacion(cotizacionId, { tipo = null } = {}) {
+    let sql = `SELECT a.*,
               CONCAT(e.nombres, ' ', e.apellidos) AS subido_por_nombre
        FROM cotizacion_adjuntos a
        LEFT JOIN empleados e ON e.id = a.subido_por
-       WHERE a.cotizacion_id = ?
-       ORDER BY a.created_at DESC, a.id DESC`,
-      [cotizacionId]
-    );
+       WHERE a.cotizacion_id = ?`;
+    const params = [cotizacionId];
+    if (tipo) {
+      sql += ` AND a.tipo = ?`;
+      params.push(String(tipo));
+    }
+    sql += ` ORDER BY a.created_at DESC, a.id DESC`;
+    const [rows] = await pool.query(sql, params);
     return rows;
   }
 
@@ -36,21 +39,37 @@ class CotizacionAdjunto {
     return rows[0] || null;
   }
 
-  static async crear(cotizacionId, { nombreOriginal, nombreArchivo, tamano, mime, comentario, subidoPor }) {
-    const [r] = await pool.query(
-      `INSERT INTO cotizacion_adjuntos
-        (cotizacion_id, nombre_original, nombre_archivo, tamano_bytes, mime_type, comentario, subido_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        cotizacionId,
-        nombreOriginal,
-        nombreArchivo,
-        tamano || 0,
-        mime || null,
-        comentario || null,
-        subidoPor || null
-      ]
-    );
+  static async crear(cotizacionId, { nombreOriginal, nombreArchivo, tamano, mime, comentario, subidoPor, tipo }) {
+    const tipoNorm =
+      String(tipo || 'general').trim().toLowerCase() === 'evidencia_criterio'
+        ? 'evidencia_criterio'
+        : 'general';
+    const baseParams = [
+      cotizacionId,
+      nombreOriginal,
+      nombreArchivo,
+      tamano || 0,
+      mime || null,
+      comentario || null,
+      subidoPor || null
+    ];
+    let r;
+    try {
+      [r] = await pool.query(
+        `INSERT INTO cotizacion_adjuntos
+          (cotizacion_id, nombre_original, nombre_archivo, tamano_bytes, mime_type, comentario, subido_por, tipo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [...baseParams, tipoNorm]
+      );
+    } catch (e) {
+      if (e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+      [r] = await pool.query(
+        `INSERT INTO cotizacion_adjuntos
+          (cotizacion_id, nombre_original, nombre_archivo, tamano_bytes, mime_type, comentario, subido_por)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        baseParams
+      );
+    }
     const [rows] = await pool.query(`SELECT * FROM cotizacion_adjuntos WHERE id = ?`, [r.insertId]);
     return rows[0];
   }

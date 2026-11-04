@@ -231,7 +231,8 @@ exports.guardarBorrador = async (req, res) => {
         });
       }
       const detalle = await Cotizacion.actualizarPropuestaComercial(id, req.body.propuesta, {
-        usuarioId: req.usuario.id
+        usuarioId: req.usuario.id,
+        registrarVersion: !!req.body?.registrar_version
       });
       return res.json({
         success: true,
@@ -273,8 +274,14 @@ exports.guardarBorrador = async (req, res) => {
         body.propuesta[k] = keep[k];
       });
     }
+    const registrarVersion = body.registrar_version === true || body.registrar_version === 1;
+    const comentarioVersion = body.comentario_version;
+    delete body.registrar_version;
+    delete body.comentario_version;
     const detalle = await Cotizacion.actualizarBorrador(id, body, {
-      usuarioId: req.usuario.id
+      usuarioId: req.usuario.id,
+      registrarVersion,
+      comentarioVersion
     });
     res.json({ success: true, data: detalle });
   } catch (e) {
@@ -367,7 +374,8 @@ exports.listarAdjuntos = async (req, res) => {
     const cotizacionId = parseInt(req.params.id, 10);
     const cot = await verificarAccesoCotizacion(req, res, cotizacionId);
     if (!cot) return;
-    const rows = await CotizacionAdjunto.listarPorCotizacion(cotizacionId);
+    const tipo = req.query?.tipo ? String(req.query.tipo) : null;
+    const rows = await CotizacionAdjunto.listarPorCotizacion(cotizacionId, { tipo });
     res.json({ success: true, data: rows });
   } catch (e) {
     console.error('cotizaciones listarAdjuntos:', e);
@@ -389,7 +397,8 @@ exports.subirAdjunto = async (req, res) => {
       tamano: req.file.size,
       mime: req.file.mimetype,
       comentario: req.body?.comentario || null,
-      subidoPor: req.usuario.id
+      subidoPor: req.usuario.id,
+      tipo: req.body?.tipo || 'general'
     });
     res.status(201).json({ success: true, data: row });
   } catch (e) {

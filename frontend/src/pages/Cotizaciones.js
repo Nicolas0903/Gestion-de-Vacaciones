@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -94,6 +94,9 @@ const Cotizaciones = () => {
   const [borrador, setBorrador] = useState(null);
   const [tab, setTab] = useState('general');
   const [guardando, setGuardando] = useState(false);
+  const [autoguardadoEstado, setAutoguardadoEstado] = useState('');
+  const borradorRef = useRef(null);
+  const autoguardadoEnCurso = useRef(false);
   const [modalNueva, setModalNueva] = useState(false);
   const [modalPublicar, setModalPublicar] = useState(false);
   const [comentarioVersion, setComentarioVersion] = useState('');
@@ -168,6 +171,36 @@ const Cotizaciones = () => {
   }, [selId, cargarDetalle]);
 
   useEffect(() => {
+    borradorRef.current = borrador;
+  }, [borrador]);
+
+  useEffect(() => {
+    if (!selId || !borrador || modoGestorCierre) return undefined;
+    const timer = setInterval(async () => {
+      if (guardando || autoguardadoEnCurso.current) return;
+      const b = borradorRef.current;
+      if (!b) return;
+      autoguardadoEnCurso.current = true;
+      try {
+        const payload = modoEdicionPropuestaComercial
+          ? { propuesta: b.propuesta, registrar_version: false }
+          : { ...borradorConSyncPerfilesCostos(b), registrar_version: false };
+        const { data } = await cotizacionesService.guardarBorrador(selId, payload);
+        setDetalle((prev) => (prev ? { ...prev, ...data.data, borrador: data.data.borrador } : data.data));
+        setBorrador(data.data.borrador);
+        setAutoguardadoEstado(
+          new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
+        );
+      } catch {
+        /* autoguardado silencioso */
+      } finally {
+        autoguardadoEnCurso.current = false;
+      }
+    }, 45000);
+    return () => clearInterval(timer);
+  }, [selId, modoGestorCierre, modoEdicionPropuestaComercial, guardando]);
+
+  useEffect(() => {
     const id = location.state?.cotizacionId;
     if (id) setSelId(Number(id));
   }, [location.state?.cotizacionId]);
@@ -223,8 +256,8 @@ const Cotizaciones = () => {
     try {
       const versionAntes = cot?.version_actual;
       const payload = modoEdicionPropuestaComercial
-        ? { propuesta: borrador.propuesta }
-        : borradorConSyncPerfilesCostos(borrador);
+        ? { propuesta: borrador.propuesta, registrar_version: true }
+        : { ...borradorConSyncPerfilesCostos(borrador), registrar_version: true };
       const { data } = await cotizacionesService.guardarBorrador(selId, payload);
       setDetalle(data.data);
       setBorrador(data.data.borrador);
@@ -316,7 +349,8 @@ const Cotizaciones = () => {
       const versionAntes = cot?.version_actual;
       const payload = {
         ...borradorConSyncPerfilesCostos(borrador),
-        comentario_version: comentarioVersion.trim() || undefined
+        comentario_version: comentarioVersion.trim() || undefined,
+        registrar_version: true
       };
       const { data } = await cotizacionesService.guardarBorrador(selId, payload);
       setDetalle(data.data);
@@ -609,6 +643,12 @@ const Cotizaciones = () => {
                       {nombreVisibleTipoProyecto(cot?.tipo_proyecto_codigo, cot?.tipo_proyecto)} ·{' '}
                       {cot?.responsable_nombre}
                     </p>
+                    {autoguardadoEstado && (
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Autoguardado en servidor {autoguardadoEstado} (sin nueva versión). Usa{' '}
+                        <strong>Guardar</strong> para el historial en Versiones.
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(!modoVistaComercial || modoEdicionPropuestaComercial) && (
@@ -622,7 +662,7 @@ const Cotizaciones = () => {
                           ? 'Guarda solo la propuesta (dentro del monto tope)'
                           : advertenciaActividades
                             ? mensajeValidacionActividades(validacionActividades)
-                            : 'Guarda borrador y versiona si hay cambios'
+                            : 'Guarda y crea entrada en Versiones si hay cambios'
                       }
                       className="px-3 py-1.5 text-sm border rounded-lg hover:bg-slate-50 disabled:opacity-50"
                     >
@@ -740,6 +780,7 @@ const Cotizaciones = () => {
                       tipoProyectoCodigo={
                         borrador.general?.tipo_proyecto_codigo || cot?.tipo_proyecto_codigo
                       }
+                      cotizacionId={selId}
                       onChange={(actividades) =>
                         setBorrador((p) => borradorConSyncPerfilesCostos({ ...p, actividades }))
                       }

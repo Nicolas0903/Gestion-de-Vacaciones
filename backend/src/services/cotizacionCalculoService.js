@@ -239,6 +239,20 @@ function calcularCostos(costosRaw) {
     tipo_cambio: num(p.tipo_cambio, 3.4) || 3.4,
     horas_mes: num(p.horas_mes, DEFAULT_HORAS_MES) || DEFAULT_HORAS_MES,
     igv_pct: num(p.igv_pct, DEFAULT_IGV),
+    impuesto_tipo: ['igv', 'renta', 'otros'].includes(String(p.impuesto_tipo || 'igv').toLowerCase())
+      ? String(p.impuesto_tipo || 'igv').toLowerCase()
+      : 'igv',
+    impuesto_pct:
+      p.impuesto_pct != null && p.impuesto_pct !== ''
+        ? num(p.impuesto_pct)
+        : num(p.igv_pct, DEFAULT_IGV),
+    impuesto_monto:
+      p.impuesto_monto != null && p.impuesto_monto !== '' ? round2(num(p.impuesto_monto)) : null,
+    impuesto_otros_etiqueta: String(p.impuesto_otros_etiqueta || '').trim(),
+    total_general_manual:
+      p.total_general_manual != null && p.total_general_manual !== ''
+        ? round2(num(p.total_general_manual))
+        : null,
     comision_admin_pct: num(p.comision_admin_pct, 10),
     horas_garantia: horasGarantia,
     recursos_garantia_idx: resolverIndicesGarantia(p),
@@ -279,12 +293,28 @@ function calcularCostos(costosRaw) {
     parametros.moneda_proyeccion === 'PEN' ? proyecciones_pen : proyecciones_usd;
   const costo_base_proyeccion =
     parametros.moneda_proyeccion === 'PEN' ? costo_en_pen : costo_en_usd;
-  const proyeccion_seleccionada = proyecciones[parametros.proyeccion_activa] ?? proyecciones[0] ?? 0;
-  const igv_proyeccion = round2(proyeccion_seleccionada * (parametros.igv_pct / 100));
-  const precio_final_cliente = round2(proyeccion_seleccionada + igv_proyeccion);
+  const proyeccion_auto = proyecciones[parametros.proyeccion_activa] ?? proyecciones[0] ?? 0;
+  const total_general =
+    parametros.total_general_manual != null ? parametros.total_general_manual : round2(proyeccion_auto);
+  const impTipo = parametros.impuesto_tipo;
+  const impPct = parametros.impuesto_pct;
+  let impuesto_etiqueta = 'IGV';
+  if (impTipo === 'renta') impuesto_etiqueta = 'Imp. a la renta';
+  if (impTipo === 'otros') {
+    impuesto_etiqueta = parametros.impuesto_otros_etiqueta || 'Otros impuestos';
+  }
+  let impuesto_auto = 0;
+  if (impTipo === 'igv' || impTipo === 'renta') {
+    impuesto_auto = round2(total_general * (impPct / 100));
+  }
+  const impuesto_monto =
+    parametros.impuesto_monto != null ? parametros.impuesto_monto : impuesto_auto;
+  const proyeccion_seleccionada = total_general;
+  const igv_proyeccion = impuesto_monto;
+  const precio_final_cliente = round2(total_general + impuesto_monto);
   const margen_pct =
-    proyeccion_seleccionada > 0
-      ? round2(((proyeccion_seleccionada - costo_base_proyeccion) / proyeccion_seleccionada) * 100)
+    total_general > 0
+      ? round2(((total_general - costo_base_proyeccion) / total_general) * 100)
       : 0;
 
   const igv_monto = round2(costo_total * (parametros.igv_pct / 100));
@@ -309,7 +339,14 @@ function calcularCostos(costosRaw) {
       proyecciones_usd,
       proyecciones_pen,
       costo_base_proyeccion,
+      proyeccion_auto,
       proyeccion_seleccionada,
+      total_general,
+      impuesto_tipo: impTipo,
+      impuesto_etiqueta,
+      impuesto_pct: impPct,
+      impuesto_monto,
+      impuesto_monto_auto: impuesto_auto,
       igv_proyeccion,
       precio_final_cliente,
       margen_pct,
