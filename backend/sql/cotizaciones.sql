@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
   proyecto VARCHAR(200) NOT NULL DEFAULT '',
   opcion VARCHAR(120) NULL,
   moneda ENUM('PEN', 'USD') NOT NULL DEFAULT 'PEN',
-  estado ENUM('borrador', 'en_revision', 'enviada', 'ganada', 'perdida') NOT NULL DEFAULT 'borrador',
+  estado ENUM('borrador', 'en_revision', 'aprobada', 'enviada', 'ganada', 'perdida') NOT NULL DEFAULT 'borrador',
   version_actual INT NOT NULL DEFAULT 0 COMMENT '0 = solo borrador sin versión publicada',
   borrador_json JSON NOT NULL COMMENT 'Datos editables en curso',
   creado_por INT NULL,
