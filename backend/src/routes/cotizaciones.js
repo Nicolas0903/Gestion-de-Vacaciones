@@ -59,6 +59,7 @@ router.get('/plantilla', ctrl.plantilla);
 router.get('/tipos-proyecto', ctrl.listarTiposProyecto);
 router.post('/tipos-proyecto', ctrl.crearTipoProyecto);
 router.get('/responsables', ctrl.listarResponsables);
+router.get('/comerciales-filtro', ctrl.listarComercialesFiltro);
 router.get('/tipo-cambio/sunat', ctrl.tipoCambioSunat);
 router.get('/', ctrl.listar);
 router.post('/', ctrl.crear);

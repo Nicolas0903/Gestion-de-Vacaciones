@@ -106,7 +106,15 @@ const Cotizaciones = () => {
   const [tipos, setTipos] = useState([]);
   const [responsables, setResponsables] = useState([]);
   const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
-  const [busqueda, setBusqueda] = useState({ q: '', ruc: '', estado: '', desde: '', hasta: '' });
+  const [comercialesFiltro, setComercialesFiltro] = useState([]);
+  const [busqueda, setBusqueda] = useState({
+    q: '',
+    ruc: '',
+    comercial_id: '',
+    estado: '',
+    desde: '',
+    hasta: ''
+  });
   const [filtrosApi, setFiltrosApi] = useState({});
   const tiposProyectoUi = React.useMemo(() => tiposProyectoOpciones(), []);
 
@@ -126,6 +134,7 @@ const Cotizaciones = () => {
     const params = {};
     if (busqueda.q.trim()) params.q = busqueda.q.trim();
     if (busqueda.ruc.trim()) params.ruc = busqueda.ruc.trim();
+    if (busqueda.comercial_id) params.comercial_id = busqueda.comercial_id;
     if (busqueda.estado) params.estado = busqueda.estado;
     if (busqueda.desde) params.desde = busqueda.desde;
     if (busqueda.hasta) params.hasta = busqueda.hasta;
@@ -224,6 +233,10 @@ const Cotizaciones = () => {
   useEffect(() => {
     setTipos(tiposProyectoOpciones());
     cotizacionesService.responsables().then(({ data }) => setResponsables(data.data || [])).catch(() => {});
+    cotizacionesService
+      .comercialesFiltro()
+      .then(({ data }) => setComercialesFiltro(data.data || []))
+      .catch(() => {});
     cotizacionSolicitudesService
       .listar({ equipo: 1 })
       .then(({ data }) => setSolicitudesPendientes(data.data || []))
@@ -655,6 +668,19 @@ const Cotizaciones = () => {
                   className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm"
                 />
                 <select
+                  value={busqueda.comercial_id}
+                  onChange={(e) => setBusqueda((b) => ({ ...b, comercial_id: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white"
+                  title="Comercial que registró o solicitó la cotización"
+                >
+                  <option value="">Todos los comerciales</option>
+                  {comercialesFiltro.map((co) => (
+                    <option key={co.id} value={String(co.id)}>
+                      {co.nombre}
+                    </option>
+                  ))}
+                </select>
+                <select
                   value={busqueda.estado}
                   onChange={(e) => setBusqueda((b) => ({ ...b, estado: e.target.value }))}
                   className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white"
@@ -716,6 +742,11 @@ const Cotizaciones = () => {
                     <div className="font-medium text-sm">{c.codigo}</div>
                     <div className="text-xs text-slate-500 truncate">{c.proyecto}</div>
                     <div className="text-xs text-slate-400">{c.cliente}</div>
+                    {c.comercial_solicitante && (
+                      <div className="text-xs text-slate-500 truncate" title="Comercial">
+                        Comercial: {c.comercial_solicitante}
+                      </div>
+                    )}
                     {c.ruc_cliente && (
                       <div className="text-xs text-slate-400">RUC {c.ruc_cliente}</div>
                     )}

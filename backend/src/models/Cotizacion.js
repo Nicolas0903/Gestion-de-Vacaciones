@@ -6,6 +6,7 @@ const {
   aplicarLimiteDesdeElaboracion
 } = require('../services/cotizacionCalculoService');
 const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
+const { COTIZACION_EQUIPO_COMERCIAL_EMAILS } = require('../constants/cotizacionEquipoComercial');
 const {
   estructuraDesdeTipoProyecto,
   listarTiposProyectoCatalogo,
@@ -70,6 +71,25 @@ class Cotizacion {
       [n]
     );
     return { id: result.insertId, nombre: n };
+  }
+
+  /** Comerciales para filtro del listado (equipo + quienes registraron solicitudes con cotización). */
+  static async listarComercialesFiltro() {
+    const emails = COTIZACION_EQUIPO_COMERCIAL_EMAILS.map((x) => String(x).trim().toLowerCase());
+    const ph = emails.map(() => '?').join(',');
+    const [rows] = await pool.query(
+      `SELECT DISTINCT e.id, TRIM(CONCAT(e.nombres, ' ', e.apellidos)) AS nombre
+       FROM empleados e
+       WHERE LOWER(TRIM(e.email)) IN (${ph})
+       UNION
+       SELECT DISTINCT s.solicitante_id AS id, TRIM(CONCAT(e.nombres, ' ', e.apellidos)) AS nombre
+       FROM cotizacion_solicitudes s
+       JOIN empleados e ON e.id = s.solicitante_id
+       WHERE s.cotizacion_id IS NOT NULL
+       ORDER BY nombre ASC`,
+      emails
+    );
+    return rows.filter((r) => r.id && String(r.nombre || '').trim());
   }
 
   static async listarResponsables() {
@@ -174,6 +194,28 @@ class Cotizacion {
       params.push(String(filtros.hasta).slice(0, 10));
     }
 
+    const comercialId = Number(filtros.comercialId);
+    if (comercialId) {
+      const [empRows] = await pool.query(
+        `SELECT nombres, apellidos FROM empleados WHERE id = ? LIMIT 1`,
+        [comercialId]
+      );
+      const nombreComercial = empRows[0]
+        ? `${empRows[0].nombres || ''} ${empRows[0].apellidos || ''}`.trim()
+        : '';
+      sql += ` AND (
+        EXISTS (
+          SELECT 1 FROM cotizacion_solicitudes scf
+          WHERE scf.cotizacion_id = c.id AND scf.solicitante_id = ?
+        )`;
+      params.push(comercialId);
+      if (nombreComercial) {
+        sql += ` OR LOWER(JSON_UNQUOTE(JSON_EXTRACT(c.borrador_json, '$.general.comercial_solicitante'))) LIKE LOWER(?)`;
+        params.push(`%${nombreComercial}%`);
+      }
+      sql += `)`;
+    }
+
     if (filtros.soloAccesoUsuarioId) {
       const uid = Number(filtros.soloAccesoUsuarioId);
       sql += ` AND (
@@ -194,6 +236,24 @@ class Cotizacion {
     sql += ` ORDER BY c.updated_at DESC, c.id DESC`;
     const [rows] = await pool.query(sql, params);
 
+    const cotIds = rows.map((r) => r.id).filter(Boolean);
+    const solicitudComercialPorCot = new Map();
+    if (cotIds.length) {
+      const ph = cotIds.map(() => '?').join(',');
+      const [solRows] = await pool.query(
+        `SELECT sc.cotizacion_id, TRIM(CONCAT(e.nombres, ' ', e.apellidos)) AS nombre
+         FROM cotizacion_solicitudes sc
+         JOIN empleados e ON e.id = sc.solicitante_id
+         WHERE sc.cotizacion_id IN (${ph})`,
+        cotIds
+      );
+      for (const s of solRows) {
+        if (s.cotizacion_id && s.nombre && !solicitudComercialPorCot.has(s.cotizacion_id)) {
+          solicitudComercialPorCot.set(s.cotizacion_id, s.nombre);
+        }
+      }
+    }
+
     const allIds = new Set();
     for (const row of rows) {
       const borrador = parseJson(row.borrador_json, {});
@@ -201,6 +261,9 @@ class Cotizacion {
       if (gen.tipo_proyecto) row.tipo_proyecto = gen.tipo_proyecto;
       if (gen.tipo_proyecto_codigo) row.tipo_proyecto_codigo = gen.tipo_proyecto_codigo;
       if (gen.ruc_cliente) row.ruc_cliente = gen.ruc_cliente;
+      const comercialTexto = String(gen.comercial_solicitante || '').trim();
+      row.comercial_solicitante =
+        comercialTexto || solicitudComercialPorCot.get(row.id) || '';
       const ids = this.responsableIdsFromGeneral(borrador.general, row.responsable_id);
       row.responsable_ids = ids;
       ids.forEach((id) => allIds.add(id));

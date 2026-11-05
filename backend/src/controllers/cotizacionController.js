@@ -149,6 +149,16 @@ exports.listarResponsables = async (req, res) => {
   }
 };
 
+exports.listarComercialesFiltro = async (req, res) => {
+  try {
+    const rows = await Cotizacion.listarComercialesFiltro();
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error('cotizaciones listarComercialesFiltro:', e);
+    res.status(500).json({ success: false, mensaje: 'Error al listar comerciales' });
+  }
+};
+
 exports.listar = async (req, res) => {
   try {
     const empleado = await empleadoReq(req);
@@ -156,12 +166,15 @@ exports.listar = async (req, res) => {
       esAdmin(req) ||
       (empleado && esEmailEquipoComercial(empleado.email)) ||
       (empleado && esAutorizadoCierreComercial(empleado.email));
+    const comercialIdRaw = req.query.comercial_id || req.query.comercialId;
+    const comercialId = comercialIdRaw ? Number(comercialIdRaw) : null;
     const lista = await Cotizacion.listar({
       q: req.query.q,
       ruc: req.query.ruc,
       estado: req.query.estado,
       desde: req.query.desde,
       hasta: req.query.hasta,
+      comercialId: comercialId && !Number.isNaN(comercialId) ? comercialId : null,
       soloAccesoUsuarioId: veTodas ? null : req.usuario.id
     });
     res.json({ success: true, data: lista });

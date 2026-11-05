@@ -403,6 +403,7 @@ export const cotizacionesService = {
   tiposProyecto: () => api.get('/cotizaciones/tipos-proyecto'),
   crearTipoProyecto: (nombre) => api.post('/cotizaciones/tipos-proyecto', { nombre }),
   responsables: () => api.get('/cotizaciones/responsables'),
+  comercialesFiltro: () => api.get('/cotizaciones/comerciales-filtro'),
   tipoCambioSunat: () => api.get('/cotizaciones/tipo-cambio/sunat'),
   listar: (params) => api.get('/cotizaciones', { params: params || {} }),
   obtener: (id) => api.get(`/cotizaciones/${id}`),
