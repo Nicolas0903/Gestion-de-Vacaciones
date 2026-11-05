@@ -90,6 +90,38 @@ const CotizacionGeneralForm = ({
           </select>
         </label>
 
+        <label className="block text-sm">
+          <span className="text-slate-600">Fecha de subida</span>
+          <input
+            type="date"
+            value={form.fecha_subida || ''}
+            onChange={(e) => set('fecha_subida', e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <span className="text-xs text-slate-400">Cuando el comercial registró o envió el pedido</span>
+        </label>
+
+        <label className="block text-sm">
+          <span className="text-slate-600">Deadline de la propuesta</span>
+          <input
+            type="date"
+            value={form.fecha_deadline_propuesta || ''}
+            onChange={(e) => set('fecha_deadline_propuesta', e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <span className="text-xs text-slate-400">Fecha límite acordada para entregar la cotización</span>
+        </label>
+
+        <label className="block text-sm md:col-span-2">
+          <span className="text-slate-600">Comercial solicitante</span>
+          <input
+            value={form.comercial_solicitante || ''}
+            onChange={(e) => set('comercial_solicitante', e.target.value)}
+            placeholder="Nombre del comercial que pidió la cotización"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+        </label>
+
         <label className="block text-sm md:col-span-2">
           <span className="text-slate-600">Nombre del proyecto *</span>
           <input

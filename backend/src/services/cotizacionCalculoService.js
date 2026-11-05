@@ -419,13 +419,24 @@ function calcularPropuesta(propuestaRaw, costosResumen, costosParametros) {
         ? propuestaRaw.pagos_entregables
         : propuestaRaw?.pagos || [];
 
-  const detalle = (propuestaRaw?.detalle || []).map((d, idx) => ({
-    ...d,
-    orden: idx + 1,
-    actividad: String(d.actividad || '').trim(),
-    horas: num(d.horas ?? d.semanas),
-    precio: num(d.precio)
-  }));
+  const detalle = (propuestaRaw?.detalle || []).map((d, idx) => {
+    let precio = num(d.precio);
+    const role = inversion_roles[idx];
+    if (role) {
+      const inv = num(role.inversion);
+      const tot = num(role.total);
+      if (precio > 0 && tot > 0 && inv > 0 && Math.abs(precio - tot) < 0.02 && Math.abs(precio - inv) > 0.02) {
+        precio = inv;
+      }
+    }
+    return {
+      ...d,
+      orden: idx + 1,
+      actividad: String(d.actividad || '').trim(),
+      horas: num(d.horas ?? d.semanas),
+      precio
+    };
+  });
 
   const detalle_total = round2(detalle.reduce((s, d) => s + num(d.precio), 0));
   const detalle_igv = round2(detalle_total * igvPct);
@@ -527,7 +538,10 @@ function borradorVacio() {
       responsable_ids: [],
       responsable_id: null,
       ruc_cliente: '',
-      notas_internas: ''
+      notas_internas: '',
+      fecha_subida: '',
+      fecha_deadline_propuesta: '',
+      comercial_solicitante: ''
     },
     actividades: {
       tipo_estructura: 'analitica',

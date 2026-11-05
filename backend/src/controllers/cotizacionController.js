@@ -196,7 +196,9 @@ exports.obtener = async (req, res) => {
               id: sol.id,
               codigo: sol.codigo,
               solicitante_nombre: sol.solicitante_nombre,
-              solicitante_email: sol.solicitante_email
+              solicitante_email: sol.solicitante_email,
+              fecha_limite: sol.fecha_limite,
+              created_at: sol.created_at
             }
           : null
       }

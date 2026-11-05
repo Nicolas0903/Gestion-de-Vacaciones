@@ -30,6 +30,7 @@ import CotizacionAccesoResponsablesAdmin from '../components/cotizaciones/Cotiza
 import { useAuth } from '../context/AuthContext';
 import CotizacionFlujoPageBanner from '../components/CotizacionFlujoPageBanner';
 import { ESTADOS_COTIZACION } from '../components/cotizaciones/CotizacionGeneralForm';
+import { generalConMetadatosComercial } from '../utils/cotizacionGeneralFechas';
 import {
   actividadesConTipoProyecto,
   borradorConSyncPerfilesCostos,
@@ -140,7 +141,13 @@ const Cotizaciones = () => {
     try {
       const { data } = await cotizacionesService.obtener(id);
       setDetalle(data.data);
-      setBorrador(data.data.borrador);
+      setBorrador({
+        ...data.data.borrador,
+        general: generalConMetadatosComercial(data.data.borrador?.general, {
+          solicitud: data.data.solicitud_comercial,
+          cotizacionCreatedAt: data.data.cotizacion?.created_at
+        })
+      });
       const modo = data.data.acceso_modo || 'elaborador';
       setAccesoModo(modo);
       setPuedeGestionarCierre(!!data.data.puede_gestionar_cierre_comercial);
@@ -804,7 +811,10 @@ const Cotizaciones = () => {
                             ? [borrador.general?.responsable_id || cot?.responsable_id]
                             : []),
                         responsable_id: borrador.general?.responsable_id || cot?.responsable_id,
-                        notas_internas: borrador.general?.notas_internas || cot?.notas_internas
+                        notas_internas: borrador.general?.notas_internas || cot?.notas_internas,
+                        fecha_subida: borrador.general?.fecha_subida || '',
+                        fecha_deadline_propuesta: borrador.general?.fecha_deadline_propuesta || '',
+                        comercial_solicitante: borrador.general?.comercial_solicitante || ''
                       }}
                       tipos={tiposProyectoUi}
                       responsables={responsables}

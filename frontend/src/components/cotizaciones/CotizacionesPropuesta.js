@@ -8,7 +8,10 @@ import {
   inversionRolesDesdeCostos,
   monedaFacturacionPropuesta
 } from '../../utils/cotizacionPropuestaInversion';
-import { detalleDesdeInversionCalc } from '../../utils/detalleDesdeInversionPropuesta';
+import {
+  detalleDesdeInversionCalc,
+  normalizarPreciosDetallePropuesta
+} from '../../utils/detalleDesdeInversionPropuesta';
 import {
   limiteTotalFinalPropuesta,
   propuestaComercialExcedeLimite
@@ -40,7 +43,7 @@ const calcPropuestaLocal = (propuesta, igvPctNum = 18) => {
       ? propuesta.pagos_forma
       : propuesta?.pagos_entregables || [];
 
-  const detalle = (propuesta?.detalle || []).map((d) => ({
+  const detalle = normalizarPreciosDetallePropuesta(inversion_roles, propuesta?.detalle || []).map((d) => ({
     ...d,
     horas: Number(d.horas ?? d.semanas) || 0,
     precio: Number(d.precio) || 0

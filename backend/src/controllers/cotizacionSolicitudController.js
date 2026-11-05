@@ -126,7 +126,10 @@ exports.crearCotizacionDesdeSolicitud = async (req, res) => {
         tipo_proyecto_codigo: sol.tipo_proyecto_codigo,
         responsable_ids: responsableIds,
         responsable_id: responsableId,
-        notas_internas: `[Desde ${sol.codigo}] Tipos: ${tiposTxt || '—'}. ${sol.contexto_comercial || ''}`.trim()
+        notas_internas: `[Desde ${sol.codigo}] Tipos: ${tiposTxt || '—'}. ${sol.contexto_comercial || ''}`.trim(),
+        fecha_subida: sol.created_at ? String(sol.created_at).slice(0, 10) : '',
+        fecha_deadline_propuesta: sol.fecha_limite ? String(sol.fecha_limite).slice(0, 10) : '',
+        comercial_solicitante: String(sol.solicitante_nombre || '').trim()
       }
     });
 
