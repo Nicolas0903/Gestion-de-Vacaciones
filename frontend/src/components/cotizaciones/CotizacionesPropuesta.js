@@ -13,6 +13,7 @@ import {
   limiteTotalFinalPropuesta,
   propuestaComercialExcedeLimite
 } from '../../utils/cotizacionPropuestaLimite';
+import { igvPctEfectivo, impuestoAplicaEnCostos } from '../../utils/cotizacionImpuesto';
 import CotizacionEnviarAprobacion from './CotizacionEnviarAprobacion';
 import CotizacionNotificarComercial from './CotizacionNotificarComercial';
 
@@ -23,8 +24,8 @@ const inpExcel =
   'w-full min-w-0 border border-slate-400 bg-white px-2 py-1.5 text-sm rounded-sm shadow-sm focus:border-teal-600 focus:ring-1 focus:ring-teal-500';
 const inp = inpExcel;
 
-const calcPropuestaLocal = (propuesta, igvPctDefault = 18) => {
-  const igvPct = Number(propuesta?.igv_pct ?? igvPctDefault) / 100;
+const calcPropuestaLocal = (propuesta, igvPctNum = 18) => {
+  const igvPct = Number(igvPctNum) / 100;
   const inversion_roles = (propuesta?.inversion_roles || []).map((item) => {
     const inversion = Number(item.inversion) || 0;
     const igv = Math.round(inversion * igvPct * 100) / 100;
@@ -34,10 +35,10 @@ const calcPropuestaLocal = (propuesta, igvPctDefault = 18) => {
   const igv_inversion = Math.round(inversion_roles.reduce((s, i) => s + i.igv, 0) * 100) / 100;
   const total_inversion = Math.round(inversion_roles.reduce((s, i) => s + i.total, 0) * 100) / 100;
 
-  const pagos_entregables = (propuesta?.pagos_entregables || []).map((p) => {
-    const porcentaje = Number(p.porcentaje) || 0;
-    return { ...p, porcentaje, monto: Math.round(total_inversion * porcentaje * 100) / 100 };
-  });
+  const filasFormaPago =
+    propuesta?.pagos_forma?.length > 0
+      ? propuesta.pagos_forma
+      : propuesta?.pagos_entregables || [];
 
   const detalle = (propuesta?.detalle || []).map((d) => ({
     ...d,
@@ -48,15 +49,13 @@ const calcPropuestaLocal = (propuesta, igvPctDefault = 18) => {
   const detalle_igv = Math.round(detalle_total * igvPct * 100) / 100;
   const detalle_final = Math.round((detalle_total + detalle_igv) * 100) / 100;
 
-  const pagos_forma = (propuesta?.pagos_forma || []).map((p) => {
+  const pagos_forma = filasFormaPago.map((p) => {
     const porcentaje = Number(p.porcentaje) || 0;
-    const base = detalle_final > 0 ? detalle_final : total_inversion;
-    return { ...p, porcentaje, monto: Math.round(base * porcentaje * 100) / 100 };
+    return { ...p, porcentaje, monto: Math.round(total_inversion * porcentaje * 100) / 100 };
   });
 
   return {
     inversion_roles,
-    pagos_entregables,
     detalle,
     pagos_forma,
     totales: { inversion_total, igv_inversion, total_inversion, detalle_total, detalle_igv, detalle_final }
@@ -99,7 +98,9 @@ const CotizacionesPropuesta = ({
   const puedeEditarParametros = puedeEditarCuadros || (!bloqueaMontos && !soloLectura);
   const moneda = monedaFacturacionPropuesta(propuesta, costos);
   const fmt = (n) => formatoMontoRendicion(n, moneda);
-  const igvPct = propuesta?.igv_pct ?? costos?.parametros?.igv_pct ?? 18;
+  const impuestoAplica = impuestoAplicaEnCostos(costos?.parametros);
+  const igvPct = igvPctEfectivo(propuesta, costos);
+  const igvPctGuardado = propuesta?.igv_pct ?? costos?.parametros?.igv_pct ?? 18;
 
   const calc = useMemo(() => calcPropuestaLocal(propuesta, igvPct), [propuesta, igvPct]);
   const limiteEfectivo = montoLimiteFinal || limiteTotalFinalPropuesta(propuesta);
@@ -289,11 +290,15 @@ const CotizacionesPropuesta = ({
             <input
               type="number"
               step="0.01"
-              value={igvPct}
+              disabled={!impuestoAplica}
+              value={igvPctGuardado}
               onChange={(e) => setProp({ igv_pct: Number(e.target.value) })}
-              className="w-24 rounded border border-slate-400 bg-white px-2 py-1.5 shadow-sm"
+              className="w-24 rounded border border-slate-400 bg-white px-2 py-1.5 shadow-sm disabled:bg-slate-100"
             />
           </label>
+          {!impuestoAplica && (
+            <span className="text-xs text-amber-800">Impuesto apagado en Costos → Parámetros.</span>
+          )}
         </div>
       )}
       {!puedeEditarParametros && !soloLectura && (
@@ -392,68 +397,7 @@ const CotizacionesPropuesta = ({
         </div>
       </section>
 
-      {/* Cuadro 2: Pagos vs entregables */}
-      <section>
-        <div className="flex justify-between items-center mb-2">
-          <h4 className="font-medium text-slate-700">Pagos vs entregables</h4>
-          {puedeEditarCuadros && (
-            <button
-              type="button"
-              onClick={() => addRow('pagos_entregables', { descripcion: '', porcentaje: 0.25 })}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
-            >
-              <PlusIcon className="w-3 h-3" /> Fila
-            </button>
-          )}
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[560px]">
-            <thead>
-              <tr>
-                <th className={TH}>Pagos vs Entregables</th>
-                <th className={`${TH} w-24`}>Porcentaje</th>
-                <th className={`${TH} w-36`}>Forma de Pago</th>
-                <th className={`${TH} w-10`} />
-              </tr>
-            </thead>
-            <tbody>
-              {calc.pagos_entregables.map((row, idx) => (
-                <tr key={idx} className="bg-white">
-                  <td className={TD}>
-                    <input
-                      value={row.descripcion || ''}
-                      onChange={(e) => updateList('pagos_entregables', idx, { descripcion: e.target.value })}
-                      className={inp}
-                    />
-                  </td>
-                  <td className={TD}>
-                    <div className="flex items-center gap-0.5">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={pctDisplay(row.porcentaje)}
-                        onChange={(e) =>
-                          updateList('pagos_entregables', idx, { porcentaje: pctStore(e.target.value) })
-                        }
-                        className={`${inp} text-right w-14`}
-                      />
-                      <span className="text-slate-500">%</span>
-                    </div>
-                  </td>
-                  <td className={`${TD} text-right tabular-nums font-medium`}>{fmt(row.monto)}</td>
-                  <td className={TD}>
-                    <button type="button" onClick={() => removeRow('pagos_entregables', idx)} className="text-red-500">
-                      <TrashIcon className="w-4 h-4 mx-auto" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Cuadro 3: Detalle propuesta */}
+      {/* Cuadro 2: Detalle propuesta */}
       <section>
         <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
           <h4 className="font-medium text-slate-700">Detalle de propuesta</h4>
@@ -521,13 +465,15 @@ const CotizacionesPropuesta = ({
                 </td>
                 <td className={`${TD} bg-emerald-800`} />
               </tr>
-              <tr className="bg-emerald-700 text-white font-semibold">
-                <td className={`${TD} bg-emerald-700 text-white`}>IGV {Number(igvPct).toFixed(0)}%</td>
-                <td className={`${TD} bg-emerald-700 text-white text-right tabular-nums`}>
-                  {fmt(calc.totales.detalle_igv)}
-                </td>
-                <td className={`${TD} bg-emerald-700`} />
-              </tr>
+              {impuestoAplica && (
+                <tr className="bg-emerald-700 text-white font-semibold">
+                  <td className={`${TD} bg-emerald-700 text-white`}>IGV {Number(igvPct).toFixed(0)}%</td>
+                  <td className={`${TD} bg-emerald-700 text-white text-right tabular-nums`}>
+                    {fmt(calc.totales.detalle_igv)}
+                  </td>
+                  <td className={`${TD} bg-emerald-700`} />
+                </tr>
+              )}
               <tr className="bg-emerald-900 text-white font-bold">
                 <td className={`${TD} bg-emerald-900 text-white`}>TOTAL FINAL</td>
                 <td className={`${TD} bg-emerald-900 text-white text-right tabular-nums text-base`}>
@@ -540,10 +486,15 @@ const CotizacionesPropuesta = ({
         </div>
       </section>
 
-      {/* Cuadro 4: Forma de pago */}
+      {/* Forma de pago (sobre total con IGV de inversión) */}
       <section>
-        <div className="flex justify-between items-center mb-2">
-          <h4 className="font-medium text-slate-700">Forma de pago</h4>
+        <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
+          <div>
+            <h4 className="font-medium text-slate-700">Forma de pago</h4>
+            <p className="text-xs text-slate-500">
+              Porcentajes sobre el total final de inversión ({fmt(calc.totales.total_inversion)}).
+            </p>
+          </div>
           {puedeEditarCuadros && (
             <button
               type="button"

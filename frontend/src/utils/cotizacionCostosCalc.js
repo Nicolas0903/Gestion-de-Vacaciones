@@ -101,8 +101,9 @@ export function calcCostosLocal(costosRaw) {
   if (impTipo === 'otros') {
     impuestoEtiqueta = String(params.impuesto_otros_etiqueta || '').trim() || 'Otros impuestos';
   }
+  const impuestoAplica = params.impuesto_aplica !== false;
   let impuestoAuto = 0;
-  if (impTipo === 'igv' || impTipo === 'renta') {
+  if (impuestoAplica && (impTipo === 'igv' || impTipo === 'renta')) {
     impuestoAuto = Math.round(totalGeneral * (impPct / 100) * 100) / 100;
   }
   const impManual = params.impuesto_monto;

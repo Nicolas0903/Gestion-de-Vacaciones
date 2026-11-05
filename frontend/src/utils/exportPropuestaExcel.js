@@ -49,17 +49,6 @@ export function exportarPropuestaEconomicaExcel({
   ]);
   blank();
 
-  line(['Pagos vs entregables']);
-  line(['Descripción', 'Porcentaje', 'Monto']);
-  for (const p of calc.pagos_entregables || []) {
-    line([
-      p.descripcion || '',
-      Math.round((Number(p.porcentaje) || 0) * 10000) / 100,
-      Number(p.monto) || 0
-    ]);
-  }
-  blank();
-
   line(['Detalle de propuesta']);
   line(['Actividad', 'Horas', 'Precio total']);
   for (const d of calc.detalle || []) {

@@ -314,8 +314,12 @@ class Cotizacion {
     if (!b.propuesta.inversion_roles?.length) {
       b.propuesta.inversion_roles = borradorVacio().propuesta.inversion_roles;
     }
-    if (!b.propuesta.pagos_entregables?.length) {
-      b.propuesta.pagos_entregables = borradorVacio().propuesta.pagos_entregables;
+    if (b.propuesta.pagos_entregables?.length) {
+      b.propuesta.pagos_forma = b.propuesta.pagos_entregables;
+      delete b.propuesta.pagos_entregables;
+    }
+    if (!b.propuesta.pagos_forma?.length) {
+      b.propuesta.pagos_forma = borradorVacio().propuesta.pagos_forma;
     }
     if (!b.propuesta.detalle?.length) {
       b.propuesta.detalle = borradorVacio().propuesta.detalle;
@@ -325,10 +329,6 @@ class Cotizacion {
         horas: d.horas ?? d.semanas ?? 0
       }));
     }
-    if (!b.propuesta.pagos_forma?.length) {
-      b.propuesta.pagos_forma = borradorVacio().propuesta.pagos_forma;
-    }
-
     const defParams = borradorVacio().costos.parametros;
     if (b.costos?.parametros) {
       if (b.costos.parametros.horas_garantia == null && b.costos.parametros.dias_garantia != null) {

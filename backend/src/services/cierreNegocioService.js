@@ -29,9 +29,16 @@ function montoTotalPropuesta(snapshot) {
   );
 }
 
+function pagosPropuesta(prop) {
+  if (!prop) return [];
+  if (prop.pagos_forma?.length) return prop.pagos_forma;
+  if (prop.pagos_entregables?.length) return prop.pagos_entregables;
+  return prop.pagos || [];
+}
+
 function facturacionDesdeCotizacion(snapshot) {
   const prop = snapshot?.propuesta || {};
-  const pagos = prop.pagos_entregables?.length ? prop.pagos_entregables : prop.pagos || [];
+  const pagos = pagosPropuesta(prop);
   const roles = prop.inversion_roles?.length ? prop.inversion_roles : prop.items || [];
   const igvPct = num(prop.igv_pct ?? snapshot?.costos?.parametros?.igv_pct, 18) / 100;
 
@@ -68,7 +75,7 @@ function facturacionDesdeCotizacion(snapshot) {
 
 function costosDesdeCotizacion(snapshot) {
   const prop = snapshot?.propuesta || {};
-  const pagos = prop.pagos_entregables?.length ? prop.pagos_entregables : prop.pagos || [];
+  const pagos = pagosPropuesta(prop);
   const roles = prop.inversion_roles?.length ? prop.inversion_roles : prop.items || [];
   const recursos = (snapshot?.costos?.recursos || []).filter((r) => !r.es_informativo);
   const igvPct = num(prop.igv_pct ?? snapshot?.costos?.parametros?.igv_pct, 18) / 100;
@@ -147,7 +154,7 @@ function snapshotTieneDatos(snapshot) {
 
 function snapshotTieneEconomicos(snapshot) {
   const prop = snapshot?.propuesta || {};
-  const pagos = prop.pagos_entregables?.length ? prop.pagos_entregables : prop.pagos || [];
+  const pagos = pagosPropuesta(prop);
   const tienePagosConMonto = pagos.some((p) => num(p.monto) > 0);
   const tieneRecursos = (snapshot?.costos?.recursos || []).some(
     (r) => !r.es_informativo && num(r.costo_final ?? r.costo) > 0
@@ -228,9 +235,7 @@ function actividadesDesdePropuesta(snapshot) {
     }
   }
 
-  const pagos = snapshot?.propuesta?.pagos_entregables?.length
-    ? snapshot.propuesta.pagos_entregables
-    : snapshot?.propuesta?.pagos || [];
+  const pagos = pagosPropuesta(snapshot?.propuesta);
   for (const p of pagos) {
     const desc = String(p.descripcion || p.nombre || '').trim();
     if (!desc) continue;

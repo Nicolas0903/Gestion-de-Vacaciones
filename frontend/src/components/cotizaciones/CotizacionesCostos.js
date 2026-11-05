@@ -573,13 +573,14 @@ const CotizacionesCostos = ({
                   <div className="space-y-1.5">
                     <select
                       value={params.impuesto_tipo || 'igv'}
+                      disabled={params.impuesto_aplica === false}
                       onChange={(e) => {
                         const t = e.target.value;
                         const patch = { impuesto_tipo: t, impuesto_monto: null };
                         if (t === 'igv') patch.igv_pct = params.impuesto_pct ?? params.igv_pct ?? 18;
                         setParams(patch);
                       }}
-                      className="w-full rounded border px-2 py-1 text-sm bg-white"
+                      className="w-full rounded border px-2 py-1 text-sm bg-white disabled:bg-slate-100"
                     >
                       <option value="igv">IGV</option>
                       <option value="renta">Impuesto a la renta</option>
@@ -590,7 +591,8 @@ const CotizacionesCostos = ({
                         type="number"
                         step="0.01"
                         min="0"
-                        className="w-full rounded border px-2 py-1 text-sm"
+                        disabled={params.impuesto_aplica === false}
+                        className="w-full rounded border px-2 py-1 text-sm disabled:bg-slate-100"
                         value={params.impuesto_pct ?? params.igv_pct ?? 18}
                         onChange={(e) => {
                           const n = Number(e.target.value);
@@ -675,12 +677,34 @@ const CotizacionesCostos = ({
               className="mt-1 w-full rounded border px-2 py-1.5"
             />
           </label>
+          <label className="flex flex-col justify-end">
+            <span className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="rounded border-slate-400"
+                checked={params.impuesto_aplica !== false}
+                onChange={(e) =>
+                  setParams({
+                    impuesto_aplica: e.target.checked,
+                    impuesto_monto: null
+                  })
+                }
+              />
+              Aplicar impuesto (IGV / renta)
+            </span>
+          </label>
           <label>
             Impuesto (precio cliente)
             <select
               value={params.impuesto_tipo || 'igv'}
-              onChange={(e) => setParams({ impuesto_tipo: e.target.value, impuesto_monto: null })}
-              className="mt-1 w-full rounded border px-2 py-1.5 bg-white"
+              disabled={params.impuesto_aplica === false}
+              onChange={(e) => {
+                const t = e.target.value;
+                const patch = { impuesto_tipo: t, impuesto_monto: null };
+                if (t === 'igv') patch.igv_pct = params.impuesto_pct ?? params.igv_pct ?? 18;
+                setParams(patch);
+              }}
+              className="mt-1 w-full rounded border px-2 py-1.5 bg-white disabled:bg-slate-100 disabled:text-slate-500"
             >
               <option value="igv">IGV</option>
               <option value="renta">Impuesto a la renta</option>
@@ -693,6 +717,7 @@ const CotizacionesCostos = ({
               <input
                 type="number"
                 step="0.01"
+                disabled={params.impuesto_aplica === false}
                 value={params.impuesto_pct ?? params.igv_pct ?? 18}
                 onChange={(e) => {
                   const n = Number(e.target.value);
@@ -700,7 +725,7 @@ const CotizacionesCostos = ({
                   if ((params.impuesto_tipo || 'igv') === 'igv') patch.igv_pct = n;
                   setParams(patch);
                 }}
-                className="mt-1 w-full rounded border px-2 py-1.5"
+                className="mt-1 w-full rounded border px-2 py-1.5 disabled:bg-slate-100"
               />
             </label>
           ) : (

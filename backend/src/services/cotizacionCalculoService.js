@@ -303,8 +303,9 @@ function calcularCostos(costosRaw) {
   if (impTipo === 'otros') {
     impuesto_etiqueta = parametros.impuesto_otros_etiqueta || 'Otros impuestos';
   }
+  const impuesto_aplica = parametros.impuesto_aplica !== false;
   let impuesto_auto = 0;
-  if (impTipo === 'igv' || impTipo === 'renta') {
+  if (impuesto_aplica && (impTipo === 'igv' || impTipo === 'renta')) {
     impuesto_auto = round2(total_general * (impPct / 100));
   }
   const impuesto_monto =
@@ -382,7 +383,12 @@ function metaPropuestaDesdeRaw(propuestaRaw, costosParametros) {
 
 function calcularPropuesta(propuestaRaw, costosResumen, costosParametros) {
   const meta = metaPropuestaDesdeRaw(propuestaRaw, costosParametros);
-  const igvPct = num(propuestaRaw?.igv_pct ?? costosResumen?.igv_pct ?? DEFAULT_IGV) / 100;
+  const impuestoAplica =
+    propuestaRaw?.igv_aplica !== false && costosParametros?.impuesto_aplica !== false;
+  const igvPctNum = impuestoAplica
+    ? num(propuestaRaw?.igv_pct ?? costosParametros?.impuesto_pct ?? costosResumen?.igv_pct ?? DEFAULT_IGV)
+    : 0;
+  const igvPct = igvPctNum / 100;
 
   const inversion_roles = (
     propuestaRaw?.inversion_roles?.length
@@ -406,18 +412,12 @@ function calcularPropuesta(propuestaRaw, costosResumen, costosParametros) {
   const igv_inversion = round2(inversion_roles.reduce((s, i) => s + num(i.igv), 0));
   const total_inversion = round2(inversion_roles.reduce((s, i) => s + num(i.total), 0));
 
-  const pagos_entregables = (propuestaRaw?.pagos_entregables?.length
-    ? propuestaRaw.pagos_entregables
-    : propuestaRaw?.pagos || []
-  ).map((p, idx) => {
-    const porcentaje = num(p.porcentaje);
-    return {
-      ...p,
-      orden: idx + 1,
-      porcentaje,
-      monto: round2(total_inversion * porcentaje)
-    };
-  });
+  const filasFormaPago =
+    propuestaRaw?.pagos_forma?.length > 0
+      ? propuestaRaw.pagos_forma
+      : propuestaRaw?.pagos_entregables?.length
+        ? propuestaRaw.pagos_entregables
+        : propuestaRaw?.pagos || [];
 
   const detalle = (propuestaRaw?.detalle || []).map((d, idx) => ({
     ...d,
@@ -431,14 +431,13 @@ function calcularPropuesta(propuestaRaw, costosResumen, costosParametros) {
   const detalle_igv = round2(detalle_total * igvPct);
   const detalle_final = round2(detalle_total + detalle_igv);
 
-  const pagos_forma = (propuestaRaw?.pagos_forma || []).map((p, idx) => {
+  const pagos_forma = filasFormaPago.map((p, idx) => {
     const porcentaje = num(p.porcentaje);
-    const base = detalle_final > 0 ? detalle_final : total_inversion;
     return {
       ...p,
       orden: idx + 1,
       porcentaje,
-      monto: round2(base * porcentaje)
+      monto: round2(total_inversion * porcentaje)
     };
   });
 
@@ -447,9 +446,8 @@ function calcularPropuesta(propuestaRaw, costosResumen, costosParametros) {
 
   return {
     ...meta,
-    igv_pct: igvPct * 100,
+    igv_pct: igvPctNum,
     inversion_roles,
-    pagos_entregables,
     detalle,
     pagos_forma,
     totales: {
@@ -545,6 +543,7 @@ function borradorVacio() {
         tipo_cambio: 3.4,
         horas_mes: DEFAULT_HORAS_MES,
         igv_pct: DEFAULT_IGV,
+        impuesto_aplica: true,
         comision_admin_pct: 10,
         horas_garantia: 20,
         recurso_garantia_idx: 0,
@@ -568,18 +567,10 @@ function borradorVacio() {
         { cantidad: 1, actividad: 'Consultor Senior Power BI', inversion: 0 },
         { cantidad: 1, actividad: 'Consultor Integración Datos Fabric', inversion: 0 }
       ],
-      pagos_entregables: [
-        { descripcion: 'Pago 1 - Al inicio del proyecto', porcentaje: 0.25 },
-        { descripcion: 'Pago 2 - Entregable 2', porcentaje: 0.25 },
-        { descripcion: 'Pago 3 - Entregable 3', porcentaje: 0.25 },
-        { descripcion: 'Pago 4 - Entregable 4', porcentaje: 0.25 }
-      ],
       detalle: [{ actividad: 'Construcción de la solución analítica', horas: 0, precio: 0 }],
       pagos_forma: [
-        { descripcion: 'Pago 1 - Pago Inicial', porcentaje: 0.3 },
-        { descripcion: 'Pago 2 - Entregable 1 y 2', porcentaje: 0.3 },
-        { descripcion: 'Pago 3 - Entregable 3', porcentaje: 0.2 },
-        { descripcion: 'Pago 4 - Al finalizar el proyecto', porcentaje: 0.2 }
+        { descripcion: 'Pago 1 - Al inicio del proyecto', porcentaje: 0.4 },
+        { descripcion: 'Pago 2 - Entregable Final', porcentaje: 0.6 }
       ]
     }
   };

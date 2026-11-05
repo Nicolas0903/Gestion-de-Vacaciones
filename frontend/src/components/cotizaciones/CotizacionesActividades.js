@@ -220,7 +220,7 @@ const CotizacionesActividades = ({
                 <th className="py-2 px-3">Perfil</th>
                 <th className="py-2 px-3 w-36">Consultor</th>
                 <th className="py-2 px-3 w-28">Horas</th>
-                <th className="py-2 px-3 w-32">% participación</th>
+                <th className="py-2 px-3 w-32">% Proyecto</th>
                 <th className="py-2 px-3 w-16" />
               </tr>
             </thead>
