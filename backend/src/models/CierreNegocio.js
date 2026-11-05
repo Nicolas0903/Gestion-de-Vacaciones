@@ -90,13 +90,41 @@ class CierreNegocio {
 
   static async listarCotizacionesDisponibles() {
     const [rows] = await pool.query(
-      `SELECT c.id, c.codigo, c.cliente, c.proyecto, c.version_actual,
-              v.monto_propuesta, v.costo_total
+      `SELECT c.id, c.codigo, c.cliente, c.proyecto, c.version_actual, c.estado,
+              v.monto_propuesta, v.costo_total,
+              JSON_UNQUOTE(JSON_EXTRACT(c.borrador_json, '$.propuesta.cierre_propuesta')) AS cierre_propuesta,
+              JSON_UNQUOTE(JSON_EXTRACT(c.borrador_json, '$.propuesta.cierre_comercial_estado')) AS cierre_comercial_estado
        FROM cotizaciones c
        LEFT JOIN cotizacion_versiones v ON v.cotizacion_id = c.id AND v.es_actual = 1
+       LEFT JOIN cierres_negocio cn ON cn.cotizacion_id = c.id AND cn.estado != 'eliminado'
+       WHERE cn.id IS NULL
+         AND JSON_UNQUOTE(JSON_EXTRACT(c.borrador_json, '$.propuesta.cierre_propuesta')) = 'ganada'
+         AND JSON_UNQUOTE(JSON_EXTRACT(c.borrador_json, '$.propuesta.cierre_comercial_estado')) = 'cerrado'
        ORDER BY c.updated_at DESC`
     );
     return rows;
+  }
+
+  static async buscarActivoPorCotizacionId(cotizacionId) {
+    const [rows] = await pool.query(
+      `SELECT id, codigo FROM cierres_negocio WHERE cotizacion_id = ? AND estado != 'eliminado' LIMIT 1`,
+      [cotizacionId]
+    );
+    return rows[0] || null;
+  }
+
+  static async crearDesdeCotizacionSiNoExiste(usuarioId, cotizacionId) {
+    const previo = await this.buscarActivoPorCotizacionId(cotizacionId);
+    if (previo) {
+      return { ya_existia: true, id: previo.id, codigo: previo.codigo };
+    }
+    const detalle = await this.crearDesdeCotizacion(usuarioId, cotizacionId);
+    return {
+      creado: true,
+      id: detalle?.cierre?.id,
+      codigo: detalle?.cierre?.codigo,
+      detalle
+    };
   }
 
   static async obtenerSnapshotCotizacion(cotizacionId, versionNum) {
@@ -242,6 +270,17 @@ class CierreNegocio {
       cotizacionId,
       versionNum
     );
+
+    if (!Cotizacion.cierreComercialGanadaCerradaDesdeBorrador(snapshot)) {
+      throw new Error(
+        'Solo cotizaciones con cierre comercial «Ganada» cerrado (Magali/Enrique) pueden generar cierre de negocio.'
+      );
+    }
+
+    const duplicado = await this.buscarActivoPorCotizacionId(cotizacionId);
+    if (duplicado) {
+      throw new Error(`Ya existe el cierre de negocio ${duplicado.codigo} para esta cotización.`);
+    }
 
     const codigo = await this.generarCodigo();
     const cab = cabeceraDesdeCotizacion(cotizacion, snapshot, vn);

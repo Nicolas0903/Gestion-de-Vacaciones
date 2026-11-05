@@ -596,8 +596,9 @@ const CotizacionesPropuesta = ({
           <div>
             <h4 className="font-semibold text-slate-800">Cierre comercial de la propuesta</h4>
             <p className="text-xs text-slate-500 mt-0.5">
-              Como un período de caja chica: edición en borrador, luego <strong>cerrar</strong>. Solo Magali, Enrique o
-              admin pueden cerrar o reabrir.
+              Edición en borrador y luego <strong>cerrar</strong> (Magali, Enrique o admin). Si marcas{' '}
+              <strong>Ganada</strong> y cierras, la cotización pasa a estado ganada y se crea automáticamente el{' '}
+              <strong>cierre de negocio</strong> (o queda listo en ese módulo si ya existía).
             </p>
           </div>
           <span

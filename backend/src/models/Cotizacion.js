@@ -731,6 +731,14 @@ class Cotizacion {
     return this.persistirPropuesta(id, next);
   }
 
+  static cierreComercialGanadaCerradaDesdeBorrador(borrador) {
+    const p = borrador?.propuesta || {};
+    return (
+      String(p.cierre_comercial_estado || '') === 'cerrado' &&
+      String(p.cierre_propuesta || '') === 'ganada'
+    );
+  }
+
   static async cerrarCierreComercial(id, usuarioId) {
     const detalle = await this.obtenerDetalle(id);
     const p = { ...(detalle.borrador?.propuesta || {}) };
@@ -741,14 +749,36 @@ class Cotizacion {
     if (!estado || !['standby', 'ganada', 'perdida'].includes(String(estado))) {
       throw new Error('Seleccione Standby, Ganada o Perdida antes de cerrar.');
     }
-    const next = {
+    const nextPropuesta = {
       ...p,
       cierre_comercial_estado: 'cerrado',
       cierre_comercial_cerrado_at: new Date().toISOString(),
       cierre_comercial_cerrado_por: usuarioId,
       cierre_propuesta_at: p.cierre_propuesta_at || new Date().toISOString()
     };
-    return this.persistirPropuesta(id, next);
+    const general = { ...(detalle.borrador?.general || {}) };
+    if (estado === 'ganada') general.estado = 'ganada';
+    if (estado === 'perdida') general.estado = 'perdida';
+
+    const borradorCalc = calcularCotizacion({
+      ...detalle.borrador,
+      general,
+      propuesta: nextPropuesta
+    });
+    const sync = this.syncFromBorrador(borradorCalc);
+    await pool.query(
+      `UPDATE cotizaciones SET borrador_json = ?, estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [JSON.stringify(borradorCalc), sync.estado, id]
+    );
+
+    let cierre_negocio = null;
+    if (estado === 'ganada') {
+      const CierreNegocio = require('./CierreNegocio');
+      cierre_negocio = await CierreNegocio.crearDesdeCotizacionSiNoExiste(usuarioId, id);
+    }
+
+    const out = await this.obtenerDetalle(id);
+    return { ...out, cierre_negocio };
   }
 
   static async reabrirCierreComercial(id) {

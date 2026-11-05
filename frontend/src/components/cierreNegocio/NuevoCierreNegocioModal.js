@@ -140,8 +140,9 @@ const NuevoCierreNegocioModal = ({ open, onClose, onCreado }) => {
       {modo === MODO_COTIZACION ? (
         <>
           <p className="text-sm text-slate-600 mb-4">
-            Se importará facturación y costos desde la versión publicada de la cotización. El snapshot
-            queda congelado como baseline para comparar variaciones.
+            Solo aparecen cotizaciones con <strong>cierre comercial «Ganada» cerrado</strong> (Magali/Enrique en
+            Propuesta) y sin cierre de negocio previo. Al cerrar como ganada, el portal suele crear el cierre
+            automáticamente; aquí puedes crearlo manualmente si hace falta.
           </p>
 
           <div>
@@ -150,8 +151,8 @@ const NuevoCierreNegocioModal = ({ open, onClose, onCreado }) => {
               <p className="text-sm text-slate-400">Cargando cotizaciones…</p>
             ) : cotizaciones.length === 0 ? (
               <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-                No hay cotizaciones en el portal. Usa la pestaña <strong>Histórico / manual</strong> para
-                subir cierres pasados.
+                No hay cotizaciones elegibles (deben tener cierre comercial <strong>Ganada</strong> cerrado y no
+                tener ya un cierre de negocio). Usa <strong>Histórico / manual</strong> para registros antiguos.
               </p>
             ) : (
               <select

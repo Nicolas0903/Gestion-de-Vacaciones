@@ -40,7 +40,27 @@ function facturacionDesdeCotizacion(snapshot) {
   const prop = snapshot?.propuesta || {};
   const pagos = pagosPropuesta(prop);
   const roles = prop.inversion_roles?.length ? prop.inversion_roles : prop.items || [];
-  const igvPct = num(prop.igv_pct ?? snapshot?.costos?.parametros?.igv_pct, 18) / 100;
+  const params = snapshot?.costos?.parametros || {};
+  const impuestoAplica = prop.igv_aplica !== false && params.impuesto_aplica !== false;
+  const igvPct = impuestoAplica
+    ? num(prop.igv_pct ?? params.impuesto_pct ?? params.igv_pct, 18) / 100
+    : 0;
+  const detalle = (prop.detalle || []).filter((d) => String(d.actividad || '').trim() || num(d.precio) > 0);
+
+  if (detalle.length) {
+    return detalle.map((d, i) => {
+      const base = num(d.precio);
+      return {
+        factura: '',
+        descripcion: String(d.actividad || `Ítem ${i + 1}`).trim(),
+        cantidad: 1,
+        precio_unitario: base,
+        aplica_igv: igvPct > 0 ? 1 : 0,
+        total_venta: round2(base),
+        orden: i + 1
+      };
+    });
+  }
 
   if (pagos.length) {
     const totalProp = montoTotalPropuesta(snapshot) ||
@@ -461,6 +481,17 @@ function calcularReporte(cierre, facturacion, costos, snapshot) {
 function cabeceraDesdeCotizacion(cotRow, snapshot, versionNum) {
   const g = snapshot?.general || {};
   const params = snapshot?.costos?.parametros || {};
+  const prop = snapshot?.propuesta || {};
+  const pagos = pagosPropuesta(prop);
+  const formaDesdePagos = pagos
+    .map((p) => {
+      const pct = num(p.porcentaje);
+      const pctTxt = pct > 0 ? `${Math.round(pct * 10000) / 100}%` : '';
+      const desc = String(p.descripcion || '').trim();
+      return [pctTxt, desc].filter(Boolean).join(' — ');
+    })
+    .filter(Boolean)
+    .join(' · ');
   const totalHoras = num(snapshot?.actividades?.total_horas);
   const semanas = totalHoras > 0 ? round2(totalHoras / 40) : null;
 
@@ -469,9 +500,10 @@ function cabeceraDesdeCotizacion(cotRow, snapshot, versionNum) {
     cotizacion_version_num: versionNum,
     cotizacion_codigo: cotRow.codigo || g.codigo,
     cliente_nombre: g.cliente || cotRow.cliente,
-    ruc: '',
+    ruc: g.ruc_cliente || '',
     orden_compra: '',
-    forma_pago: params.terminos_pago || 'Crédito 30 días',
+    forma_pago: formaDesdePagos || params.terminos_pago || 'Crédito 30 días',
+    solicitante: g.comercial_solicitante || '',
     moneda: String(params.moneda || cotRow.moneda || 'PEN').toUpperCase() === 'USD' ? 'USD' : 'PEN',
     codigo_servicio: '',
     semanas_proyecto: semanas,

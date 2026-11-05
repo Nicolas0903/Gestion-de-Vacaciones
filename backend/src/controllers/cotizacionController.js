@@ -645,10 +645,21 @@ exports.cerrarCierreComercial = async (req, res) => {
       await Cotizacion.guardarCierreComercialBorrador(id, req.body);
     }
     const detalle = await Cotizacion.cerrarCierreComercial(id, req.usuario.id);
+    const cn = detalle.cierre_negocio;
+    let mensaje = 'Cierre comercial cerrado. Reábralo solo para correcciones excepcionales.';
+    if (cn?.creado) {
+      mensaje = `Cierre comercial cerrado como Ganada. Se creó el cierre de negocio ${cn.codigo}.`;
+    } else if (cn?.ya_existia) {
+      mensaje = `Cierre comercial cerrado como Ganada. Ya existía cierre de negocio ${cn.codigo}.`;
+    }
+    const { cierre_negocio: _omit, ...detalleSinMeta } = detalle;
     res.json({
       success: true,
-      data: await respuestaDetalleConMeta(req, detalle),
-      mensaje: 'Cierre comercial cerrado (como un período de caja chica). Reábralo solo para correcciones.'
+      data: {
+        ...(await respuestaDetalleConMeta(req, detalleSinMeta)),
+        cierre_negocio: cn || null
+      },
+      mensaje
     });
   } catch (e) {
     res.status(400).json({ success: false, mensaje: e.message || 'Error al cerrar' });

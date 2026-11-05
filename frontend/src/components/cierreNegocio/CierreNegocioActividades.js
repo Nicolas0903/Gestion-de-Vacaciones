@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatoMontoRendicion } from '../../utils/monedaRendicion';
 
 const CierreNegocioActividades = ({ detalle }) => {
   const act = detalle?.reporte?.actividades;
@@ -21,7 +22,9 @@ const CierreNegocioActividades = ({ detalle }) => {
         <h3 className="font-semibold text-slate-800">Actividades (desde cotización + propuesta)</h3>
         <span className="text-xs text-slate-500">
           {act.tipo_estructura} · {act.total_horas ? `${act.total_horas} h totales` : ''}
-          {resumen?.monto ? ` · Propuesta S/ ${Number(resumen.monto).toLocaleString('es-PE')}` : ''}
+          {resumen?.monto
+            ? ` · Propuesta ${formatoMontoRendicion(resumen.monto, detalle?.cierre?.moneda)}`
+            : ''}
         </span>
       </div>
       <table className="w-full text-sm">
