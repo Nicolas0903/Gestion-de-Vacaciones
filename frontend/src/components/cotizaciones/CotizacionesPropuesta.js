@@ -12,6 +12,7 @@ import {
   detalleDesdeInversionCalc,
   normalizarPreciosDetallePropuesta
 } from '../../utils/detalleDesdeInversionPropuesta';
+import { parcheNumInputEditable, valorNumInputEditable } from '../../utils/cotizacionNumInput';
 import {
   limiteTotalFinalPropuesta,
   propuestaComercialExcedeLimite
@@ -31,8 +32,9 @@ const calcPropuestaLocal = (propuesta, igvPctNum = 18) => {
   const igvPct = Number(igvPctNum) / 100;
   const inversion_roles = (propuesta?.inversion_roles || []).map((item) => {
     const inversion = Number(item.inversion) || 0;
+    const cantidad = Number(item.cantidad) || 1;
     const igv = Math.round(inversion * igvPct * 100) / 100;
-    return { ...item, inversion, igv, total: Math.round((inversion + igv) * 100) / 100 };
+    return { ...item, cantidad, inversion, igv, total: Math.round((inversion + igv) * 100) / 100 };
   });
   const inversion_total = Math.round(inversion_roles.reduce((s, i) => s + i.inversion, 0) * 100) / 100;
   const igv_inversion = Math.round(inversion_roles.reduce((s, i) => s + i.igv, 0) * 100) / 100;
@@ -185,13 +187,19 @@ const CotizacionesPropuesta = ({
     const calcSync = calcPropuestaLocal({ ...propuesta, inversion_roles: roles }, igvPct);
     setProp({
       inversion_roles: roles,
-      detalle: detalleDesdeInversionCalc(calcSync.inversion_roles)
+      detalle: detalleDesdeInversionCalc(calcSync.inversion_roles, {
+        nombrePropuesta: proyectoCotizacion,
+        inversionTotal: calcSync.totales.inversion_total
+      })
     });
   };
 
   const syncDetalleDesdeInversion = () => {
     if (bloqueaMontos) return;
-    const det = detalleDesdeInversionCalc(calc.inversion_roles);
+    const det = detalleDesdeInversionCalc(calc.inversion_roles, {
+      nombrePropuesta: proyectoCotizacion,
+      inversionTotal: calc.totales.inversion_total
+    });
     if (!det.length) {
       window.alert('Primero complete el cuadro de inversión por recursos.');
       return;
@@ -294,8 +302,8 @@ const CotizacionesPropuesta = ({
               type="number"
               step="0.01"
               disabled={!impuestoAplica}
-              value={igvPctGuardado}
-              onChange={(e) => setProp({ igv_pct: Number(e.target.value) })}
+              value={valorNumInputEditable(igvPctGuardado)}
+              onChange={(e) => setProp({ igv_pct: parcheNumInputEditable(e.target.value) })}
               className="w-24 rounded border border-slate-400 bg-white px-2 py-1.5 shadow-sm disabled:bg-slate-100"
             />
           </label>
@@ -327,7 +335,7 @@ const CotizacionesPropuesta = ({
             )}
             <button
               type="button"
-              onClick={() => addRow('inversion_roles', { cantidad: 1, actividad: '', inversion: 0 })}
+              onClick={() => addRow('inversion_roles', { cantidad: 1, actividad: '', inversion: null })}
               className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
             >
               <PlusIcon className="w-3 h-3" /> Fila
@@ -354,8 +362,12 @@ const CotizacionesPropuesta = ({
                     <input
                       type="number"
                       min="0"
-                      value={row.cantidad ?? 1}
-                      onChange={(e) => updateList('inversion_roles', idx, { cantidad: Number(e.target.value) })}
+                      value={valorNumInputEditable(row.cantidad)}
+                      onChange={(e) =>
+                        updateList('inversion_roles', idx, {
+                          cantidad: parcheNumInputEditable(e.target.value)
+                        })
+                      }
                       className={`${inp} text-center`}
                     />
                   </td>
@@ -370,8 +382,10 @@ const CotizacionesPropuesta = ({
                     <input
                       type="number"
                       step="0.01"
-                      value={row.inversion ?? 0}
-                      onChange={(e) => updateList('inversion_roles', idx, { inversion: Number(e.target.value) })}
+                      value={valorNumInputEditable(row.inversion)}
+                      onChange={(e) =>
+                        updateList('inversion_roles', idx, { inversion: parcheNumInputEditable(e.target.value) })
+                      }
                       className={`${inp} text-right`}
                     />
                   </td>
@@ -417,8 +431,8 @@ const CotizacionesPropuesta = ({
             {puedeEditarCuadros && (
               <button
                 type="button"
-                onClick={() => addRow('detalle', { actividad: '', horas: 0, precio: 0 })}
-                title="Sincroniza desde inversión para alinear filas y precios"
+                onClick={() => addRow('detalle', { actividad: '', horas: null, precio: null })}
+                title="Por defecto la sincronización deja una línea: nombre del proyecto + total sin IGV"
                 className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-teal-600 text-white"
               >
                 <PlusIcon className="w-3 h-3" /> Fila
@@ -449,8 +463,10 @@ const CotizacionesPropuesta = ({
                     <input
                       type="number"
                       step="0.01"
-                      value={row.precio ?? 0}
-                      onChange={(e) => updateList('detalle', idx, { precio: Number(e.target.value) })}
+                      value={valorNumInputEditable(row.precio)}
+                      onChange={(e) =>
+                        updateList('detalle', idx, { precio: parcheNumInputEditable(e.target.value) })
+                      }
                       className={`${inp} text-right`}
                     />
                   </td>
@@ -533,8 +549,17 @@ const CotizacionesPropuesta = ({
                       <input
                         type="number"
                         step="0.01"
-                        value={pctDisplay(row.porcentaje)}
-                        onChange={(e) => updateList('pagos_forma', idx, { porcentaje: pctStore(e.target.value) })}
+                        value={
+                          row.porcentaje === null || row.porcentaje === ''
+                            ? ''
+                            : pctDisplay(row.porcentaje)
+                        }
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          updateList('pagos_forma', idx, {
+                            porcentaje: raw === '' ? null : pctStore(raw)
+                          });
+                        }}
                         className={`${inp} text-right w-14`}
                       />
                       <span className="text-slate-500">%</span>

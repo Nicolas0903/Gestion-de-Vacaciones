@@ -12,6 +12,7 @@ import {
   validarActividadesDimensionamiento
 } from '../../utils/cotizacionActividadesValidacion';
 import CotizacionEvidenciaActividades from './CotizacionEvidenciaActividades';
+import { parcheNumInputEditable, valorNumInputEditable } from '../../utils/cotizacionNumInput';
 
 const mkId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -256,8 +257,10 @@ const CotizacionesActividades = ({
                       type="number"
                       step="0.5"
                       min="0"
-                      value={p.horas ?? 0}
-                      onChange={(e) => updatePerfil(idx, { horas: Number(e.target.value) })}
+                      value={valorNumInputEditable(p.horas)}
+                      onChange={(e) =>
+                        updatePerfil(idx, { horas: parcheNumInputEditable(e.target.value) })
+                      }
                       className="w-full rounded border border-slate-200 px-2 py-1"
                     />
                   </td>
@@ -460,8 +463,10 @@ function BloqueCard({
                       type="number"
                       step="0.5"
                       min="0"
-                      value={act.horas ?? 0}
-                      onChange={(e) => onUpdateActividad(aIdx, { horas: Number(e.target.value) })}
+                      value={valorNumInputEditable(act.horas)}
+                      onChange={(e) =>
+                        onUpdateActividad(aIdx, { horas: parcheNumInputEditable(e.target.value) })
+                      }
                       className="w-full rounded border border-slate-200 px-2 py-1"
                     />
                   </td>
@@ -470,8 +475,10 @@ function BloqueCard({
                       type="number"
                       step="0.5"
                       min="0"
-                      value={act.holgura_horas ?? 0}
-                      onChange={(e) => onUpdateActividad(aIdx, { holgura_horas: Number(e.target.value) })}
+                      value={valorNumInputEditable(act.holgura_horas)}
+                      onChange={(e) =>
+                        onUpdateActividad(aIdx, { holgura_horas: parcheNumInputEditable(e.target.value) })
+                      }
                       className="w-full rounded border border-amber-200 bg-amber-50/50 px-2 py-1"
                       title="Holgura por actividad"
                     />

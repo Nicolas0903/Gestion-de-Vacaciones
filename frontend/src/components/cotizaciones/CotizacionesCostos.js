@@ -3,6 +3,7 @@ import { formatoMontoRendicion } from '../../utils/monedaRendicion';
 import { calcCostosLocal, tarifaGarantiaReferencia } from '../../utils/cotizacionCostosCalc';
 import { cotizacionesService } from '../../services/api';
 import CotizacionEnviarAprobacion from './CotizacionEnviarAprobacion';
+import { parcheNumInputEditable, valorNumInputEditable } from '../../utils/cotizacionNumInput';
 
 const DEFAULT_MARKUPS = [1.9, 1.6, 1.7, 1.43];
 const fmtPen = (n) => formatoMontoRendicion(n, 'PEN');
@@ -92,7 +93,11 @@ const CotizacionesCostos = ({
 
   const setMarkup = (idx, val) => {
     const next = [...markups];
-    next[idx] = Number(val) || 1;
+    if (val === '') next[idx] = null;
+    else {
+      const n = Number(val);
+      if (Number.isFinite(n)) next[idx] = n;
+    }
     setParams({ markups: next });
   };
 
@@ -149,16 +154,20 @@ const CotizacionesCostos = ({
                   <input
                     type="number"
                     min="0"
-                    value={r.cantidad ?? 1}
-                    onChange={(e) => updateRecurso(idx, { cantidad: Number(e.target.value) })}
+                    value={valorNumInputEditable(r.cantidad ?? 1)}
+                    onChange={(e) =>
+                      updateRecurso(idx, { cantidad: parcheNumInputEditable(e.target.value) })
+                    }
                     className={`${inp} text-center`}
                   />
                 </td>
                 <td className={TD}>
                   <input
                     type="number"
-                    value={r.salario ?? 0}
-                    onChange={(e) => updateRecurso(idx, { salario: Number(e.target.value) })}
+                    value={valorNumInputEditable(r.salario)}
+                    onChange={(e) =>
+                      updateRecurso(idx, { salario: parcheNumInputEditable(e.target.value) })
+                    }
                     className={`${inp} text-right`}
                   />
                 </td>
@@ -174,8 +183,10 @@ const CotizacionesCostos = ({
                     type="number"
                     step="0.01"
                     min="0"
-                    value={r.sobrecosto ?? 1}
-                    onChange={(e) => updateRecurso(idx, { sobrecosto: Number(e.target.value) })}
+                    value={valorNumInputEditable(r.sobrecosto ?? 1)}
+                    onChange={(e) =>
+                      updateRecurso(idx, { sobrecosto: parcheNumInputEditable(e.target.value) })
+                    }
                     className={`${inp} text-center`}
                   />
                 </td>
@@ -261,8 +272,10 @@ const CotizacionesCostos = ({
                   step="0.5"
                   min="0"
                   title="Horas (como en Excel, col. Costo/Hora)"
-                  value={params.horas_garantia ?? params.dias_garantia ?? 0}
-                  onChange={(e) => setParams({ horas_garantia: Number(e.target.value) })}
+                  value={valorNumInputEditable(params.horas_garantia ?? params.dias_garantia)}
+                  onChange={(e) =>
+                    setParams({ horas_garantia: parcheNumInputEditable(e.target.value) })
+                  }
                   className={`${inp} text-right bg-orange-50 font-medium`}
                 />
               </td>
@@ -379,8 +392,10 @@ const CotizacionesCostos = ({
                     type="number"
                     step="0.1"
                     min="0"
-                    value={params.comision_admin_pct ?? 10}
-                    onChange={(e) => setParams({ comision_admin_pct: Number(e.target.value) })}
+                    value={valorNumInputEditable(params.comision_admin_pct ?? 10)}
+                    onChange={(e) =>
+                      setParams({ comision_admin_pct: parcheNumInputEditable(e.target.value) })
+                    }
                     className={`${inp} text-right bg-blue-50 w-16`}
                   />
                   <span className="text-blue-800 text-xs">%</span>
@@ -439,8 +454,10 @@ const CotizacionesCostos = ({
                 <input
                   type="number"
                   step="0.001"
-                  value={params.tipo_cambio ?? 3.4}
-                  onChange={(e) => setParams({ tipo_cambio: Number(e.target.value) })}
+                  value={valorNumInputEditable(params.tipo_cambio ?? 3.4)}
+                  onChange={(e) =>
+                    setParams({ tipo_cambio: parcheNumInputEditable(e.target.value) })
+                  }
                   className="ml-2 w-24 rounded border px-2 py-1 text-sm"
                 />
               </label>
@@ -496,7 +513,7 @@ const CotizacionesCostos = ({
                       <input
                         type="number"
                         step="0.01"
-                        value={m}
+                        value={valorNumInputEditable(m)}
                         onChange={(e) => setMarkup(i, e.target.value)}
                         className="w-full rounded border border-emerald-200 px-2 py-1 text-center tabular-nums"
                       />
@@ -593,9 +610,9 @@ const CotizacionesCostos = ({
                         min="0"
                         disabled={params.impuesto_aplica === false}
                         className="w-full rounded border px-2 py-1 text-sm disabled:bg-slate-100"
-                        value={params.impuesto_pct ?? params.igv_pct ?? 18}
+                        value={valorNumInputEditable(params.impuesto_pct ?? params.igv_pct ?? 18)}
                         onChange={(e) => {
-                          const n = Number(e.target.value);
+                          const n = parcheNumInputEditable(e.target.value);
                           const patch = { impuesto_pct: n, impuesto_monto: null };
                           if ((params.impuesto_tipo || 'igv') === 'igv') patch.igv_pct = n;
                           setParams(patch);
@@ -672,8 +689,8 @@ const CotizacionesCostos = ({
             Horas/mes referencia
             <input
               type="number"
-              value={params.horas_mes ?? 160}
-              onChange={(e) => setParams({ horas_mes: Number(e.target.value) })}
+              value={valorNumInputEditable(params.horas_mes ?? 160)}
+              onChange={(e) => setParams({ horas_mes: parcheNumInputEditable(e.target.value) })}
               className="mt-1 w-full rounded border px-2 py-1.5"
             />
           </label>
@@ -718,9 +735,9 @@ const CotizacionesCostos = ({
                 type="number"
                 step="0.01"
                 disabled={params.impuesto_aplica === false}
-                value={params.impuesto_pct ?? params.igv_pct ?? 18}
+                value={valorNumInputEditable(params.impuesto_pct ?? params.igv_pct ?? 18)}
                 onChange={(e) => {
-                  const n = Number(e.target.value);
+                  const n = parcheNumInputEditable(e.target.value);
                   const patch = { impuesto_pct: n, impuesto_monto: null };
                   if ((params.impuesto_tipo || 'igv') === 'igv') patch.igv_pct = n;
                   setParams(patch);

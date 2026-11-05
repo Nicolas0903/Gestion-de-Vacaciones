@@ -1,16 +1,27 @@
-/** Precio por fila = base sin IGV (columna Inversión), no el Total Final. */
-export function detalleDesdeInversionCalc(inversionRolesCalc) {
-  return (inversionRolesCalc || []).map((r) => ({
-    actividad: String(r.actividad || '').trim(),
-    horas: 0,
-    precio: Number(r.inversion) || 0
-  }));
+/** Una sola línea: nombre de la propuesta + total inversión sin IGV. */
+export function detalleDesdeInversionCalc(inversionRolesCalc, opts = {}) {
+  const nombrePropuesta = String(opts.nombrePropuesta || '').trim();
+  let total = opts.inversionTotal;
+  if (total == null || total === '') {
+    total = (inversionRolesCalc || []).reduce((s, r) => s + (Number(r.inversion) || 0), 0);
+  }
+  total = Math.round(Number(total) * 100) / 100;
+  if (total <= 0 && !nombrePropuesta) return [];
+  return [
+    {
+      actividad: nombrePropuesta || 'Propuesta',
+      horas: 0,
+      precio: total > 0 ? total : null
+    }
+  ];
 }
 
-/** Corrige filas guardadas con precio = total con IGV (doble impuesto en el cuadro). */
+/** Corrige filas antiguas con precio = total con IGV por fila (legacy multi-perfil). */
 export function normalizarPreciosDetallePropuesta(inversionRolesCalc, detalleRaw) {
   const roles = inversionRolesCalc || [];
-  return (detalleRaw || []).map((d, i) => {
+  const detalle = detalleRaw || [];
+  if (detalle.length !== roles.length) return detalle;
+  return detalle.map((d, i) => {
     const precio = Number(d.precio) || 0;
     const role = roles[i];
     if (!role || precio <= 0) return d;

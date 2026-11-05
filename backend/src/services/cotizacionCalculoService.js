@@ -581,7 +581,7 @@ function borradorVacio() {
         { cantidad: 1, actividad: 'Consultor Senior Power BI', inversion: 0 },
         { cantidad: 1, actividad: 'Consultor Integración Datos Fabric', inversion: 0 }
       ],
-      detalle: [{ actividad: 'Construcción de la solución analítica', horas: 0, precio: 0 }],
+      detalle: [{ actividad: '', horas: 0, precio: null }],
       pagos_forma: [
         { descripcion: 'Pago 1 - Al inicio del proyecto', porcentaje: 0.4 },
         { descripcion: 'Pago 2 - Entregable Final', porcentaje: 0.6 }
