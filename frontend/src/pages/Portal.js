@@ -6,7 +6,6 @@ import LogoTransparente from '../components/LogoTransparente';
 import NotificacionesDropdown from '../components/NotificacionesDropdown';
 import PortalResumenDashboard from '../components/PortalResumenDashboard';
 import GuiaModuloUso from '../components/GuiaModuloUso';
-import PortalFlujoCotizacionAyuda from '../components/PortalFlujoCotizacionAyuda';
 import { buildAccesoPortalOpts, puedeAccederVistaCotizaciones } from '../utils/accesoPortal';
 import CambiarPasswordModal from '../components/CambiarPasswordModal';
 import {
@@ -706,19 +705,8 @@ const Portal = () => {
           MODULOS_FLUJO_COTIZACION.indexOf(a.id) - MODULOS_FLUJO_COTIZACION.indexOf(b.id)
       );
     const resto = items.filter((m) => !MODULOS_FLUJO_COTIZACION.includes(m.id));
-    const tieneSol = flujo.some((m) => m.id === 'solicitud-cotizacion');
-    const tieneCot = flujo.some((m) => m.id === 'cotizaciones');
-
     return (
       <>
-        {flujo.length > 0 && (
-          <div className="col-span-full">
-            <PortalFlujoCotizacionAyuda
-              tieneSolicitud={tieneSol}
-              tieneCotizaciones={tieneCot}
-            />
-          </div>
-        )}
         {flujo.map((modulo) => renderModuloFila(modulo))}
         {resto.map((modulo) => renderModuloFila(modulo))}
       </>
@@ -1095,18 +1083,6 @@ const Portal = () => {
             </>
           ) : (
             <div ref={refModulosGrid} className="scroll-mt-24">
-              {navActiva === 'operaciones' &&
-                subAccesoSolicitudCot &&
-                subAccesoCotizaciones &&
-                modulosParaVista.some((m) => MODULOS_FLUJO_COTIZACION.includes(m.id)) && (
-                  <div className="mb-4">
-                    <PortalFlujoCotizacionAyuda
-                      tieneSolicitud
-                      tieneCotizaciones
-                      compact
-                    />
-                  </div>
-                )}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {renderModulosLista(modulosParaVista)}
               </div>

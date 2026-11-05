@@ -53,7 +53,7 @@ const MODULOS_PORTAL = [
   {
     id: 'cierre-negocio',
     etiqueta: 'Cierre de Negocio',
-    descripcion: 'Seguimiento post-venta cruzado con cotizacion final'
+    descripcion: 'Post-venta (Veronica Gonzales + admin); desde cotizacion ganada'
   }
 ];
 

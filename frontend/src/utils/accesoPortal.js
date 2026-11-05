@@ -24,6 +24,9 @@ export const EMAILS_MODULO_CAJA_CHICA = [
 
 export const EMAILS_MODULO_CONSUMO_FABRIC = ['veronica.gonzales@prayaga.biz'];
 
+/** Cierre de negocio: Veronica Gonzales (+ admin). */
+export const EMAILS_MODULO_CIERRE_NEGOCIO = ['veronica.gonzales@prayaga.biz'];
+
 /** Responsables que elaboran cotizaciones (misma lista que backend). */
 export const EMAILS_MODULO_COTIZACIONES = [
   'magali.sevillano@prayaga.biz',
@@ -124,7 +127,10 @@ export function evaluarAccesoModuloPortal(usuario, moduloId, opts) {
     if (esAdmin()) return true;
     if (EMAILS_MODULO_COTIZACIONES.includes((usuario?.email || '').toLowerCase().trim())) return true;
   }
-  if (moduloId === 'cierre-negocio' && esAdmin()) return true;
+  if (moduloId === 'cierre-negocio') {
+    if (esAdmin()) return true;
+    if (EMAILS_MODULO_CIERRE_NEGOCIO.includes((usuario?.email || '').toLowerCase().trim())) return true;
+  }
 
   const m = parseModulosPortal(usuario.modulos_portal);
   const tieneMapa = m && Object.keys(m).length > 0;

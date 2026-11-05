@@ -1,6 +1,7 @@
 const { MODULOS_PORTAL } = require('../constants/portalModulos');
 const { COTIZACION_RESPONSABLES_EMAILS } = require('../constants/cotizacionResponsables');
 const { esEmailEquipoComercial } = require('../constants/cotizacionEquipoComercial');
+const { esGestorCierreNegocioEmail } = require('../constants/cierreNegocioAcceso');
 
 const EMAILS_MODULO_COTIZACIONES = COTIZACION_RESPONSABLES_EMAILS.map((x) =>
   String(x).trim().toLowerCase()
@@ -58,6 +59,7 @@ function rolPuedeModuloBase(rolNombre, moduloId, email) {
     return rolNombre === 'admin';
   }
   if (moduloId === 'cierre-negocio') {
+    if (esGestorCierreNegocioEmail(email)) return true;
     return rolNombre === 'admin';
   }
   // Rendición de presupuesto: acceso restringido. Solo admin tiene acceso por defecto;
@@ -124,6 +126,12 @@ function tieneAccesoEfectivoModulo(empleado, moduloId) {
     return true;
   }
   if (moduloId === 'cotizaciones' && empleado.rol_nombre === 'admin') {
+    return true;
+  }
+  if (moduloId === 'cierre-negocio' && esGestorCierreNegocioEmail(empleado.email)) {
+    return true;
+  }
+  if (moduloId === 'cierre-negocio' && empleado.rol_nombre === 'admin') {
     return true;
   }
   if (tieneMapaPortalExplicito(empleado)) {

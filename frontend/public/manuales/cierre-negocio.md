@@ -1,7 +1,7 @@
 # Cierre de negocio — Manual de usuario
 
 **Ruta:** `/cierre-negocio`  
-**Acceso:** **Restringido** — rol **admin** y módulo **cierre-negocio**.
+**Acceso:** **Veronica Gonzales**, rol **admin** y quien tenga el módulo **cierre-negocio** activo en portal.
 
 ## 1. Propósito del documento
 

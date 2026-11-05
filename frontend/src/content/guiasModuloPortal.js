@@ -169,11 +169,12 @@ export const GUIAS_MODULO_PORTAL = {
   },
   'cierre-negocio': {
     titulo: 'Cierre de negocio',
-    intro: 'Seguimiento post-venta vinculado a cotización cuando aplica.',
+    intro:
+      'Seguimiento post-venta. Responsable: Veronica Gonzales (+ admin). Entrada típica: cotización con cierre comercial Ganada cerrado.',
     pasos: [
-      'Nuevo cierre: desde cotización final o histórico manual.',
-      'Vistas: reporte, actividades, cronograma, hojas de costo, editar datos.',
-      'Eliminar cierre es irreversible; confirma en el diálogo.'
+      'Magali/Enrique marcan Ganada y cierran el cierre comercial en Propuesta → se crea este cierre (o elige la cotización elegible).',
+      'Nuevo cierre manual solo para históricos sin cotización en el portal.',
+      'Vistas: reporte, actividades, cronograma, hojas de costo, editar datos.'
     ]
   },
   'comisiones-por-pagar': {

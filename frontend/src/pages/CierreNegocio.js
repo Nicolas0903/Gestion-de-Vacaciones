@@ -136,7 +136,12 @@ const CierreNegocio = () => {
               Cierre de Negocio
             </h1>
             <p className="text-sm text-slate-500">
-              Reporte inicial · Facturación · Costos y utilidad
+              Reporte inicial · Facturación · Costos y utilidad. Gestión operativa:{' '}
+              <strong>Veronica Gonzales</strong> y administración.
+            </p>
+            <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+              Se alimenta de cotizaciones con cierre comercial <strong>Ganada</strong> (Magali/Enrique); al cerrar
+              ganada suele crearse el cierre automáticamente.
             </p>
           </div>
           <button

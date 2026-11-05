@@ -1,53 +1,74 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightIcon } from '@heroicons/react/24/outline';
+import { ArrowRightIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 
-/** Banner superior en páginas del flujo cotización. */
+/** Guía del flujo (solo dentro de Solicitud / Cotizaciones), colapsada por defecto. */
 const CotizacionFlujoPageBanner = ({ paso, puedeIrSolicitud, puedeIrCotizaciones }) => {
   const esPaso1 = paso === 1;
 
   return (
-    <div
-      className={`mb-5 rounded-2xl border px-4 py-3 sm:px-5 sm:py-4 ${
-        esPaso1 ? 'border-indigo-200 bg-indigo-50/70' : 'border-sky-200 bg-sky-50/70'
-      }`}
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <p className={`text-[11px] font-bold uppercase tracking-wide ${esPaso1 ? 'text-indigo-700' : 'text-sky-700'}`}>
-            {esPaso1 ? 'Paso 1 de 2' : 'Paso 2 de 2'}
-          </p>
-          <p className={`font-semibold ${esPaso1 ? 'text-indigo-950' : 'text-sky-950'}`}>
-            {esPaso1
-              ? 'Pedir cotización (información comercial)'
-              : 'Elaborar cotización (costos, propuesta y versiones)'}
-          </p>
-          <p className="text-xs mt-1 text-slate-600 max-w-2xl">
-            {esPaso1
-              ? 'Completa cliente, proyecto y responsables. Al enviar, el equipo recibe un correo. No es la hoja de costos.'
-              : 'Trabaja la propuesta técnica y comercial. Si solo querías pedir al equipo, volvé al Paso 1.'}
-          </p>
+    <details className="mb-4 rounded-lg border border-slate-200 bg-slate-50/90 group open:shadow-sm">
+      <summary className="cursor-pointer list-none px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 text-sm">
+        <span className="inline-flex items-center gap-2 min-w-0">
+          <ChevronDownIcon className="w-4 h-4 text-slate-400 shrink-0 transition-transform group-open:rotate-180" />
+          <span className="font-medium text-slate-800">Guía del proceso</span>
+          <span className="text-slate-500 truncate">
+            · {esPaso1 ? 'Paso 1 — Pedir cotización' : 'Paso 2 — Elaborar cotización'}
+          </span>
+        </span>
+        <span className="flex flex-wrap gap-3 text-xs font-semibold shrink-0">
+          {esPaso1 && puedeIrCotizaciones && (
+            <Link
+              to="/cotizaciones"
+              className="text-sky-700 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Ir a Paso 2
+            </Link>
+          )}
+          {!esPaso1 && puedeIrSolicitud && (
+            <Link
+              to="/solicitud-cotizacion"
+              className="text-indigo-700 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Ir a Paso 1
+            </Link>
+          )}
+        </span>
+      </summary>
+
+      <div className="px-3 pb-3 pt-1 border-t border-slate-200/80 text-sm">
+        <p className="text-xs text-slate-600 mb-3">
+          {esPaso1
+            ? 'Aquí solo va la información comercial del cliente. Los costos y la propuesta se arman en el Paso 2.'
+            : 'Aquí elaboras costos, propuesta y versiones. Si solo debías pedir al equipo, vuelve al Paso 1.'}
+        </p>
+        <div className="grid gap-2 text-xs sm:grid-cols-[1fr_auto_1fr] sm:items-stretch">
+          <div
+            className={`rounded-lg border p-2.5 ${
+              esPaso1 ? 'border-indigo-300 bg-indigo-50 ring-1 ring-indigo-200' : 'border-indigo-200 bg-indigo-50/60'
+            }`}
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">Paso 1</span>
+            <p className="font-medium text-indigo-950 mt-0.5">Pedir cotización</p>
+            <p className="text-indigo-900/80 mt-0.5">Comercial / quien conoce al cliente</p>
+          </div>
+          <div className="hidden sm:flex items-center justify-center text-slate-400 px-1">
+            <ArrowRightIcon className="w-4 h-4" />
+          </div>
+          <div
+            className={`rounded-lg border p-2.5 ${
+              !esPaso1 ? 'border-sky-300 bg-sky-50 ring-1 ring-sky-200' : 'border-sky-200 bg-sky-50/60'
+            }`}
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wide text-sky-700">Paso 2</span>
+            <p className="font-medium text-sky-950 mt-0.5">Elaborar cotización</p>
+            <p className="text-sky-900/80 mt-0.5">Equipo asignado (costos y propuesta)</p>
+          </div>
         </div>
-        {esPaso1 && puedeIrCotizaciones && (
-          <Link
-            to="/cotizaciones"
-            className="inline-flex items-center gap-1 shrink-0 text-sm font-semibold text-sky-800 hover:underline"
-          >
-            Me asignaron elaborar
-            <ArrowRightIcon className="w-4 h-4" />
-          </Link>
-        )}
-        {!esPaso1 && puedeIrSolicitud && (
-          <Link
-            to="/solicitud-cotizacion"
-            className="inline-flex items-center gap-1 shrink-0 text-sm font-semibold text-indigo-800 hover:underline"
-          >
-            Crear pedido comercial
-            <ArrowRightIcon className="w-4 h-4" />
-          </Link>
-        )}
       </div>
-    </div>
+    </details>
   );
 };
 
