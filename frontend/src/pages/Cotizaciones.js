@@ -110,6 +110,18 @@ const Cotizaciones = () => {
   const [filtrosApi, setFiltrosApi] = useState({});
   const tiposProyectoUi = React.useMemo(() => tiposProyectoOpciones(), []);
 
+  const borradorDesdeRespuesta = useCallback((data) => {
+    const b = data?.borrador;
+    if (!b) return null;
+    return {
+      ...b,
+      general: generalConMetadatosComercial(b.general, {
+        solicitud: data.solicitud_comercial,
+        cotizacionCreatedAt: data.cotizacion?.created_at
+      })
+    };
+  }, []);
+
   const aplicarBusqueda = () => {
     const params = {};
     if (busqueda.q.trim()) params.q = busqueda.q.trim();
@@ -141,13 +153,7 @@ const Cotizaciones = () => {
     try {
       const { data } = await cotizacionesService.obtener(id);
       setDetalle(data.data);
-      setBorrador({
-        ...data.data.borrador,
-        general: generalConMetadatosComercial(data.data.borrador?.general, {
-          solicitud: data.data.solicitud_comercial,
-          cotizacionCreatedAt: data.data.cotizacion?.created_at
-        })
-      });
+      setBorrador(borradorDesdeRespuesta(data.data));
       const modo = data.data.acceso_modo || 'elaborador';
       setAccesoModo(modo);
       setPuedeGestionarCierre(!!data.data.puede_gestionar_cierre_comercial);
@@ -169,7 +175,7 @@ const Cotizaciones = () => {
       toast.error('No se pudo cargar la cotización');
       setSelId(null);
     }
-  }, [usuario?.email, usuario?.rol_nombre]);
+  }, [usuario?.email, usuario?.rol_nombre, borradorDesdeRespuesta]);
 
   useEffect(() => {
     cargarLista();
@@ -195,8 +201,9 @@ const Cotizaciones = () => {
           ? { propuesta: b.propuesta, registrar_version: false }
           : { ...borradorConSyncPerfilesCostos(b), registrar_version: false };
         const { data } = await cotizacionesService.guardarBorrador(selId, payload);
-        setDetalle((prev) => (prev ? { ...prev, ...data.data, borrador: data.data.borrador } : data.data));
-        setBorrador(data.data.borrador);
+        const merged = borradorDesdeRespuesta(data.data);
+        setDetalle((prev) => (prev ? { ...prev, ...data.data, borrador: merged } : data.data));
+        setBorrador(merged);
         setAutoguardadoEstado(
           new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
         );
@@ -266,7 +273,7 @@ const Cotizaciones = () => {
     try {
       const { data } = await cotizacionesService.aprobarCotizacion(selId, {});
       setDetalle(data.data);
-      setBorrador(data.data.borrador);
+      setBorrador(borradorDesdeRespuesta(data.data));
       toast.success(data.mensaje || 'Aprobada');
       cargarLista();
     } catch (e) {
@@ -290,7 +297,7 @@ const Cotizaciones = () => {
         : { ...borradorConSyncPerfilesCostos(borrador), registrar_version: true };
       const { data } = await cotizacionesService.guardarBorrador(selId, payload);
       setDetalle(data.data);
-      setBorrador(data.data.borrador);
+      setBorrador(borradorDesdeRespuesta(data.data));
       if (data.data.acceso_modo) setAccesoModo(data.data.acceso_modo);
       if (data.data.puede_gestionar_cierre_comercial != null) {
         setPuedeGestionarCierre(data.data.puede_gestionar_cierre_comercial);
@@ -317,10 +324,36 @@ const Cotizaciones = () => {
   const aplicarDetalleRespuesta = (data) => {
     const d = data.data || data;
     setDetalle(d);
-    setBorrador(d.borrador);
+    setBorrador(borradorDesdeRespuesta(d));
     if (d.acceso_modo) setAccesoModo(d.acceso_modo);
     if (d.puede_gestionar_cierre_comercial != null) setPuedeGestionarCierre(d.puede_gestionar_cierre_comercial);
     if (d.puede_aprobar_cotizacion != null) setPuedeAprobarCotizacion(d.puede_aprobar_cotizacion);
+  };
+
+  const eliminarVersion = async (versionNum) => {
+    if (!selId || !puedeAprobarCotizacion) return;
+    if (versiones.length <= 1) {
+      toast.error('Debe quedar al menos una versión.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `¿Eliminar la versión ${versionNum} del historial? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    setGuardando(true);
+    try {
+      const { data } = await cotizacionesService.eliminarVersion(selId, versionNum);
+      aplicarDetalleRespuesta(data);
+      toast.success(data.mensaje || 'Versión eliminada');
+      cargarLista();
+    } catch (e) {
+      toast.error(e.response?.data?.mensaje || 'No se pudo eliminar la versión');
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const guardarCierreComercial = async (body) => {
@@ -385,7 +418,7 @@ const Cotizaciones = () => {
       };
       const { data } = await cotizacionesService.guardarBorrador(selId, payload);
       setDetalle(data.data);
-      setBorrador(data.data.borrador);
+      setBorrador(borradorDesdeRespuesta(data.data));
       setModalPublicar(false);
       setComentarioVersion('');
       const v = data.data.cotizacion?.version_actual;
@@ -463,7 +496,7 @@ const Cotizaciones = () => {
         comentario: `Restaurada desde v${versionNum}`
       });
       setDetalle(data.data);
-      setBorrador(data.data.borrador);
+      setBorrador(borradorDesdeRespuesta(data.data));
       toast.success('Versión restaurada');
       cargarLista();
     } catch (e) {
@@ -846,7 +879,7 @@ const Cotizaciones = () => {
                           responsables={responsables}
                           onActualizado={(data) => {
                             setDetalle(data);
-                            setBorrador(data.borrador);
+                            setBorrador(borradorDesdeRespuesta(data));
                             cargarLista();
                           }}
                         />
@@ -882,7 +915,7 @@ const Cotizaciones = () => {
                       onSolicitudAprobacionEnviada={(data) => {
                         if (data) {
                           setDetalle(data);
-                          setBorrador(data.borrador);
+                          setBorrador(borradorDesdeRespuesta(data));
                         }
                         cargarLista();
                       }}
@@ -903,7 +936,7 @@ const Cotizaciones = () => {
                       onSolicitudAprobacionEnviada={(data) => {
                         if (data) {
                           setDetalle(data);
-                          setBorrador(data.borrador);
+                          setBorrador(borradorDesdeRespuesta(data));
                         }
                         cargarLista();
                       }}
@@ -984,26 +1017,48 @@ const Cotizaciones = () => {
                                   Propuesta: {fmt(v.monto_propuesta)} · Costo: {fmt(v.costo_total)}
                                 </p>
                               </div>
-                              {!v.es_actual && (
-                                <span
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    restaurarVersion(v.version_num);
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                      e.preventDefault();
+                              <div className="flex flex-wrap gap-2 shrink-0">
+                                {!v.es_actual && (
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => {
                                       e.stopPropagation();
                                       restaurarVersion(v.version_num);
-                                    }
-                                  }}
-                                  className="inline-flex items-center gap-1 text-sm border px-3 py-1.5 rounded-lg bg-white shrink-0"
-                                >
-                                  <DocumentDuplicateIcon className="w-4 h-4" /> Restaurar
-                                </span>
-                              )}
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        restaurarVersion(v.version_num);
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-1 text-sm border px-3 py-1.5 rounded-lg bg-white"
+                                  >
+                                    <DocumentDuplicateIcon className="w-4 h-4" /> Restaurar
+                                  </span>
+                                )}
+                                {puedeAprobarCotizacion && versiones.length > 1 && (
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      eliminarVersion(v.version_num);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        eliminarVersion(v.version_num);
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-1 text-sm border border-red-200 text-red-700 px-3 py-1.5 rounded-lg bg-white hover:bg-red-50"
+                                  >
+                                    <TrashIcon className="w-4 h-4" /> Eliminar
+                                  </span>
+                                )}
+                              </div>
                             </button>
                             {expandida && (
                               <div className="border-t border-slate-200 bg-white px-4 py-3">

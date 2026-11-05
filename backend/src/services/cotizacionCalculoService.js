@@ -502,7 +502,10 @@ function calcularCotizacion(data) {
     tipo_proyecto: String(generalNorm?.tipo_proyecto || '').trim(),
     responsable_ids: resp.responsable_ids,
     responsable_id: resp.responsable_id,
-    notas_internas: String(generalNorm?.notas_internas || '').trim()
+    notas_internas: String(generalNorm?.notas_internas || '').trim(),
+    fecha_subida: String(generalNorm?.fecha_subida || '').trim(),
+    fecha_deadline_propuesta: String(generalNorm?.fecha_deadline_propuesta || '').trim(),
+    comercial_solicitante: String(generalNorm?.comercial_solicitante || '').trim()
   };
 
   const actividades = calcularActividades(data?.actividades || {});

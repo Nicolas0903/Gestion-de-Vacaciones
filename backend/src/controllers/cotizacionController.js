@@ -191,6 +191,10 @@ exports.obtener = async (req, res) => {
           req,
           empleado
         ),
+        puede_eliminar_version: require('../constants/cotizacionAprobacion').puedeAprobarCotizacion(
+          req,
+          empleado
+        ),
         solicitud_comercial: sol
           ? {
               id: sol.id,
@@ -357,6 +361,30 @@ exports.restaurarVersion = async (req, res) => {
   } catch (e) {
     console.error('cotizaciones restaurarVersion:', e);
     res.status(400).json({ success: false, mensaje: e.message || 'Error al restaurar versión' });
+  }
+};
+
+exports.eliminarVersion = async (req, res) => {
+  try {
+    const cot = await verificarAccesoCotizacion(req, res, req.params.id);
+    if (!cot) return;
+    const empleado = await empleadoReq(req);
+    const { puedeAprobarCotizacion } = require('../constants/cotizacionAprobacion');
+    if (!puedeAprobarCotizacion(req, empleado)) {
+      return res.status(403).json({
+        success: false,
+        mensaje: 'Solo administración, Magali o Enrique pueden eliminar versiones del historial.'
+      });
+    }
+    const detalle = await Cotizacion.eliminarVersion(req.params.id, req.params.versionNum);
+    res.json({
+      success: true,
+      data: await respuestaDetalleConMeta(req, detalle),
+      mensaje: `Versión ${req.params.versionNum} eliminada del historial.`
+    });
+  } catch (e) {
+    console.error('cotizaciones eliminarVersion:', e);
+    res.status(400).json({ success: false, mensaje: e.message || 'Error al eliminar versión' });
   }
 };
 
@@ -605,7 +633,8 @@ async function respuestaDetalleConMeta(req, detalle) {
     ...detalle,
     acceso_modo: req.cotizacionModoAcceso || 'elaborador',
     puede_gestionar_cierre_comercial: puedeGestionarCierreComercial(req, empleado),
-    puede_aprobar_cotizacion: puedeAprobarCotizacion(req, empleado)
+    puede_aprobar_cotizacion: puedeAprobarCotizacion(req, empleado),
+    puede_eliminar_version: puedeAprobarCotizacion(req, empleado)
   };
 }
 

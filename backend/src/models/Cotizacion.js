@@ -697,6 +697,61 @@ class Cotizacion {
     );
   }
 
+  static async eliminarVersion(cotizacionId, versionNum) {
+    const vn = Number(versionNum);
+    if (!Number.isFinite(vn) || vn < 1) throw new Error('Número de versión inválido');
+
+    const versiones = await this.listarVersiones(cotizacionId);
+    if (versiones.length <= 1) {
+      throw new Error('Debe quedar al menos una versión en el historial.');
+    }
+    const target = versiones.find((v) => Number(v.version_num) === vn);
+    if (!target) throw new Error('Versión no encontrada');
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.query(
+        `DELETE FROM cotizacion_versiones WHERE cotizacion_id = ? AND version_num = ?`,
+        [cotizacionId, vn]
+      );
+
+      if (target.es_actual) {
+        const [rest] = await conn.query(
+          `SELECT * FROM cotizacion_versiones WHERE cotizacion_id = ? ORDER BY version_num DESC LIMIT 1`,
+          [cotizacionId]
+        );
+        const nueva = rest[0];
+        if (nueva) {
+          await conn.query(`UPDATE cotizacion_versiones SET es_actual = 0 WHERE cotizacion_id = ?`, [
+            cotizacionId
+          ]);
+          await conn.query(
+            `UPDATE cotizacion_versiones SET es_actual = 1 WHERE cotizacion_id = ? AND version_num = ?`,
+            [cotizacionId, nueva.version_num]
+          );
+          const cot = await this.buscarPorId(cotizacionId);
+          const snapshot = parseJson(nueva.snapshot_json, null);
+          const borrador = snapshot ? calcularCotizacion(snapshot) : parseJson(cot.borrador_json);
+          const sync = this.syncFromBorrador(borrador);
+          await conn.query(
+            `UPDATE cotizaciones SET borrador_json = ?, version_actual = ?, estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [JSON.stringify(borrador), nueva.version_num, sync.estado, cotizacionId]
+          );
+        }
+      }
+
+      await conn.commit();
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+
+    return this.obtenerDetalle(cotizacionId);
+  }
+
   static async persistirPropuesta(id, propuesta) {
     const detalle = await this.obtenerDetalle(id);
     const borrador = { ...detalle.borrador, propuesta };

@@ -412,6 +412,8 @@ export const cotizacionesService = {
   verVersion: (id, versionNum) => api.get(`/cotizaciones/${id}/versiones/${versionNum}`),
   restaurarVersion: (id, versionNum, body) =>
     api.post(`/cotizaciones/${id}/restaurar-version/${versionNum}`, body),
+  eliminarVersion: (id, versionNum) =>
+    api.delete(`/cotizaciones/${id}/versiones/${versionNum}`),
   eliminar: (id) => api.delete(`/cotizaciones/${id}`),
   listarAdjuntos: (id, params) => api.get(`/cotizaciones/${id}/adjuntos`, { params: params || {} }),
   subirAdjunto: (id, file, comentario, tipo) => {

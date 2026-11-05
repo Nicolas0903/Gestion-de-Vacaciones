@@ -78,6 +78,7 @@ router.put('/:id/borrador', ctrl.guardarBorrador);
 router.post('/:id/publicar-version', ctrl.publicarVersion);
 router.get('/:id/versiones/:versionNum', ctrl.verVersion);
 router.post('/:id/restaurar-version/:versionNum', ctrl.restaurarVersion);
+router.delete('/:id/versiones/:versionNum', ctrl.eliminarVersion);
 router.delete('/:id', ctrl.eliminar);
 
 module.exports = router;
