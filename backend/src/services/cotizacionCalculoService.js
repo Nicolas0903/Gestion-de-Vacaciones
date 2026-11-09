@@ -195,6 +195,34 @@ function tarifaGarantiaReferencia(recursos, indices, horasMes) {
   return round2(rates.reduce((a, b) => a + b, 0));
 }
 
+function normalizarOtrosCostos(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((row, i) => {
+    const concepto = String(row?.concepto ?? row?.rol ?? '').trim();
+    const cantidad = num(row?.cantidad, 1);
+    const qty = cantidad > 0 ? cantidad : 1;
+    const costoDirectoUnit = round2(num(row?.costo_directo));
+    const costo_final = round2(qty * costoDirectoUnit);
+    return {
+      id: row?.id || uid(),
+      concepto,
+      cantidad: qty,
+      costo_directo: costoDirectoUnit,
+      costo_final,
+      orden: num(row?.orden, i + 1)
+    };
+  });
+}
+
+function subtotalOtrosCostos(otrosCostos) {
+  return round2(
+    (otrosCostos || []).reduce((s, r) => {
+      const tieneDato = r.concepto || num(r.costo_directo) > 0;
+      return tieneDato ? s + num(r.costo_final) : s;
+    }, 0)
+  );
+}
+
 /** Excel: tarifa (suma costo/h de recursos elegidos, o manual) × horas garantía. */
 function calcularGarantia(parametros, recursos) {
   const horas = num(parametros.horas_garantia);
@@ -276,11 +304,14 @@ function calcularCostos(costosRaw) {
   const subtotal_recursos = round2(participantes.reduce((s, r) => s + num(r.costo_final ?? r.costo), 0));
   const total_informativos = round2(informativos.reduce((s, r) => s + num(r.costo_final ?? r.costo), 0));
 
+  const otros_costos = normalizarOtrosCostos(costosRaw?.otros_costos);
+  const subtotal_otros_costos = subtotalOtrosCostos(otros_costos);
+
   const garantiaDet = calcularGarantia(parametros, recursos);
   const garantia = garantiaDet.monto;
 
   const comision = round2(subtotal_recursos * (parametros.comision_admin_pct / 100));
-  const costo_total = round2(subtotal_recursos + garantia + comision);
+  const costo_total = round2(subtotal_recursos + subtotal_otros_costos + garantia + comision);
   const tc = parametros.tipo_cambio > 0 ? parametros.tipo_cambio : 1;
   const costo_en_pen =
     parametros.moneda_recursos === 'PEN' ? costo_total : round2(costo_total * tc);
@@ -323,11 +354,13 @@ function calcularCostos(costosRaw) {
 
   return {
     recursos,
+    otros_costos,
     parametros,
     resumen: {
       subtotal_recursos,
       base_participantes: subtotal_recursos,
       total_informativos,
+      subtotal_otros_costos,
       garantia,
       garantia_tarifa: garantiaDet.tarifa,
       garantia_horas: garantiaDet.horas,
@@ -553,6 +586,7 @@ function borradorVacio() {
     },
     costos: {
       recursos: [],
+      otros_costos: [],
       parametros: {
         moneda: 'USD',
         moneda_recursos: 'PEN',

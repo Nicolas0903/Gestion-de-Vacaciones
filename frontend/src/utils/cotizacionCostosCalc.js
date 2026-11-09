@@ -56,6 +56,28 @@ export function calcCostosLocal(costosRaw) {
   const participantes = recursos.filter((r) => !r.es_informativo);
   const subtotal = Math.round(participantes.reduce((s, r) => s + r.costo_final, 0) * 100) / 100;
 
+  const otros_costos = (costosRaw?.otros_costos || []).map((row, i) => {
+    const concepto = String(row?.concepto ?? row?.rol ?? '').trim();
+    const cantidad = Number(row?.cantidad);
+    const qty = Number.isFinite(cantidad) && cantidad > 0 ? cantidad : 1;
+    const costoDirecto = Math.round((Number(row?.costo_directo) || 0) * 100) / 100;
+    const costo_final = Math.round(qty * costoDirecto * 100) / 100;
+    return {
+      ...row,
+      concepto,
+      cantidad: qty,
+      costo_directo: costoDirecto,
+      costo_final,
+      orden: row?.orden ?? i + 1
+    };
+  });
+  const subtotalOtros = Math.round(
+    otros_costos.reduce((s, r) => {
+      const tieneDato = r.concepto || r.costo_directo > 0;
+      return tieneDato ? s + r.costo_final : s;
+    }, 0) * 100
+  ) / 100;
+
   const indicesGarantia = resolverIndicesGarantia(params);
   const horasGarantia = Number(params.horas_garantia ?? params.dias_garantia) || 0;
   const modoGarantia = String(params.garantia_modo || 'recursos').toLowerCase();
@@ -74,7 +96,7 @@ export function calcCostosLocal(costosRaw) {
 
   const comisionPct = Number(params.comision_admin_pct ?? 10);
   const comision = Math.round(subtotal * (comisionPct / 100) * 100) / 100;
-  const costoTotal = Math.round((subtotal + garantia + comision) * 100) / 100;
+  const costoTotal = Math.round((subtotal + subtotalOtros + garantia + comision) * 100) / 100;
 
   const tc = tipoCambio > 0 ? tipoCambio : 1;
   const costoEnPen = monedaRec === 'PEN' ? costoTotal : Math.round(costoTotal * tc * 100) / 100;
@@ -122,12 +144,14 @@ export function calcCostosLocal(costosRaw) {
 
   return {
     recursos,
+    otros_costos,
     markups,
     proyActiva,
     monedaProy,
     monedaRec,
     resumen: {
       subtotal_recursos: subtotal,
+      subtotal_otros_costos: subtotalOtros,
       garantia,
       garantia_tarifa: tarifaGarantia,
       garantia_horas: horasGarantia,

@@ -35,10 +35,20 @@ const CotizacionesCostos = ({
   onSolicitudAprobacionEnviada
 }) => {
   const params = costos?.parametros || {};
-  const { recursos, markups, proyActiva, monedaProy, monedaRec, resumen: res } = useMemo(
-    () => calcCostosLocal(costos),
-    [costos]
-  );
+  const {
+    recursos,
+    otros_costos: otrosCostosCalc,
+    markups,
+    proyActiva,
+    monedaProy,
+    monedaRec,
+    resumen: res
+  } = useMemo(() => calcCostosLocal(costos), [costos]);
+  const filasOtrosGuardadas = costos?.otros_costos?.length
+    ? costos.otros_costos
+  : otrosCostosCalc?.length
+      ? otrosCostosCalc
+      : [{ id: 'otros-inicial', concepto: '', cantidad: 1, costo_directo: '' }];
   const fmtRec = monedaRec === 'USD' ? fmtUsd : fmtPen;
   const fmtProy = monedaProy === 'PEN' ? fmtPen : fmtUsd;
   const symRec = monedaRec === 'USD' ? '$' : 'S/';
@@ -89,6 +99,29 @@ const CotizacionesCostos = ({
   const updateRecurso = (idx, patch) => {
     const next = recursos.map((r, i) => (i === idx ? { ...r, ...patch } : r));
     onChange({ ...costos, recursos: next });
+  };
+
+  const lineaOtrosCalc = (row) =>
+    otrosCostosCalc.find((o) => o.id && o.id === row.id) ||
+    otrosCostosCalc[filasOtrosGuardadas.indexOf(row)] ||
+    null;
+
+  const setOtrosCostos = (next) => onChange({ ...costos, otros_costos: next });
+
+  const updateOtrosCosto = (idx, patch) => {
+    setOtrosCostos(filasOtrosGuardadas.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  };
+
+  const agregarOtrosCosto = () => {
+    setOtrosCostos([
+      ...filasOtrosGuardadas,
+      { id: `otros-${Date.now()}`, concepto: '', cantidad: 1, costo_directo: '' }
+    ]);
+  };
+
+  const quitarOtrosCosto = (idx) => {
+    const next = filasOtrosGuardadas.filter((_, i) => i !== idx);
+    setOtrosCostos(next.length ? next : [{ id: `otros-${Date.now()}`, concepto: '', cantidad: 1, costo_directo: '' }]);
   };
 
   const setMarkup = (idx, val) => {
@@ -196,6 +229,104 @@ const CotizacionesCostos = ({
           </tbody>
         </table>
       </div>
+
+      <section className="mt-8 space-y-2" aria-labelledby="costos-otros-titulo">
+        <div className="flex flex-wrap items-end justify-between gap-2 border-b border-violet-200 pb-2">
+          <div>
+            <h4 id="costos-otros-titulo" className="text-sm font-semibold text-violet-950">
+              Otros costos
+            </h4>
+            <p className="text-xs text-violet-900/70 mt-0.5">
+              Filas manuales (licencias, viáticos, etc.). Se suman al costo total antes de la garantía.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={agregarOtrosCosto}
+            className="text-xs text-violet-800 underline hover:text-violet-950 shrink-0"
+          >
+            + Agregar fila
+          </button>
+        </div>
+        <div className="overflow-x-auto rounded-lg border-2 border-violet-200 bg-violet-50/30 shadow-sm">
+          <table className="w-full border-collapse min-w-[600px] text-sm">
+            <thead>
+              <tr>
+                <th className={`${TH} bg-violet-800 border-violet-900`}>Recurso o concepto</th>
+                <th className={`${TH} w-24 bg-violet-800 border-violet-900`}>Cantidad</th>
+                <th className={`${TH} w-32 bg-violet-800 border-violet-900`}>Costo directo ({symRec})</th>
+                <th className={`${TH} w-32 bg-violet-800 border-violet-900`}>Importe</th>
+                <th className={`${TH} w-14 bg-violet-800 border-violet-900`} aria-label="Quitar" />
+              </tr>
+            </thead>
+            <tbody>
+              {filasOtrosGuardadas.map((row, idx) => {
+                const calc = lineaOtrosCalc(row);
+                const importe = calc?.costo_final ?? 0;
+                return (
+                  <tr key={row.id || idx} className="bg-violet-100/60">
+                    <td className={TD}>
+                      <input
+                        type="text"
+                        value={row.concepto ?? ''}
+                        placeholder="Ej. Licencia Power BI"
+                        onChange={(e) => updateOtrosCosto(idx, { concepto: e.target.value })}
+                        className={`${inp} bg-violet-50`}
+                      />
+                    </td>
+                    <td className={TD}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={valorNumInputEditable(row.cantidad ?? 1)}
+                        onChange={(e) =>
+                          updateOtrosCosto(idx, { cantidad: parcheNumInputEditable(e.target.value) })
+                        }
+                        className={`${inp} text-right bg-violet-50`}
+                      />
+                    </td>
+                    <td className={TD}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={valorNumInputEditable(row.costo_directo)}
+                        onChange={(e) =>
+                          updateOtrosCosto(idx, { costo_directo: parcheNumInputEditable(e.target.value) })
+                        }
+                        className={`${inp} text-right bg-violet-50`}
+                      />
+                    </td>
+                    <td className={`${TDnum} font-medium text-violet-900`}>{fmtRec(importe)}</td>
+                    <td className={`${TD} text-center`}>
+                      <button
+                        type="button"
+                        title="Quitar fila"
+                        onClick={() => quitarOtrosCosto(idx)}
+                        className="text-violet-800 hover:text-red-700 text-lg leading-none px-1"
+                      >
+                        ×
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filasOtrosGuardadas.some(
+                (r) => String(r.concepto || '').trim() || Number(r.costo_directo) > 0
+              ) && (
+                <tr className="bg-violet-50 font-semibold">
+                  <td className={`${TD} text-violet-900`} colSpan={3}>
+                    Subtotal otros costos
+                  </td>
+                  <td className={`${TDnum} text-violet-950`}>{fmtRec(res.subtotal_otros_costos)}</td>
+                  <td className={TD} />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="mt-8 space-y-2" aria-labelledby="costos-garantia-titulo">
         <div className="flex flex-wrap items-end justify-between gap-2 border-b border-orange-200 pb-2">
@@ -758,7 +889,8 @@ const CotizacionesCostos = ({
             </label>
           )}
           <p className="col-span-2 md:col-span-4 text-xs text-slate-500 -mt-1 mb-1">
-            Garantía: bloque naranja debajo de recursos → <strong>Seleccionar / modificar</strong> (por recursos o tarifa manual).
+            <strong>Otros costos</strong>: bloque violeta (filas manuales).{' '}
+            Garantía: bloque naranja → <strong>Seleccionar / modificar</strong> (por recursos o tarifa manual).
             La moneda de la propuesta al cliente se define en la pestaña <strong>Propuesta</strong>.
           </p>
         </div>
