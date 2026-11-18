@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -117,17 +117,17 @@ const RendicionPresupuesto = () => {
     setFileInputKey((k) => k + 1);
   };
 
-  const cargarLista = async () => {
-    setLoading(true);
+  const cargarLista = useCallback(async ({ mostrarCargando = true } = {}) => {
+    if (mostrarCargando) setLoading(true);
     try {
       const { data } = await rendicionPresupuestoService.misSolicitudes();
       setLista(data.data || []);
     } catch {
       toast.error('No se pudieron cargar tus rendiciones.');
     } finally {
-      setLoading(false);
+      if (mostrarCargando) setLoading(false);
     }
-  };
+  }, []);
 
   const cargarAreas = async () => {
     try {
@@ -140,19 +140,20 @@ const RendicionPresupuesto = () => {
     }
   };
 
-  const cargarPresupuestosAprobados = async () => {
+  const cargarPresupuestosAprobados = useCallback(async () => {
     try {
       const { data } = await rendicionPresupuestoService.solicitudesPresupuestoAprobadas();
       setPresupuestosAprobados(data.data || []);
     } catch {
       setPresupuestosAprobados([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    cargarLista();
+    cargarLista({ mostrarCargando: true });
     cargarAreas();
     cargarPresupuestosAprobados();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- montaje inicial
   }, []);
 
   useEffect(() => {
@@ -227,7 +228,7 @@ const RendicionPresupuesto = () => {
       const { data } = await rendicionPresupuestoService.actualizarMia(editar.id, fd);
       toast.success(data.mensaje || 'Rendición actualizada.');
       setEditar(null);
-      cargarLista();
+      cargarLista({ mostrarCargando: false });
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'No se pudo guardar.');
     } finally {
@@ -249,7 +250,7 @@ const RendicionPresupuesto = () => {
     try {
       await rendicionPresupuestoService.eliminar(r.id);
       toast.success('Rendición eliminada.');
-      cargarLista();
+      cargarLista({ mostrarCargando: false });
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'No se pudo eliminar.');
     } finally {
@@ -308,7 +309,7 @@ const RendicionPresupuesto = () => {
       const { data } = await rendicionPresupuestoService.crear(fd);
       toast.success(data.mensaje || 'Rendición registrada. Se notificó a los responsables.');
       resetFormulario();
-      cargarLista();
+      cargarLista({ mostrarCargando: false });
     } catch (err) {
       const msg =
         err.response?.data?.mensaje ||

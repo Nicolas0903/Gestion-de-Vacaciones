@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { rendicionPresupuestoService } from '../../services/api';
 import { formatoFechaDMY } from '../../utils/dateUtils';
@@ -36,22 +36,28 @@ export default function SolicitudPresupuestoPanel({ areas, onAprobadaChange }) {
   const [monto, setMonto] = useState('');
   const [moneda, setMoneda] = useState('PEN');
 
-  const cargar = useCallback(async () => {
-    setLoading(true);
+  const onAprobadaRef = useRef(onAprobadaChange);
+  useEffect(() => {
+    onAprobadaRef.current = onAprobadaChange;
+  }, [onAprobadaChange]);
+
+  const cargar = useCallback(async ({ mostrarCargando = true } = {}) => {
+    if (mostrarCargando) setLoading(true);
     try {
       const { data } = await rendicionPresupuestoService.solicitudesPresupuestoMias();
       setLista(data.data || []);
-      onAprobadaChange?.();
+      onAprobadaRef.current?.();
     } catch {
       toast.error('No se pudieron cargar solicitudes de presupuesto.');
     } finally {
-      setLoading(false);
+      if (mostrarCargando) setLoading(false);
     }
-  }, [onAprobadaChange]);
+  }, []);
 
   useEffect(() => {
-    cargar();
-  }, [cargar]);
+    cargar({ mostrarCargando: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
+  }, []);
 
   const resetForm = () => {
     setEditId(null);
@@ -106,7 +112,7 @@ export default function SolicitudPresupuestoPanel({ areas, onAprobadaChange }) {
           : 'Borrador guardado.'
       );
       resetForm();
-      cargar();
+      cargar({ mostrarCargando: false });
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'No se pudo guardar.');
     } finally {
@@ -119,7 +125,7 @@ export default function SolicitudPresupuestoPanel({ areas, onAprobadaChange }) {
     try {
       await rendicionPresupuestoService.cancelarSolicitudPresupuesto(id);
       toast.success('Cancelada.');
-      cargar();
+      cargar({ mostrarCargando: false });
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'No se pudo cancelar.');
     }
