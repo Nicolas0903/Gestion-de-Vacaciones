@@ -260,6 +260,64 @@ class RendicionPresupuesto {
     return r.affectedRows > 0;
   }
 
+  /** Ya registrado depósito en caja (no editable por el colaborador). */
+  static tieneDepositoCajaRegistrado(row) {
+    if (!row) return false;
+    if (row.fecha_deposito) return true;
+    if (row.comprobante_deposito_path && String(row.comprobante_deposito_path).trim()) return true;
+    if (row.monto_deposito != null && row.monto_deposito !== '' && Number(row.monto_deposito) > 0) {
+      return true;
+    }
+    return false;
+  }
+
+  static puedeEditarEmpleado(row) {
+    if (!row) return false;
+    if (['pendiente', 'observado', 'rechazado'].includes(row.estado)) return true;
+    if (row.estado === 'aprobado' && !this.tieneDepositoCajaRegistrado(row)) return true;
+    return false;
+  }
+
+  static async actualizarPorEmpleado(id, empleadoId, datos) {
+    const {
+      fecha_solicitud_usuario,
+      concepto,
+      monto,
+      moneda,
+      tiene_comprobante,
+      archivo_comprobante_nombre,
+      archivo_comprobante_path,
+      volverAPendiente
+    } = datos;
+    const params = [
+      fecha_solicitud_usuario,
+      String(concepto).trim(),
+      monto,
+      this.normalizarMoneda(moneda),
+      tiene_comprobante ? 1 : 0,
+      archivo_comprobante_nombre || null,
+      archivo_comprobante_path || null
+    ];
+    let sql = `UPDATE rendiciones_presupuesto SET
+      fecha_solicitud_usuario = ?,
+      concepto = ?,
+      monto = ?,
+      moneda = ?,
+      tiene_comprobante = ?,
+      archivo_comprobante_nombre = ?,
+      archivo_comprobante_path = ?`;
+    if (volverAPendiente) {
+      sql += `, estado = 'pendiente',
+        aprobado_por = NULL,
+        fecha_resolucion = NULL,
+        comentarios_resolucion = NULL`;
+    }
+    sql += ` WHERE id = ? AND empleado_id = ?`;
+    params.push(id, empleadoId);
+    const [r] = await pool.execute(sql, params);
+    return r.affectedRows > 0;
+  }
+
   static normalizarFechaDepositoApi(v) {
     return normalizarFechaDeposito(v);
   }

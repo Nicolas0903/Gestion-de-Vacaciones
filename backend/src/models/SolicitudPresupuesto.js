@@ -190,7 +190,7 @@ class SolicitudPresupuesto {
     return r.affectedRows > 0;
   }
 
-  static async validarParaRendicion(solicitudId, empleadoId, montoRendicion) {
+  static async validarParaRendicion(solicitudId, empleadoId, montoRendicion, excluirRendicionId = null) {
     const sp = await this.buscarPorId(solicitudId);
     if (!sp) return { ok: false, mensaje: 'Solicitud de presupuesto no encontrada.' };
     if (sp.empleado_id !== empleadoId) {
@@ -199,7 +199,19 @@ class SolicitudPresupuesto {
     if (sp.estado !== 'aprobada') {
       return { ok: false, mensaje: 'La solicitud de presupuesto no está aprobada.' };
     }
-    const usado = await this.montoComprometido(solicitudId);
+    let usado = await this.montoComprometido(solicitudId);
+    if (excluirRendicionId) {
+      const RendicionPresupuesto = require('./RendicionPresupuesto');
+      const prev = await RendicionPresupuesto.buscarPorId(excluirRendicionId);
+      if (
+        prev &&
+        prev.solicitud_presupuesto_id === solicitudId &&
+        ['pendiente', 'aprobado', 'observado'].includes(prev.estado)
+      ) {
+        usado -= Number(prev.monto) || 0;
+        if (usado < 0) usado = 0;
+      }
+    }
     const tope = Number(sp.monto_aprobado ?? sp.monto_solicitado);
     if (usado + Number(montoRendicion) > tope + 0.001) {
       return {

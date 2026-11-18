@@ -6,7 +6,8 @@ import {
   ArrowLeftIcon,
   PaperClipIcon,
   Cog6ToothIcon,
-  TrashIcon
+  TrashIcon,
+  PencilSquareIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { rendicionPresupuestoService } from '../services/api';
@@ -73,6 +74,10 @@ const RendicionPresupuesto = () => {
   const [consultandoRuc, setConsultandoRuc] = useState(false);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [eliminandoId, setEliminandoId] = useState(null);
+  const [editar, setEditar] = useState(null);
+  const [formEdit, setFormEdit] = useState(null);
+  const [archivoReemplazo, setArchivoReemplazo] = useState(null);
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [vista, setVista] = useState('presupuesto');
   const [presupuestosAprobados, setPresupuestosAprobados] = useState([]);
   const [solicitudPresupuestoId, setSolicitudPresupuestoId] = useState('');
@@ -83,6 +88,18 @@ const RendicionPresupuesto = () => {
     if (!r) return false;
     if (puedeGestionar) return true;
     return r.estado !== 'aprobado';
+  };
+
+  const puedeEditarMia = (r) => {
+    if (!r) return false;
+    if (r.puede_editar_empleado != null) return !!r.puede_editar_empleado;
+    if (['pendiente', 'observado', 'rechazado'].includes(r.estado)) return true;
+    return (
+      r.estado === 'aprobado' &&
+      !r.fecha_deposito &&
+      !r.comprobante_deposito_path &&
+      !(r.monto_deposito != null && Number(r.monto_deposito) > 0)
+    );
   };
   const dni = usuario?.dni || '—';
 
@@ -138,6 +155,21 @@ const RendicionPresupuesto = () => {
     cargarPresupuestosAprobados();
   }, []);
 
+  useEffect(() => {
+    if (!editar) {
+      setFormEdit(null);
+      setArchivoReemplazo(null);
+      return;
+    }
+    setFormEdit({
+      fecha_solicitud_usuario: editar.fecha_solicitud_usuario?.slice(0, 10) || '',
+      concepto: editar.concepto || '',
+      monto: String(editar.monto ?? ''),
+      moneda: editar.moneda || 'PEN'
+    });
+    setArchivoReemplazo(null);
+  }, [editar]);
+
   const onSelectPresupuesto = (id) => {
     setSolicitudPresupuestoId(id);
     const sp = presupuestosAprobados.find((p) => String(p.id) === String(id));
@@ -166,6 +198,40 @@ const RendicionPresupuesto = () => {
       toast.error(err.response?.data?.mensaje || 'No se pudo consultar el RUC.');
     } finally {
       setConsultandoRuc(false);
+    }
+  };
+
+  const guardarEdicion = async () => {
+    if (!editar || !formEdit) return;
+    const montoNum = parseFloat(String(formEdit.monto).replace(',', '.'), 10);
+    if (!formEdit.fecha_solicitud_usuario || !formEdit.concepto.trim()) {
+      toast.error('Complete fecha y concepto.');
+      return;
+    }
+    if (Number.isNaN(montoNum) || montoNum <= 0) {
+      toast.error('Indique un monto mayor a cero.');
+      return;
+    }
+    if (archivoReemplazo && archivoReemplazo.size > RENDICION_PRESUPUESTO_MAX_FILE_BYTES) {
+      toast.error(`El archivo supera los ${RENDICION_PRESUPUESTO_MAX_UPLOAD_MB} MB.`);
+      return;
+    }
+    const fd = new FormData();
+    fd.append('fecha_solicitud_usuario', formEdit.fecha_solicitud_usuario);
+    fd.append('concepto', formEdit.concepto.trim());
+    fd.append('monto', String(montoNum));
+    fd.append('moneda', formEdit.moneda);
+    if (archivoReemplazo) fd.append('comprobante', archivoReemplazo);
+    setGuardandoEdicion(true);
+    try {
+      const { data } = await rendicionPresupuestoService.actualizarMia(editar.id, fd);
+      toast.success(data.mensaje || 'Rendición actualizada.');
+      setEditar(null);
+      cargarLista();
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'No se pudo guardar.');
+    } finally {
+      setGuardandoEdicion(false);
     }
   };
 
@@ -537,8 +603,10 @@ const RendicionPresupuesto = () => {
       <div className="rounded-3xl bg-white border border-slate-100 shadow-lg p-8 md:p-10">
         <h2 className="text-lg font-bold text-slate-800 mb-1">Mis rendiciones</h2>
         <p className="text-xs text-slate-500 mb-4">
-          Puedes eliminar tus rendiciones en estado pendiente, rechazado u observado. Las aprobadas solo las elimina
-          administración.
+          Puedes <strong className="font-medium text-slate-600">corregir</strong> monto, fecha, concepto y comprobante
+          con <strong className="font-medium text-slate-600">Editar</strong> (si está pendiente, observada, rechazada o
+          aprobada sin depósito en caja). Si ya estaba aprobada, volverá a pendiente para nueva revisión. Puedes eliminar
+          en pendiente, rechazado u observado; las aprobadas solo las elimina administración.
         </p>
         {loading ? (
           <p className="text-slate-500 text-sm">Cargando…</p>
@@ -602,6 +670,16 @@ const RendicionPresupuesto = () => {
                       Ver archivo
                     </button>
                   )}
+                  {puedeEditarMia(r) && (
+                    <button
+                      type="button"
+                      onClick={() => setEditar(r)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-900 hover:bg-sky-100"
+                    >
+                      <PencilSquareIcon className="w-3.5 h-3.5 shrink-0" />
+                      Editar
+                    </button>
+                  )}
                   {puedeEliminar(r) && (
                     <button
                       type="button"
@@ -624,6 +702,98 @@ const RendicionPresupuesto = () => {
           </ul>
         )}
       </div>
+
+      {editar && formEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 my-8">
+            <h3 className="font-bold text-slate-800 mb-1">Corregir rendición</h3>
+            <p className="text-xs text-slate-500 mb-2 font-mono">{editar.codigo_ticket}</p>
+            {editar.estado === 'aprobado' && (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
+                Al guardar, la rendición vuelve a <strong>pendiente</strong> y Magali debe aprobarla de nuevo.
+              </p>
+            )}
+            <div className="space-y-3 text-sm">
+              <div>
+                <label className="block text-slate-600 mb-1">Fecha del gasto *</label>
+                <input
+                  type="date"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={formEdit.fecha_solicitud_usuario}
+                  onChange={(e) => setFormEdit({ ...formEdit, fecha_solicitud_usuario: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-1">Concepto *</label>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={formEdit.concepto}
+                  onChange={(e) => setFormEdit({ ...formEdit, concepto: e.target.value })}
+                />
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 mb-1">Moneda</label>
+                  <select
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"
+                    value={formEdit.moneda}
+                    onChange={(e) => setFormEdit({ ...formEdit, moneda: e.target.value })}
+                  >
+                    {MONEDAS_RENDICION.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-600 mb-1">Monto *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                    value={formEdit.monto}
+                    onChange={(e) => setFormEdit({ ...formEdit, monto: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-600 mb-1">
+                  {editar.archivo_comprobante_path ? 'Reemplazar comprobante (opcional)' : 'Adjuntar comprobante (opcional)'}
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                  className="text-xs w-full"
+                  onChange={(e) => setArchivoReemplazo(e.target.files?.[0] || null)}
+                />
+                {editar.archivo_comprobante_nombre && (
+                  <p className="text-[11px] text-slate-500 mt-1">Actual: {editar.archivo_comprobante_nombre}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-end mt-6">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-sm"
+                onClick={() => setEditar(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={guardandoEdicion}
+                className="px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-medium disabled:opacity-50"
+                onClick={guardarEdicion}
+              >
+                {guardandoEdicion ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

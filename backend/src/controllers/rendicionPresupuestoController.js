@@ -25,8 +25,59 @@ function enriquecer(r) {
     monto_formateado: RendicionPresupuesto.formatearMonto(r.monto, moneda),
     codigo_ticket: RendicionPresupuesto.codigoTicket(r),
     area_label: RendicionPresupuesto.AREAS_LABEL[r.area] || r.area,
-    fecha_registro_ticket: r.created_at
+    fecha_registro_ticket: r.created_at,
+    puede_editar_empleado: RendicionPresupuesto.puedeEditarEmpleado(r)
   };
+}
+
+async function notificarNuevaRendicionTrasCambio(id, row, usuario, archivoDiskPath, archivoNombre) {
+  try {
+    const emailsOficiales = notificacionRegistroEmailsConfigurados();
+    const aprobadores = await Empleado.obtenerAprobadoresRendicion();
+    const rendicionData = {
+      ...row,
+      area_label: RendicionPresupuesto.AREAS_LABEL[row.area] || row.area,
+      monto_formateado: RendicionPresupuesto.formatearMonto(row.monto, row.moneda)
+    };
+    const enviados = new Set();
+    const tareas = [];
+    for (const aprobador of aprobadores) {
+      const em = (aprobador.email || '').toLowerCase().trim();
+      if (em) enviados.add(em);
+      tareas.push(
+        (async () => {
+          const tokenAprobar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'aprobar');
+          const tokenRechazar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'rechazar');
+          const urlAprobar = `${API_URL}/aprobacion-rendicion-email/aprobar/${tokenAprobar}`;
+          const urlRechazar = `${API_URL}/aprobacion-rendicion-email/rechazar/${tokenRechazar}`;
+          await emailService.notificarNuevaRendicionAdmin({
+            rendicion: rendicionData,
+            empleado: usuario,
+            aprobador,
+            urlAprobar,
+            urlRechazar,
+            comprobanteDiskPath: archivoDiskPath,
+            comprobanteNombreOriginal: archivoNombre
+          });
+        })()
+      );
+    }
+    for (const email of emailsOficiales) {
+      if (enviados.has(email)) continue;
+      tareas.push(
+        emailService.notificarNuevaRendicionCopia({
+          rendicion: rendicionData,
+          empleado: usuario,
+          destinatarioEmail: email,
+          comprobanteDiskPath: archivoDiskPath,
+          comprobanteNombreOriginal: archivoNombre
+        })
+      );
+    }
+    if (tareas.length) await Promise.allSettled(tareas);
+  } catch (e) {
+    console.error('Notificación rendición tras edición:', e);
+  }
 }
 
 /** El aprobador y staff de gestión son SIEMPRE admins en este módulo. */
@@ -215,59 +266,13 @@ const crear = async (req, res) => {
     const row = await RendicionPresupuesto.buscarPorId(id);
 
     try {
-      const emailsOficiales = notificacionRegistroEmailsConfigurados();
-      const aprobadores = await Empleado.obtenerAprobadoresRendicion();
-      const rendicionData = {
-        ...row,
-        area_label: RendicionPresupuesto.AREAS_LABEL[row.area] || row.area,
-        monto_formateado: RendicionPresupuesto.formatearMonto(row.monto, row.moneda)
-      };
-
-      const enviados = new Set();
-      const tareas = [];
-
-      for (const aprobador of aprobadores) {
-        const em = (aprobador.email || '').toLowerCase().trim();
-        if (em) enviados.add(em);
-        tareas.push(
-          (async () => {
-            const tokenAprobar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'aprobar');
-            const tokenRechazar = await TokenRendicionPresupuesto.crear(id, aprobador.id, 'rechazar');
-            const urlAprobar = `${API_URL}/aprobacion-rendicion-email/aprobar/${tokenAprobar}`;
-            const urlRechazar = `${API_URL}/aprobacion-rendicion-email/rechazar/${tokenRechazar}`;
-            await emailService.notificarNuevaRendicionAdmin({
-              rendicion: rendicionData,
-              empleado: req.usuario,
-              aprobador,
-              urlAprobar,
-              urlRechazar,
-              comprobanteDiskPath: archivo_comprobante_path,
-              comprobanteNombreOriginal: archivo_comprobante_nombre
-            });
-          })()
-        );
-      }
-
-      for (const email of emailsOficiales) {
-        if (enviados.has(email)) continue;
-        tareas.push(
-          emailService.notificarNuevaRendicionCopia({
-            rendicion: rendicionData,
-            empleado: req.usuario,
-            destinatarioEmail: email,
-            comprobanteDiskPath: archivo_comprobante_path,
-            comprobanteNombreOriginal: archivo_comprobante_nombre
-          })
-        );
-      }
-
-      if (tareas.length === 0) {
-        console.error(
-          'Rendiciones: no hay destinatarios de correo configurados o activos en BD. Revise RENDICION_PRESUPUESTO_APROBADORES_EMAILS.'
-        );
-      } else {
-        await Promise.allSettled(tareas);
-      }
+      await notificarNuevaRendicionTrasCambio(
+        id,
+        row,
+        req.usuario,
+        archivo_comprobante_path,
+        archivo_comprobante_nombre
+      );
     } catch (notifErr) {
       console.error('Notificación rendición (registro guardado igual):', notifErr);
     }
@@ -489,6 +494,119 @@ const eliminar = async (req, res) => {
   }
 };
 
+const actualizarMia = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const r = await RendicionPresupuesto.buscarPorId(id);
+    if (!r) {
+      return res.status(404).json({ success: false, mensaje: 'No encontrado.' });
+    }
+    if (r.empleado_id !== req.usuario.id) {
+      return res.status(403).json({ success: false, mensaje: 'Solo puede editar sus propias rendiciones.' });
+    }
+    if (!RendicionPresupuesto.puedeEditarEmpleado(r)) {
+      return res.status(400).json({
+        success: false,
+        mensaje:
+          r.estado === 'aprobado'
+            ? 'Esta rendición ya tiene datos de depósito en caja. Pida corrección a administración.'
+            : 'No se puede editar en el estado actual.'
+      });
+    }
+
+    const { concepto, monto, moneda } = req.body;
+    const fecha_solicitud_usuario = RendicionPresupuesto.normalizarFechaSolicitud(
+      req.body.fecha_solicitud_usuario
+    );
+    if (!fecha_solicitud_usuario || !String(concepto || '').trim()) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'Indique una fecha de gasto válida y el concepto.'
+      });
+    }
+    const montoNum = monto !== undefined && monto !== '' ? parseFloat(monto, 10) : NaN;
+    if (Number.isNaN(montoNum) || montoNum <= 0) {
+      return res.status(400).json({ success: false, mensaje: 'Indique un monto mayor a cero.' });
+    }
+
+    const solicitudId = r.solicitud_presupuesto_id;
+    if (!solicitudId) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'La rendición no tiene presupuesto vinculado; contacte a administración.'
+      });
+    }
+    const valSp = await SolicitudPresupuesto.validarParaRendicion(
+      solicitudId,
+      req.usuario.id,
+      montoNum,
+      id
+    );
+    if (!valSp.ok) {
+      return res.status(400).json({ success: false, mensaje: valSp.mensaje });
+    }
+    const monedaFinal = RendicionPresupuesto.normalizarMoneda(moneda || r.moneda || valSp.solicitud.moneda);
+    if (RendicionPresupuesto.normalizarMoneda(valSp.solicitud.moneda) !== monedaFinal) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'La moneda del gasto debe coincidir con la de la solicitud de presupuesto.'
+      });
+    }
+
+    let archivo_comprobante_nombre = r.archivo_comprobante_nombre;
+    let archivo_comprobante_path = r.archivo_comprobante_path;
+    let tieneComprobante = !!r.tiene_comprobante;
+    if (req.file) {
+      unlinkSeguro(r.archivo_comprobante_path);
+      archivo_comprobante_nombre = req.file.originalname;
+      archivo_comprobante_path = req.file.path;
+      tieneComprobante = true;
+    }
+
+    const volverAPendiente = r.estado !== 'pendiente';
+    const ok = await RendicionPresupuesto.actualizarPorEmpleado(id, req.usuario.id, {
+      fecha_solicitud_usuario,
+      concepto: String(concepto).trim(),
+      monto: montoNum,
+      moneda: monedaFinal,
+      tiene_comprobante: tieneComprobante,
+      archivo_comprobante_nombre,
+      archivo_comprobante_path,
+      volverAPendiente
+    });
+    if (!ok) {
+      return res.status(400).json({ success: false, mensaje: 'No se pudo actualizar.' });
+    }
+
+    if (volverAPendiente) {
+      await TokenRendicionPresupuesto.invalidarTodos(id);
+    }
+    const actualizado = await RendicionPresupuesto.buscarPorId(id);
+    if (volverAPendiente) {
+      await notificarNuevaRendicionTrasCambio(
+        id,
+        actualizado,
+        req.usuario,
+        archivo_comprobante_path,
+        archivo_comprobante_nombre
+      );
+    }
+
+    let mensaje = 'Rendición actualizada.';
+    if (volverAPendiente) {
+      mensaje =
+        r.estado === 'aprobado'
+          ? 'Corrección guardada. La rendición volvió a pendiente para nueva aprobación.'
+          : 'Cambios guardados. La rendición quedó pendiente de aprobación.';
+    }
+
+    res.json({ success: true, mensaje, data: enriquecer(actualizado) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, mensaje: 'Error al actualizar.' });
+  }
+};
+
 const actualizarAdmin = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -586,6 +704,7 @@ module.exports = {
   rechazar,
   observar,
   eliminar,
+  actualizarMia,
   actualizarAdmin,
   catalogoAreas,
   diagnostico

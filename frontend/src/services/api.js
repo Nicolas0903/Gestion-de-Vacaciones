@@ -244,6 +244,10 @@ export const rendicionPresupuestoService = {
   observar: (id, comentarios) =>
     api.put(`/rendiciones-presupuesto/${id}/observar`, { comentarios }),
   eliminar: (id) => api.delete(`/rendiciones-presupuesto/${id}`),
+  actualizarMia: (id, formData) =>
+    api.put(`/rendiciones-presupuesto/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
   actualizarAdmin: (id, formData) =>
     api.put(`/rendiciones-presupuesto/${id}/admin`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }

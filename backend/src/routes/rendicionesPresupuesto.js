@@ -138,6 +138,8 @@ router.put('/:id/aprobar', autenticar, verificarRol('admin'), rendicionPresupues
 router.put('/:id/rechazar', autenticar, verificarRol('admin'), rendicionPresupuestoController.rechazar);
 router.delete('/:id', autenticar, rendicionPresupuestoController.eliminar);
 
+router.put('/:id', autenticar, uploadComprobante, rendicionPresupuestoController.actualizarMia);
+
 router.put(
   '/:id/admin',
   autenticar,
