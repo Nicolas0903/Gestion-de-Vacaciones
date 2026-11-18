@@ -75,6 +75,7 @@ const RendicionCaja = () => {
       setFilasEdit(
         rend.map((r) => ({
           id: r.rendicion_id,
+          monto_rendicion: r.monto_rendicion != null ? String(r.monto_rendicion) : '',
           fecha_deposito: r.fecha_deposito ? String(r.fecha_deposito).slice(0, 10) : '',
           monto_deposito: r.monto_deposito != null ? String(r.monto_deposito) : '',
           tiene_comprobante_deposito: r.tiene_comprobante_deposito,
@@ -118,6 +119,7 @@ const RendicionCaja = () => {
     if (!selId || detalle?.periodo?.estado !== 'borrador') return;
     const rendiciones = filasEdit.map((f) => ({
       id: f.id,
+      monto: f.monto_rendicion === '' ? null : f.monto_rendicion,
       fecha_deposito: f.fecha_deposito?.trim() || null,
       monto_deposito: f.monto_deposito === '' ? null : f.monto_deposito
     }));
@@ -418,14 +420,15 @@ const RendicionCaja = () => {
                       onClick={guardarDepositos}
                       className="rounded-lg bg-violet-600 text-white text-xs font-medium px-3 py-1.5 disabled:opacity-50"
                     >
-                      {guardando ? 'Guardando…' : 'Guardar depósitos'}
+                      {guardando ? 'Guardando…' : 'Guardar depósitos y montos'}
                     </button>
                   )}
                 </div>
                 <div className="px-5 pb-2">
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    Comprobante de depósito: PDF, imagen o Word (máx. 12&nbsp;MB). Es distinto del comprobante adjunto en
-                    la solicitud original.
+                    En período <strong>borrador</strong> puede corregir el <strong>monto rendido</strong> (error al
+                    cargar), la fecha y el monto del depósito, y subir el comprobante de depósito (PDF, imagen o Word,
+                    máx. 12&nbsp;MB; distinto del comprobante de la solicitud).
                   </p>
                 </div>
                 <div className="p-4 overflow-x-auto">
@@ -462,7 +465,23 @@ const RendicionCaja = () => {
                                 {m.concepto}
                               </td>
                               <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">
-                                {m.monto_rendicion_fmt || formatoMontoRendicion(m.monto_rendicion, m.moneda)}
+                                {esBorrador ? (
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    title="Monto rendido (corrección antes de cerrar el período)"
+                                    className="w-full min-w-[5.5rem] rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-right tabular-nums"
+                                    value={f.monto_rendicion}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setFilasEdit((rows) =>
+                                        rows.map((r, i) => (i === idx ? { ...r, monto_rendicion: v } : r))
+                                      );
+                                    }}
+                                  />
+                                ) : (
+                                  m.monto_rendicion_fmt || formatoMontoRendicion(m.monto_rendicion, m.moneda)
+                                )}
                               </td>
                               <td className="py-2 pr-2">
                                 {m.tiene_comprobante_solicitud ? (

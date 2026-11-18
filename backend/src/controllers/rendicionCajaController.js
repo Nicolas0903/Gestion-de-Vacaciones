@@ -185,7 +185,8 @@ const guardarDepositos = async (req, res) => {
       }
       await RendicionPresupuesto.actualizarDatosDeposito(rid, {
         fecha_deposito: f.fecha_deposito,
-        monto_deposito: f.monto_deposito
+        monto_deposito: f.monto_deposito,
+        monto: f.monto
       });
     }
 

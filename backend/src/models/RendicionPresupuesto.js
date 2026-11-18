@@ -303,23 +303,37 @@ class RendicionPresupuesto {
     }));
   }
 
-  static async actualizarDatosDeposito(id, { fecha_deposito, monto_deposito }) {
+  static async actualizarDatosDeposito(id, { fecha_deposito, monto_deposito, monto }) {
     const fecha = normalizarFechaDeposito(fecha_deposito);
     if (fecha_deposito != null && fecha_deposito !== '' && fecha === null) {
       throw new Error('fecha_deposito no válida');
     }
-    let monto = null;
+    let montoDep = null;
     if (monto_deposito !== undefined && monto_deposito !== null && monto_deposito !== '') {
-      monto = parseFloat(monto_deposito, 10);
-      if (Number.isNaN(monto) || monto < 0) {
+      montoDep = parseFloat(monto_deposito, 10);
+      if (Number.isNaN(montoDep) || montoDep < 0) {
         throw new Error('monto_deposito no válido');
       }
     }
+    let montoRend = undefined;
+    if (monto !== undefined && monto !== null && monto !== '') {
+      montoRend = parseFloat(monto, 10);
+      if (Number.isNaN(montoRend) || montoRend <= 0) {
+        throw new Error('monto de rendición no válido');
+      }
+    }
+    const sets = ['fecha_deposito = ?', 'monto_deposito = ?'];
+    const params = [fecha, montoDep];
+    if (montoRend !== undefined) {
+      sets.push('monto = ?');
+      params.push(montoRend);
+    }
+    params.push(id);
     const [r] = await pool.execute(
       `UPDATE rendiciones_presupuesto
-       SET fecha_deposito = ?, monto_deposito = ?
+       SET ${sets.join(', ')}
        WHERE id = ? AND estado = 'aprobado'`,
-      [fecha, monto, id]
+      params
     );
     return r.affectedRows > 0;
   }
